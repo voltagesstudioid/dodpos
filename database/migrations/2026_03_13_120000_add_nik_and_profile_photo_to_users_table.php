@@ -1,0 +1,39 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (! Schema::hasColumn('users', 'nik')) {
+                $table->string('nik', 32)->nullable()->after('name');
+            }
+            if (! Schema::hasColumn('users', 'profile_photo_path')) {
+                $table->string('profile_photo_path')->nullable()->after('fingerprint_id');
+            }
+        });
+
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'nik')) {
+                $table->unique('nik');
+            }
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'profile_photo_path')) {
+                $table->dropColumn('profile_photo_path');
+            }
+            if (Schema::hasColumn('users', 'nik')) {
+                $table->dropUnique(['nik']);
+                $table->dropColumn('nik');
+            }
+        });
+    }
+};
