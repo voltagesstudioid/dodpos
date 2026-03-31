@@ -2,6 +2,21 @@
     <x-slot name="header">Laporan Keuangan</x-slot>
 
     <div class="page-container">
+        @php $isPrint = (bool) ($isPrint ?? request()->boolean('print')); @endphp
+
+        @if($isPrint && request()->boolean('preview'))
+            @include('print.partials.preview-toolbar', ['title' => 'Laporan Keuangan'])
+        @endif
+
+        @if($isPrint)
+            <div style="margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
+                <div style="font-size:1.25rem; font-weight:900; color:#0f172a;">Laporan Keuangan</div>
+                <div style="font-size:0.8rem; color:#475569; margin-top:0.25rem;">
+                    Periode: <strong>{{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }}</strong> s/d <strong>{{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}</strong>
+                    • Dicetak: <strong>{{ now()->format('d/m/Y H:i') }}</strong>
+                </div>
+            </div>
+        @endif
 
         <!-- Page Header -->
         <div style="margin-bottom:1.5rem;">
@@ -12,21 +27,26 @@
         </div>
 
         <!-- Filter Section -->
-        <div class="card" style="padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
-            <form action="{{ route('laporan.keuangan') }}" method="GET">
-                <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
-                    <div style="display:flex; flex-direction:column; gap:0.35rem;">
-                        <label class="form-label" style="font-size:0.8rem;">📅 Dari Tanggal</label>
-                        <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input" style="width:175px;">
+        @if(! $isPrint)
+            <div class="card" style="padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
+                <form action="{{ route('laporan.keuangan') }}" method="GET">
+                    <div style="display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+                        <div style="display:flex; flex-direction:column; gap:0.35rem;">
+                            <label class="form-label" style="font-size:0.8rem;">📅 Dari Tanggal</label>
+                            <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input" style="width:175px;">
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:0.35rem;">
+                            <label class="form-label" style="font-size:0.8rem;">📅 Sampai Tanggal</label>
+                            <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input" style="width:175px;">
+                        </div>
+                        <button type="submit" class="btn-primary" style="height:38px;">🔍 Tampilkan</button>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'page' => null]) }}" class="btn-secondary" style="height:38px; display:inline-flex; align-items:center;">⬇️ CSV</a>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null]) }}" class="btn-secondary" style="height:38px; display:inline-flex; align-items:center;">⬇️ Excel</a>
+                        <a href="{{ request()->fullUrlWithQuery(['print' => 1, 'preview' => 1, 'page' => null]) }}" target="_blank" class="btn-secondary" style="height:38px; display:inline-flex; align-items:center;">🖨️ Cetak</a>
                     </div>
-                    <div style="display:flex; flex-direction:column; gap:0.35rem;">
-                        <label class="form-label" style="font-size:0.8rem;">📅 Sampai Tanggal</label>
-                        <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input" style="width:175px;">
-                    </div>
-                    <button type="submit" class="btn-primary" style="height:38px;">🔍 Tampilkan</button>
-                </div>
-            </form>
-        </div>
+                </form>
+            </div>
+        @endif
 
         @php $profitPositive = $netProfit >= 0; @endphp
         <style>
@@ -65,16 +85,17 @@
 
         </div>
 
-        <!-- Chart -->
-        <div class="card" style="padding:1.5rem; margin-bottom:1.5rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
-                <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">📊 Grafik Tren Keuangan Harian</h3>
-                <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:0.25rem 0.75rem; border-radius:99px;">{{ $dateFrom }} — {{ $dateTo }}</span>
+        @if(! $isPrint)
+            <div class="card" style="padding:1.5rem; margin-bottom:1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0;">📊 Grafik Tren Keuangan Harian</h3>
+                    <span style="font-size:0.75rem; color:#64748b; background:#f1f5f9; padding:0.25rem 0.75rem; border-radius:99px;">{{ $dateFrom }} — {{ $dateTo }}</span>
+                </div>
+                <div style="position:relative; height:320px;">
+                    <canvas id="keuanganChart"></canvas>
+                </div>
             </div>
-            <div style="position:relative; height:320px;">
-                <canvas id="keuanganChart"></canvas>
-            </div>
-        </div>
+        @endif
 
         <!-- Detail Table -->
         <div class="card">
@@ -129,14 +150,15 @@
 
     </div>
 
-    <script type="application/json" id="keuangan-chart-data">{!! json_encode($dates->values(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const ctx = document.getElementById('keuanganChart').getContext('2d');
-            const rawEl = document.getElementById('keuangan-chart-data');
-            const raw = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
-            const data = [...raw].reverse();
+    @if(! $isPrint)
+        <script type="application/json" id="keuangan-chart-data">{!! json_encode($dates->values(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const ctx = document.getElementById('keuanganChart').getContext('2d');
+                const rawEl = document.getElementById('keuangan-chart-data');
+                const raw = rawEl ? JSON.parse(rawEl.textContent || '[]') : [];
+                const data = [...raw].reverse();
 
             const labels   = data.map(d => d.date);
             const revenues = data.map(d => d.revenue);
@@ -201,6 +223,27 @@
                     }
                 }
             });
-        });
-    </script>
+            });
+        </script>
+    @endif
+
+    <style>
+        @page { size: A4; margin: 12mm; }
+        @media print {
+            .sidebar, .sidebar-overlay, .topbar { display: none !important; }
+            .page-content, .page-container { padding: 0 !important; margin: 0 !important; }
+            body { background: #fff !important; }
+            form, button { display: none !important; }
+            .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+            a { color: #000 !important; text-decoration: none !important; }
+        }
+    </style>
+
+    @if($isPrint && ! request()->boolean('preview'))
+        <script>
+            window.addEventListener('load', function () {
+                window.print();
+            });
+        </script>
+    @endif
 </x-app-layout>

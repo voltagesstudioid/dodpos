@@ -25,17 +25,84 @@ class SupplierDebtController extends Controller
         if ($request->supplier_id) {
             $query->where('supplier_id', $request->supplier_id);
         }
+        // Filter periode
+        if ($request->date_from) {
+            $query->whereDate('transaction_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('transaction_date', '<=', $request->date_to);
+        }
 
         $debts     = $query->paginate(15)->withQueryString();
         $suppliers = Supplier::orderBy('name')->get();
 
-        // Summary stats
-        $totalUnpaid  = SupplierDebt::where('status', '!=', 'paid')->sum(DB::raw('total_amount - paid_amount'));
-        $totalOverdue  = SupplierDebt::where('status', '!=', 'paid')
-            ->where('due_date', '<', now())->sum(DB::raw('total_amount - paid_amount'));
-        $countUnpaid  = SupplierDebt::whereIn('status', ['unpaid', 'partial'])->count();
+        // Summary stats dengan filter periode
+        $statsQuery = SupplierDebt::query();
+        if ($request->date_from) {
+            $statsQuery->whereDate('transaction_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $statsQuery->whereDate('transaction_date', '<=', $request->date_to);
+        }
 
-        return view('pembelian.hutang.index', compact('debts', 'suppliers', 'totalUnpaid', 'totalOverdue', 'countUnpaid'));
+        $totalUnpaid  = (clone $statsQuery)->where('status', '!=', 'paid')->sum(DB::raw('total_amount - paid_amount'));
+        $totalOverdue  = (clone $statsQuery)->where('status', '!=', 'paid')
+            ->where('due_date', '<', now())->sum(DB::raw('total_amount - paid_amount'));
+        $countUnpaid  = (clone $statsQuery)->whereIn('status', ['unpaid', 'partial'])->count();
+        $countOverdue = (clone $statsQuery)->where('status', '!=', 'paid')->where('due_date', '<', now())->count();
+        $totalPaid    = (clone $statsQuery)->where('status', 'paid')->sum('total_amount');
+
+        // Export Excel jika diminta
+        if ($request->export === 'excel') {
+            return $this->exportExcel($debts, $totalUnpaid, $totalOverdue, $countUnpaid, $countOverdue, $totalPaid);
+        }
+
+        return view('pembelian.hutang.index', compact('debts', 'suppliers', 'totalUnpaid', 'totalOverdue', 'countUnpaid', 'countOverdue', 'totalPaid'));
+    }
+
+    /**
+     * Export Hutang to Excel (CSV)
+     */
+    private function exportExcel($debts, $totalUnpaid, $totalOverdue, $countUnpaid, $countOverdue, $totalPaid)
+    {
+        $filename = 'hutang-supplier-' . now()->format('Ymd-His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($debts, $totalUnpaid, $totalOverdue, $countUnpaid, $countOverdue, $totalPaid) {
+            $output = fopen('php://output', 'w');
+            
+            // Header CSV
+            fputcsv($output, ['No. Invoice', 'Supplier', 'Tgl Transaksi', 'Jatuh Tempo', 'Total', 'Terbayar', 'Sisa', 'Status']);
+            
+            foreach ($debts as $debt) {
+                fputcsv($output, [
+                    $debt->invoice_number,
+                    $debt->supplier->name ?? '-',
+                    $debt->transaction_date->format('d/m/Y'),
+                    $debt->due_date?->format('d/m/Y') ?? '-',
+                    $debt->total_amount,
+                    $debt->paid_amount,
+                    $debt->remaining_amount,
+                    $debt->status,
+                ]);
+            }
+            
+            // Summary
+            fputcsv($output, []);
+            fputcsv($output, ['Ringkasan', '', '', '', '', '', '', '']);
+            fputcsv($output, ['Total Hutang Tersisa', $totalUnpaid, '', '', '', '', '', '']);
+            fputcsv($output, ['Jatuh Tempo', $totalOverdue, '(' . $countOverdue . ' transaksi)', '', '', '', '', '']);
+            fputcsv($output, ['Sudah Dibayar', $totalPaid, '', '', '', '', '', '']);
+            fputcsv($output, ['Transaksi Belum Lunas', $countUnpaid, '', '', '', '', '', '']);
+            
+            fclose($output);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     public function create()

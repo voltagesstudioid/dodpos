@@ -23,7 +23,9 @@ class StoreProductRequestRequest extends FormRequest
     {
         return [
             'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0.01',
+            'unit_id' => 'nullable|exists:units,id',
+            'conversion_factor' => 'nullable|numeric|min:1',
             'type' => 'required|in:po,transfer',
             'to_warehouse_id' => 'nullable|exists:warehouses,id',
             'notes' => 'nullable|string|max:1000',

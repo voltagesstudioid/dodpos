@@ -9,6 +9,8 @@ use App\Models\Warehouse;
 use App\Models\Location;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
+use App\Models\Unit;
+use App\Models\ProductUnitConversion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -50,7 +52,7 @@ class OutboundController extends Controller
     public function create()
     {
         // Hanya tampilkan produk yang punya stok > 0 secara global atau spesifik
-        $products = Product::where('stock', '>', 0)->orderBy('name')->get();
+        $products = Product::with(['unit', 'unitConversions.unit'])->where('stock', '>', 0)->orderBy('name')->get();
         $warehouses = Warehouse::where('active', true)->orderBy('name')->get();
         // Option locations: bisa di fetch AJAX berdasarkan stok yang available di gudang yang dipilih.
         $locations = Location::orderBy('name')->get();
@@ -63,6 +65,7 @@ class OutboundController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'warehouse_id' => 'required|exists:warehouses,id',
+            'unit_id' => 'nullable|exists:units,id',
             'reference_number' => 'nullable|string|max:100',
             'quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string'
@@ -73,8 +76,25 @@ class OutboundController extends Controller
 
             $productId = $request->product_id;
             $warehouseId = $request->warehouse_id;
-            $qty = $request->quantity;
+            $unitId = $request->unit_id;
+            $quantityInUnit = (float) $request->quantity;
             $reference = $request->reference_number ?: $this->generateRef('OUT');
+
+            // Get product with unit conversions
+            $product = Product::with(['unit', 'unitConversions.unit'])->findOrFail($productId);
+
+            // Calculate base quantity from unit conversion
+            $conversionFactor = 1;
+            if ($unitId) {
+                $baseUnitId = $product->unit_id;
+                if ((int) $unitId !== (int) $baseUnitId) {
+                    $uc = $product->unitConversions->firstWhere('unit_id', $unitId);
+                    if ($uc) {
+                        $conversionFactor = (float) $uc->conversion_factor;
+                    }
+                }
+            }
+            $baseQty = (int) round($quantityInUnit * $conversionFactor);
 
             // 1. Cek ketersediaan stok di product_stocks
             // Asumsi: jika location tidak di set, kita cari stok di warehouse tersebut saja.
@@ -94,12 +114,12 @@ class OutboundController extends Controller
             
             $totalAvailable = $availableStocks->sum('stock');
 
-            if ($totalAvailable < $qty) {
-                return back()->withInput()->with('error', "Stok tidak mencukupi di gudang/lokasi terpilih. Stok tersedia: $totalAvailable");
+            if ($totalAvailable < $baseQty) {
+                return back()->withInput()->with('error', "Stok tidak mencukupi di gudang/lokasi terpilih. Stok tersedia: $totalAvailable (satuan dasar), dibutuhkan: $baseQty");
             }
 
             // 2. Kurangi stok (bisa memakan beberapa batch jika FIFO)
-            $qtyRemaining = $qty;
+            $qtyRemaining = $baseQty;
             foreach($availableStocks as $stockRecord) {
                 if ($qtyRemaining <= 0) break;
                 
@@ -111,6 +131,9 @@ class OutboundController extends Controller
                 $qtyRemaining -= $deduct;
 
                 // 3. Catat pergerakan stok (Stock Movement) utk masing-masing record
+                $unitName = $unitId ? Unit::find($unitId)?->name : ($product->unit?->name ?? 'satuan dasar');
+                $notesWithUnit = "[Pengeluaran] Input: {$quantityInUnit} {$unitName} (= {$baseQty} satuan dasar). " . ($request->notes ?? '');
+
                 StockMovement::create([
                     'product_id' => $productId,
                     'warehouse_id' => $stockRecord->warehouse_id,
@@ -120,20 +143,22 @@ class OutboundController extends Controller
                     'batch_number' => $stockRecord->batch_number,
                     'expired_date' => $stockRecord->expired_date,
                     'quantity' => $deduct,
+                    'unit_id' => $unitId,
+                    'conversion_factor' => $conversionFactor,
+                    'quantity_in_unit' => $quantityInUnit,
                     'balance' => $stockRecord->stock,
-                    'notes' => $request->notes,
+                    'notes' => $notesWithUnit,
                     'user_id' => Auth::id(),
                 ]);
             }
 
             // 4. Update total stok (global) di tabel products
-            $product = Product::findOrFail($productId);
-            $product->stock -= $qty;
+            $product->stock -= $baseQty;
             $product->save();
 
             DB::commit();
 
-            return redirect()->route('gudang.pengeluaran')->with('success', 'Barang berhasil dikeluarkan dan catatan stok termutakhirkan.');
+            return redirect()->route('gudang.pengeluaran')->with('success', "Barang berhasil dikeluarkan. Stok berkurang {$baseQty} satuan dasar (Input: {$quantityInUnit} {$unitName}).");
 
         } catch (\Exception $e) {
             DB::rollBack();

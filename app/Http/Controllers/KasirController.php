@@ -357,11 +357,11 @@ class KasirController extends Controller
         return back()->with('success', 'Cash '.($request->type === 'in' ? 'In' : 'Out').' berhasil dicatat.');
     }
 
-    /**
-     * Alias untuk store — dipanggil dari route kasir.transaksi.store
-     */
     public function storeTransaksi(Request $request)
     {
-        return $this->store($request);
+        return response()->json([
+            'success' => false,
+            'message' => 'Endpoint lama dinonaktifkan. Gunakan /kasir/eceran atau /kasir/grosir.',
+        ], 410);
     }
 }

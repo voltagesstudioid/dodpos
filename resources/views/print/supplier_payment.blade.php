@@ -27,7 +27,7 @@
         @media print { body { background: #fff; } .container { margin: 0; padding: 15px; box-shadow: none; width: 100%; min-height: auto; border: 1px solid #000; } .no-print { display: none; } }
     </style>
 </head>
-<body onload="window.print();">
+<body @if(! request()->boolean('preview')) onload="window.print();" @endif>
     <div class="container">
         <div class="no-print" style="position: absolute; top: -50px; right: 0;">
             <button onclick="window.print();" style="padding: 10px 20px; font-size: 14px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">🖨️ Cetak</button>

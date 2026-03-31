@@ -29,12 +29,18 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
         $request->session()->regenerateToken();
 
-        $role = (string) ($request->user()->role ?? '');
-        if (in_array($role, ['pasgar', 'sales_kanvas', 'sales_minyak', 'sales_mineral', 'sales_gula'], true)) {
-            return redirect()->intended(route('mobile.pos', absolute: false));
+        // Redirect based on role
+        $user = Auth::user();
+        $userRole = strtolower(trim((string) $user->role));
+        
+        // Check if user has sales role (support: 'sales', 'sales_minyak', 'sales minyak', etc)
+        $isSales = $userRole === 'sales' || str_starts_with($userRole, 'sales_') || str_starts_with($userRole, 'sales ');
+        
+        if ($isSales) {
+            return redirect()->route('sales.dashboard');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('dashboard');
     }
 
     /**

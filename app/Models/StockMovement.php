@@ -31,9 +31,18 @@ class StockMovement extends Model
         'batch_number',
         'expired_date',
         'quantity',
+        'unit_id',
+        'conversion_factor',
+        'quantity_in_unit',
         'balance',
         'notes',
         'user_id',
+    ];
+
+    protected $casts = [
+        'conversion_factor' => 'decimal:4',
+        'quantity_in_unit' => 'decimal:4',
+        'expired_date' => 'date',
     ];
 
     public function product()
@@ -54,5 +63,10 @@ class StockMovement extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 }

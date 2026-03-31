@@ -94,10 +94,19 @@
                     <div class="form-row">
                         <div class="form-group" style="margin:0;">
                             <label class="form-label">Produk <span class="required">*</span></label>
-                            <select name="product_id" class="form-input @error('product_id') input-error @enderror" required>
+                            <select name="product_id" id="product_id" class="form-input @error('product_id') input-error @enderror" required onchange="updateUnitOptions()">
                                 <option value="">-- Pilih Produk --</option>
                                 @foreach($products as $p)
-                                    <option value="{{ $p->id }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
+                                    @php
+                                        $units = $p->unitConversions->map(function($uc) {
+                                            return ['id' => $uc->unit_id, 'name' => $uc->unit ? $uc->unit->name : null, 'factor' => $uc->conversion_factor, 'is_base' => $uc->is_base_unit];
+                                        });
+                                        if ($p->unit) {
+                                            $units->prepend(['id' => $p->unit_id, 'name' => $p->unit->name, 'factor' => 1, 'is_base' => true]);
+                                        }
+                                        $unitsData = $units->filter()->values()->all();
+                                    @endphp
+                                    <option value="{{ $p->id }}" data-units="{{ json_encode($unitsData) }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
                                         {{ $p->name }} ({{ $p->sku }})
                                     </option>
                                 @endforeach
@@ -105,21 +114,32 @@
                             @error('product_id') <div class="form-error">{{ $message }}</div> @enderror
                         </div>
                         <div class="form-group" style="margin:0;">
+                            <label class="form-label">Satuan <span class="required">*</span></label>
+                            <select name="unit_id" id="unit_id" class="form-input @error('unit_id') input-error @enderror" required onchange="updateBaseQtyHint()">
+                                <option value="">-- Pilih Satuan --</option>
+                            </select>
+                            <input type="hidden" name="conversion_factor" id="conversion_factor" value="1">
+                            @error('unit_id') <div class="form-error">{{ $message }}</div> @enderror
+                            <div id="base-qty-hint" style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;"></div>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top:1rem;">
+                        <div class="form-group" style="margin:0;">
                             <label class="form-label">Jumlah Diterima (Qty) <span class="required">*</span></label>
                             <input
                                 type="number"
                                 name="quantity"
+                                id="quantity"
                                 value="{{ old('quantity') }}"
                                 min="1"
                                 class="form-input @error('quantity') input-error @enderror"
                                 required
                                 placeholder="contoh: 50"
+                                oninput="updateBaseQtyHint()"
                             >
                             @error('quantity') <div class="form-error">{{ $message }}</div> @enderror
                         </div>
-                    </div>
-                    <div class="form-row" style="margin-top:1rem;">
-                        <div class="form-group" style="margin:0; grid-column: span 2;">
+                        <div class="form-group" style="margin:0;">
                             <label class="form-label">Gudang Tujuan <span class="required">*</span></label>
                             <select name="warehouse_id" class="form-input @error('warehouse_id') input-error @enderror" required>
                                 <option value="">-- Pilih Gudang --</option>
@@ -174,4 +194,82 @@
             </div>
         </form>
     </div>
+
+    <script>
+        let currentUnits = [];
+
+        function updateUnitOptions() {
+            const productSelect = document.getElementById('product_id');
+            const unitSelect = document.getElementById('unit_id');
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+            unitSelect.innerHTML = '<option value="">-- Pilih Satuan --</option>';
+            currentUnits = [];
+
+            if (!selectedOption.value) {
+                updateBaseQtyHint();
+                return;
+            }
+
+            try {
+                const unitsData = selectedOption.getAttribute('data-units');
+                if (unitsData) {
+                    currentUnits = JSON.parse(unitsData).filter(u => u !== null);
+                }
+            } catch (e) {
+                console.error('Error parsing units:', e);
+            }
+
+            // Add base unit first
+            const baseUnit = currentUnits.find(u => u.is_base) || currentUnits[0];
+            if (baseUnit) {
+                const option = document.createElement('option');
+                option.value = baseUnit.id;
+                option.text = baseUnit.name + ' (base)';
+                option.setAttribute('data-factor', baseUnit.factor);
+                unitSelect.appendChild(option);
+
+                // Add other units
+                currentUnits.filter(u => !u.is_base).forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.text = u.name + ' (x' + u.factor + ')';
+                    opt.setAttribute('data-factor', u.factor);
+                    unitSelect.appendChild(opt);
+                });
+
+                // Select base unit by default
+                unitSelect.value = baseUnit.id;
+                document.getElementById('conversion_factor').value = baseUnit.factor;
+            }
+
+            updateBaseQtyHint();
+        }
+
+        function updateBaseQtyHint() {
+            const unitSelect = document.getElementById('unit_id');
+            const quantityInput = document.getElementById('quantity');
+            const conversionFactorInput = document.getElementById('conversion_factor');
+            const hintDiv = document.getElementById('base-qty-hint');
+
+            const selectedOption = unitSelect.options[unitSelect.selectedIndex];
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const factor = parseFloat(selectedOption?.getAttribute('data-factor')) || 1;
+
+            conversionFactorInput.value = factor;
+
+            if (quantity > 0 && factor > 0) {
+                const baseQty = Math.round(quantity * factor);
+                const unitName = selectedOption?.text?.split(' (')[0] || 'satuan';
+                hintDiv.innerHTML = `<strong>${quantity} ${unitName}</strong> = <strong>${baseQty} satuan dasar</strong>`;
+            } else {
+                hintDiv.textContent = '';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateUnitOptions();
+        });
+    </script>
 </x-app-layout>

@@ -96,7 +96,7 @@
         }
     </style>
 </head>
-<body onload="window.print();">
+<body @if(! request()->boolean('preview')) onload="window.print();" @endif>
     @php
         $storeName = $storeSetting->store_name ?? 'DODPOS';
         $storeAddr = $storeSetting->address ?? '';

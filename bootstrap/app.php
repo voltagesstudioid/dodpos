@@ -18,10 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
             'active' => \App\Http\Middleware\EnsureUserIsActive::class,
+            'detect.mobile.sales' => \App\Http\Middleware\DetectMobileSales::class,
         ]);
 
         $middleware->appendToGroup('web', \App\Http\Middleware\ShareStockMasking::class);
         $middleware->appendToGroup('web', \App\Http\Middleware\LogWebActivity::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\SecurityHeadersMiddleware::class);
 
         // API rate limiting
         $middleware->throttleApi();

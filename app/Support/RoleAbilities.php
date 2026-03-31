@@ -21,7 +21,7 @@ class RoleAbilities
             return false;
         }
 
-        if (str_contains($ability, 'hutang') || str_contains($ability, 'piutang') || $ability === 'view_pasgar_penagihan') {
+        if (str_contains($ability, 'hutang') || str_contains($ability, 'piutang')) {
             return false;
         }
 
@@ -140,31 +140,6 @@ class RoleAbilities
                 'view_pengeluaran_barang',
                 'view_laporan_stok',
             ], true);
-        }
-
-        if ($role === 'pasgar') {
-            if (str_starts_with($ability, 'view_pasgar_') || str_starts_with($ability, 'create_pasgar_') || str_starts_with($ability, 'edit_pasgar_') || str_starts_with($ability, 'delete_pasgar_')) {
-                return true;
-            }
-
-            return false;
-        }
-
-        if (str_starts_with($role, 'sales_')) {
-            if ($role === 'sales_kanvas') {
-                return str_starts_with($ability, 'view_kanvas_') || str_starts_with($ability, 'create_kanvas_') || str_starts_with($ability, 'edit_kanvas_') || str_starts_with($ability, 'delete_kanvas_');
-            }
-            if ($role === 'sales_gula') {
-                return str_starts_with($ability, 'view_gula_') || str_starts_with($ability, 'create_gula_') || str_starts_with($ability, 'edit_gula_') || str_starts_with($ability, 'delete_gula_');
-            }
-            if ($role === 'sales_mineral') {
-                return str_starts_with($ability, 'view_mineral_') || str_starts_with($ability, 'create_mineral_') || str_starts_with($ability, 'edit_mineral_') || str_starts_with($ability, 'delete_mineral_');
-            }
-            if ($role === 'sales_minyak') {
-                return str_starts_with($ability, 'view_minyak_') || str_starts_with($ability, 'create_minyak_') || str_starts_with($ability, 'edit_minyak_') || str_starts_with($ability, 'delete_minyak_');
-            }
-
-            return false;
         }
 
         return false;

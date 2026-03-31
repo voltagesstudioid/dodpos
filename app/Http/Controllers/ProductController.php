@@ -6,6 +6,9 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductUnitConversion;
 use App\Models\Unit;
+use App\Services\AuditService;
+use App\Services\ReferenceNumberService;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -17,10 +20,11 @@ class ProductController extends Controller
         $query = Product::with(['category', 'unit', 'unitConversions.unit']);
 
         if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%'.$request->search.'%')
-                    ->orWhere('sku', 'like', '%'.$request->search.'%')
-                    ->orWhere('barcode', 'like', '%'.$request->search.'%');
+            $sanitizedSearch = SearchSanitizer::sanitize($request->search);
+            $query->where(function ($q) use ($sanitizedSearch) {
+                $q->where('name', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('sku', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('barcode', 'like', "%{$sanitizedSearch}%");
             });
         }
         if ($request->category_id) {
@@ -33,15 +37,13 @@ class ProductController extends Controller
         return view('products.index', compact('products', 'categories'));
     }
 
+    /**
+     * Generate next SKU for product.
+     * @deprecated Use ReferenceNumberService::generateSku()
+     */
     private function generateSku(): string
     {
-        $lastProduct = Product::where('sku', 'like', 'PRD-%')->orderBy('id', 'desc')->first();
-        if (! $lastProduct) {
-            return 'PRD-0001';
-        }
-        $number = (int) str_replace('PRD-', '', $lastProduct->sku);
-
-        return 'PRD-'.str_pad($number + 1, 4, '0', STR_PAD_LEFT);
+        return ReferenceNumberService::generateSku();
     }
 
     public function create()
@@ -104,6 +106,12 @@ class ProductController extends Controller
             }
 
             DB::commit();
+
+            AuditService::log('product.create', 'Product', $product->id, [
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'price' => $product->price,
+            ]);
 
             return redirect()->route('products.index')->with('success', 'Produk berhasil ditambahkan.');
 
@@ -192,6 +200,12 @@ class ProductController extends Controller
 
             DB::commit();
 
+            AuditService::log('product.update', 'Product', $product->id, [
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'changes' => $product->getChanges(),
+            ]);
+
             return redirect()->route('products.index')->with('success', 'Produk berhasil diperbarui.');
 
         } catch (\Exception $e) {
@@ -203,7 +217,15 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        $productData = [
+            'id' => $product->id,
+            'sku' => $product->sku,
+            'name' => $product->name,
+        ];
+
         $product->delete();
+
+        AuditService::log('product.delete', 'Product', $productData['id'], $productData);
 
         return redirect()->route('products.index')->with('success', 'Produk berhasil dihapus.');
     }
@@ -235,12 +257,39 @@ class ProductController extends Controller
     public function importProcess(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:20480',
+            'file' => 'required|file|mimes:csv,txt,xlsx|max:20480',
             'mode' => 'nullable|in:create_only,upsert_by_sku',
         ]);
 
         $mode = $request->input('mode', 'upsert_by_sku');
-        $file = $request->file('file')->getRealPath();
+        $uploadedFile = $request->file('file');
+        
+        // Validate actual MIME type matches extension
+        $mimeType = $uploadedFile->getMimeType();
+        $ext = mb_strtolower((string) $uploadedFile->getClientOriginalExtension());
+        
+        $allowedMimeMap = [
+            'csv' => ['text/csv', 'text/plain', 'application/csv'],
+            'txt' => ['text/plain'],
+            'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        ];
+        
+        if (! isset($allowedMimeMap[$ext]) || ! in_array($mimeType, $allowedMimeMap[$ext], true)) {
+            return back()->with('error', 'Tipe file tidak sesuai dengan ekstensi. Pastikan file valid.');
+        }
+        
+        // Store file temporarily with secure filename
+        try {
+            $tempUpload = FileUploadService::uploadDocument(
+                $uploadedFile,
+                'temp/imports',
+                'private',
+                $allowedMimeMap
+            );
+            $file = Storage::disk('private')->path($tempUpload['path']);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mengunggah file: ' . $e->getMessage());
+        }
 
         $created = 0;
         $updated = 0;
@@ -252,30 +301,43 @@ class ProductController extends Controller
             return back()->with('error', 'File tidak bisa dibaca.');
         }
 
-        $handle = fopen($file, 'r');
-        if ($handle === false) {
-            return back()->with('error', 'Gagal membuka file untuk diproses.');
-        }
+        $delimiter = null;
+        $handle = null;
+        $header = [];
+        $xlsxRows = null;
 
-        $firstLine = '';
-        while (($line = fgets($handle)) !== false) {
-            $firstLine = trim($line);
-            if ($firstLine !== '') {
-                break;
+        if ($ext === 'xlsx') {
+            try {
+                [$header, $xlsxRows] = $this->readXlsxRows($file);
+            } catch (\Throwable $e) {
+                return back()->with('error', $e->getMessage());
             }
-        }
-        rewind($handle);
+        } else {
+            $handle = fopen($file, 'r');
+            if ($handle === false) {
+                return back()->with('error', 'Gagal membuka file untuk diproses.');
+            }
 
-        $delimiter = $this->detectCsvDelimiter($firstLine);
-        $header = fgetcsv($handle, 0, $delimiter);
-        if (! $header) {
-            fclose($handle);
+            $firstLine = '';
+            while (($line = fgets($handle)) !== false) {
+                $firstLine = trim($line);
+                if ($firstLine !== '') {
+                    break;
+                }
+            }
+            rewind($handle);
 
-            return back()->with('error', 'Header CSV tidak ditemukan.');
-        }
+            $delimiter = $this->detectCsvDelimiter($firstLine);
+            $header = fgetcsv($handle, 0, $delimiter);
+            if (! $header) {
+                fclose($handle);
 
-        if (isset($header[0])) {
-            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
+                return back()->with('error', 'Header CSV tidak ditemukan.');
+            }
+
+            if (isset($header[0])) {
+                $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
+            }
         }
 
         $aliasToCanonical = $this->csvHeaderAliases();
@@ -298,7 +360,23 @@ class ProductController extends Controller
         DB::beginTransaction();
         try {
             $lineNumber = 1;
-            while (($row = fgetcsv($handle)) !== false) {
+            $nextRow = function () use (&$xlsxRows, $handle, $delimiter): array|false {
+                if (is_array($xlsxRows)) {
+                    if ($xlsxRows === []) {
+                        return false;
+                    }
+
+                    return array_shift($xlsxRows);
+                }
+
+                if (! is_resource($handle)) {
+                    return false;
+                }
+
+                return fgetcsv($handle, 0, (string) $delimiter);
+            };
+
+            while (($row = $nextRow()) !== false) {
                 $lineNumber++;
                 try {
                     $get = function (string $key, string $default = '') use ($map, $row): string {
@@ -425,12 +503,21 @@ class ProductController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            fclose($handle);
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
 
             return back()->with('error', 'Gagal mengimpor: '.$e->getMessage());
         }
 
-        fclose($handle);
+        if (is_resource($handle)) {
+            fclose($handle);
+        }
+
+        // Clean up temporary file
+        if (isset($tempUpload['path'])) {
+            FileUploadService::delete($tempUpload['path'], 'private');
+        }
 
         $summary = ['created' => $created, 'updated' => $updated, 'skipped' => $skipped, 'errors' => $errors];
         if ($errors > 0) {
@@ -494,6 +581,160 @@ class ProductController extends Controller
         return $map;
     }
 
+    private function readXlsxRows(string $filePath): array
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            throw new \RuntimeException('Import XLSX membutuhkan ekstensi PHP Zip (ZipArchive). Aktifkan extension=zip pada PHP, lalu coba lagi.');
+        }
+
+        $zip = new \ZipArchive;
+        $opened = $zip->open($filePath);
+        if ($opened !== true) {
+            throw new \RuntimeException('Gagal membuka file XLSX.');
+        }
+
+        $sharedStrings = [];
+        $sharedXml = $zip->getFromName('xl/sharedStrings.xml');
+        if (is_string($sharedXml) && $sharedXml !== '') {
+            $ss = @simplexml_load_string($sharedXml);
+            if ($ss) {
+                foreach ($ss->si as $si) {
+                    $text = '';
+                    if (isset($si->t)) {
+                        $text = (string) $si->t;
+                    } else {
+                        foreach ($si->r as $r) {
+                            $text .= (string) ($r->t ?? '');
+                        }
+                    }
+                    $sharedStrings[] = $text;
+                }
+            }
+        }
+
+        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        if (! is_string($sheetXml) || $sheetXml === '') {
+            $zip->close();
+            throw new \RuntimeException('Sheet1 tidak ditemukan di file XLSX.');
+        }
+
+        $sheet = @simplexml_load_string($sheetXml);
+        if (! $sheet) {
+            $zip->close();
+            throw new \RuntimeException('Gagal membaca isi XLSX.');
+        }
+
+        $sheet->registerXPathNamespace('x', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+
+        $cells = [];
+        foreach ($sheet->xpath('//x:sheetData/x:row') as $rowNode) {
+            $rowIndex = (int) ($rowNode['r'] ?? 0);
+            foreach ($rowNode->c as $c) {
+                $ref = (string) ($c['r'] ?? '');
+                if ($ref === '') {
+                    continue;
+                }
+
+                if (! preg_match('/^([A-Z]+)(\d+)$/', $ref, $m)) {
+                    continue;
+                }
+
+                $colLetters = $m[1];
+                $colIndex = $this->xlsxColumnLettersToIndex($colLetters);
+
+                $type = (string) ($c['t'] ?? '');
+                $value = '';
+                if ($type === 's') {
+                    $idx = (int) ($c->v ?? 0);
+                    $value = (string) ($sharedStrings[$idx] ?? '');
+                } elseif ($type === 'inlineStr') {
+                    $value = (string) ($c->is->t ?? '');
+                } else {
+                    $value = isset($c->v) ? (string) $c->v : '';
+                }
+
+                $cells[$rowIndex][$colIndex] = $value;
+            }
+        }
+        $zip->close();
+
+        if ($cells === []) {
+            throw new \RuntimeException('File XLSX kosong.');
+        }
+
+        ksort($cells);
+
+        $headerRowIndex = null;
+        foreach ($cells as $r => $cols) {
+            $hasAny = false;
+            foreach ($cols as $v) {
+                if (trim((string) $v) !== '') {
+                    $hasAny = true;
+                    break;
+                }
+            }
+            if ($hasAny) {
+                $headerRowIndex = $r;
+                break;
+            }
+        }
+
+        if ($headerRowIndex === null) {
+            throw new \RuntimeException('Header XLSX tidak ditemukan.');
+        }
+
+        $maxCol = 0;
+        foreach ($cells as $cols) {
+            if ($cols === []) {
+                continue;
+            }
+            $maxCol = max($maxCol, max(array_keys($cols)));
+        }
+
+        $header = [];
+        for ($i = 1; $i <= $maxCol; $i++) {
+            $header[] = (string) ($cells[$headerRowIndex][$i] ?? '');
+        }
+
+        $rows = [];
+        foreach ($cells as $r => $cols) {
+            if ($r <= $headerRowIndex) {
+                continue;
+            }
+
+            $row = [];
+            $hasAny = false;
+            for ($i = 1; $i <= $maxCol; $i++) {
+                $val = (string) ($cols[$i] ?? '');
+                if (! $hasAny && trim($val) !== '') {
+                    $hasAny = true;
+                }
+                $row[] = $val;
+            }
+            if ($hasAny) {
+                $rows[] = $row;
+            }
+        }
+
+        if (isset($header[0])) {
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
+        }
+
+        return [$header, $rows];
+    }
+
+    private function xlsxColumnLettersToIndex(string $letters): int
+    {
+        $letters = strtoupper($letters);
+        $len = strlen($letters);
+        $n = 0;
+        for ($i = 0; $i < $len; $i++) {
+            $n = ($n * 26) + (ord($letters[$i]) - 64);
+        }
+
+        return $n;
+    }
+
     private function parseCsvNumber(string $raw): ?float
     {
         $s = trim($raw);
@@ -511,8 +752,18 @@ class ProductController extends Controller
         if ($hasDot && $hasComma) {
             $s = str_replace('.', '', $s);
             $s = str_replace(',', '.', $s);
+        } elseif ($hasDot && ! $hasComma) {
+            if (preg_match('/^-?\d{1,3}(\.\d{3})+$/', $s) === 1) {
+                $s = str_replace('.', '', $s);
+            } else {
+                $s = str_replace(',', '', $s);
+            }
         } elseif ($hasComma && ! $hasDot) {
-            $s = str_replace(',', '.', $s);
+            if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $s) === 1) {
+                $s = str_replace(',', '', $s);
+            } else {
+                $s = str_replace(',', '.', $s);
+            }
         } else {
             $s = str_replace(',', '', $s);
         }

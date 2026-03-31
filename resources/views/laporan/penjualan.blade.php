@@ -1,219 +1,256 @@
 <x-app-layout>
-    <x-slot name="header">Laporan Penjualan</x-slot>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Laporan Penjualan') }}
+        </h2>
+    </x-slot>
 
-    <div class="page-container">
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
-        {{-- ===== FILTER ROW ===== --}}
-        <div class="card" style="padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
-            <form method="GET" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label" style="font-size:0.7rem;">Dari Tanggal</label>
-                    <input type="date" name="date_from" value="{{ $dateFrom }}" class="form-input">
+            {{-- ─── HEADER CETAK (KHUSUS PRINT) ─── --}}
+            <div class="print-only-header">
+                <div class="text-center mb-4 border-b-2 border-black pb-4">
+                    <h1 class="text-2xl font-bold uppercase">{{ config('app.name', 'DODPOS') }}</h1>
+                    <p class="text-sm">Sistem Manajemen Bisnis & Gudang Grosir</p>
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label" style="font-size:0.7rem;">Sampai Tanggal</label>
-                    <input type="date" name="date_to" value="{{ $dateTo }}" class="form-input">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold uppercase underline mb-1">LAPORAN DETAIL PENJUALAN</h2>
+                    <p class="text-sm">Periode: {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} s/d {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}</p>
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label" style="font-size:0.7rem;">Metode Bayar</label>
-                    <select name="payment_method" class="form-input" style="min-width:150px;">
-                        <option value="">Semua Metode</option>
-                        <option value="cash" @selected(request('payment_method')=='cash')>Tunai</option>
-                        <option value="transfer" @selected(request('payment_method')=='transfer')>Transfer</option>
-                        <option value="qris" @selected(request('payment_method')=='qris')>QRIS</option>
-                        <option value="debit" @selected(request('payment_method')=='debit')>Kartu Debit</option>
-                    </select>
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label class="form-label" style="font-size:0.7rem;">Kasir</label>
-                    <select name="kasir_id" class="form-input" style="min-width:160px;">
-                        <option value="">Semua Kasir</option>
-                        @foreach($kasirs as $k)
-                            <option value="{{ $k->id }}" @selected(request('kasir_id') == $k->id)>{{ $k->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="submit" class="btn-primary">🔍 Tampilkan</button>
-                <a href="{{ route('laporan.penjualan') }}" class="btn-secondary">Reset</a>
-                <button type="button" onclick="window.print()" class="btn-secondary">🖨️ Print</button>
-            </form>
-        </div>
-
-        {{-- ===== SUMMARY CARDS ===== --}}
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem;">
-            <div class="card" style="padding:1.25rem;">
-                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;margin-bottom:0.5rem;">Total Transaksi</div>
-                <div style="font-size:1.75rem;font-weight:800;color:#1e293b;">{{ number_format($totalTrx) }}</div>
-                <div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">{{ \Carbon\Carbon::parse($dateFrom)->format('d M') }} – {{ \Carbon\Carbon::parse($dateTo)->format('d M Y') }}</div>
             </div>
-            <div class="card" style="padding:1.25rem;">
-                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;margin-bottom:0.5rem;">Total Omzet</div>
-                <div style="font-size:1.35rem;font-weight:800;color:#10b981;">Rp {{ number_format($totalOmzet, 0, ',', '.') }}</div>
-                <div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">Pendapatan kotor</div>
-            </div>
-            <div class="card" style="padding:1.25rem;">
-                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;margin-bottom:0.5rem;">Rata-rata / Transaksi</div>
-                <div style="font-size:1.35rem;font-weight:800;color:#4f46e5;">Rp {{ number_format($avgPerTrx, 0, ',', '.') }}</div>
-                <div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">Nilai belanja rata-rata</div>
-            </div>
-            <div class="card" style="padding:1.25rem;">
-                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;font-weight:700;margin-bottom:0.5rem;">Total Item Terjual</div>
-                <div style="font-size:1.75rem;font-weight:800;color:#f59e0b;">{{ number_format($totalItems) }}</div>
-                <div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">Pcs / unit</div>
-            </div>
-        </div>
 
-        {{-- ===== DAILY CHART ===== --}}
-        @if($dailyData->isNotEmpty())
-        <div class="card" style="padding:1.5rem; margin-bottom:1.5rem;">
-            <div style="font-weight:700;color:#1e293b;margin-bottom:1.25rem;font-size:0.875rem;">📈 Grafik Penjualan Harian</div>
-            @php
-                $maxDaily = $dailyData->max('total') ?: 1;
-            @endphp
-            <div style="display:flex; align-items:flex-end; gap:4px; height:120px; overflow-x:auto;">
-                @foreach($dailyData as $date => $day)
-                @php $h = max(4, ($day->total / $maxDaily) * 100); @endphp
-                <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px;" title="{{ $date }}: Rp {{ number_format($day->total, 0, ',', '.') }} ({{ $day->count }} trx)">
-                    <div style="font-size:0.5rem;color:#64748b;">{{ $day->count }}</div>
-                    <div style="width:22px;height:{{ $h }}px;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:4px 4px 0 0;cursor:default;"
-                         title="Rp {{ number_format($day->total, 0, ',', '.') }}"></div>
-                    <div style="font-size:0.5rem;color:#94a3b8;white-space:nowrap;\">{{ \Carbon\Carbon::parse($date)->format('d/m') }}</div>
+            {{-- ─── HEADER HALAMAN & TOMBOL CETAK ─── --}}
+            <div class="flex justify-between items-center mb-6 no-print">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-800">Ringkasan Penjualan</h3>
+                    <p class="text-sm text-gray-500">Menampilkan data penjualan berdasarkan periode filter.</p>
                 </div>
-                @endforeach
-            </div>
-        </div>
-        @endif
-
-        <div style="display:grid; grid-template-columns:1fr 300px; gap:1.5rem; align-items:start;">
-
-            {{-- ===== MAIN TRANSACTION TABLE ===== --}}
-            <div class="card">
-                <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:700;color:#1e293b;">🧾 Riwayat Transaksi</div>
-                    <div style="font-size:0.8rem;color:#64748b;">{{ $transactions->count() }} transaksi</div>
+                <div class="flex gap-2">
+                    <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null]) }}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded shadow text-sm">
+                        Export Excel
+                    </a>
+                    <button type="button" onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow text-sm">
+                        Cetak Laporan
+                    </button>
                 </div>
-                <div class="table-wrapper">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Tanggal & Waktu</th>
-                                <th>Kasir</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Bayar</th>
-                                <th>Kembalian</th>
-                                <th>Metode</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($transactions as $i => $trx)
-                            <tr>
-                                <td class="text-muted">{{ $i + 1 }}</td>
-                                <td>
-                                    <div style="font-weight:600;">{{ $trx->created_at->format('d/m/Y') }}</div>
-                                    <div style="font-size:0.75rem;color:#94a3b8;">{{ $trx->created_at->format('H:i') }}</div>
-                                </td>
-                                <td>{{ $trx->user ? $trx->user->name : '-' }}</td>
-                                <td class="text-muted">{{ $trx->details->count() }} item</td>
-                                <td style="font-weight:700;">Rp {{ number_format($trx->total_amount, 0, ',', '.') }}</td>
-                                <td>Rp {{ number_format($trx->paid_amount, 0, ',', '.') }}</td>
-                                <td style="color:#10b981;">Rp {{ number_format($trx->change_amount, 0, ',', '.') }}</td>
-                                <td>
-                                    <span style="background:#e0e7ff;color:#4338ca;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.7rem;font-weight:600;">
-                                        {{ ucfirst($trx->payment_method) }}
-                                    </span>
-                                </td>
-                            </tr>
+            </div>
+
+            {{-- ─── FILTER DATA ─── --}}
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6 no-print">
+                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                    <form method="GET" class="flex flex-wrap gap-4 items-end">
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Periode Awal</label>
+                            <input type="date" name="date_from" value="{{ $dateFrom }}" class="w-full rounded border-gray-300 text-sm">
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Periode Akhir</label>
+                            <input type="date" name="date_to" value="{{ $dateTo }}" class="w-full rounded border-gray-300 text-sm">
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Metode</label>
+                            <select name="payment_method" class="w-full rounded border-gray-300 text-sm">
+                                <option value="">Semua</option>
+                                <option value="cash" @selected(request('payment_method') == 'cash')>Tunai</option>
+                                <option value="transfer" @selected(request('payment_method') == 'transfer')>Transfer</option>
+                                <option value="qris" @selected(request('payment_method') == 'qris')>QRIS</option>
+                                <option value="debit" @selected(request('payment_method') == 'debit')>Debit</option>
+                            </select>
+                        </div>
+                        <div class="flex-1 min-w-[150px]">
+                            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Kasir</label>
+                            <select name="kasir_id" class="w-full rounded border-gray-300 text-sm">
+                                <option value="">Semua Kasir</option>
+                                @foreach($kasirs as $k)
+                                    <option value="{{ $k->id }}" @selected(request('kasir_id') == $k->id)>{{ $k->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded text-sm font-bold shadow hover:bg-black">
+                                Filter
+                            </button>
+                            <a href="{{ route('laporan.penjualan') }}" class="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded text-sm font-bold shadow-sm hover:bg-gray-50">
+                                Reset
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {{-- ─── KPI / INFO SINGKAT ─── --}}
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 no-print">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-1">Total Transaksi</p>
+                    <h3 class="text-2xl font-black text-gray-800">{{ number_format($totalTrx) }} <span class="text-sm font-normal text-gray-500">Nota</span></h3>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-green-500">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-1">Total Omzet</p>
+                    <h3 class="text-2xl font-black text-green-600">Rp {{ number_format($totalOmzet, 0, ',', '.') }}</h3>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-1">Rata-rata Penjualan</p>
+                    <h3 class="text-2xl font-black text-blue-600">Rp {{ number_format($avgPerTrx, 0, ',', '.') }}</h3>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                    <p class="text-xs font-bold text-gray-500 uppercase mb-1">Total Item Terjual</p>
+                    <h3 class="text-2xl font-black text-gray-800">{{ number_format($totalItems) }} <span class="text-sm font-normal text-gray-500">Pcs</span></h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {{-- ─── TABEL TRANSAKSI (KIRI) ─── --}}
+                <div class="lg:col-span-2">
+                    <div class="bg-white shadow-sm sm:rounded-lg overflow-hidden border border-gray-200 print-table-wrapper">
+                        <div class="p-4 border-b border-gray-200 bg-gray-50 no-print">
+                            <h4 class="font-bold text-gray-800">Daftar Transaksi</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm print-table">
+                                <thead class="bg-gray-100 text-gray-600 uppercase text-xs font-bold">
+                                    <tr>
+                                        <th class="p-3 border-b text-center w-12">#</th>
+                                        <th class="p-3 border-b">Tanggal/Waktu</th>
+                                        <th class="p-3 border-b">Kasir</th>
+                                        <th class="p-3 border-b text-center">Item</th>
+                                        <th class="p-3 border-b text-center">Metode</th>
+                                        <th class="p-3 border-b text-right">Total (Rp)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($transactions as $i => $trx)
+                                        <tr class="hover:bg-gray-50 border-b print-row">
+                                            <td class="p-3 text-center text-gray-500">{{ $i + 1 }}</td>
+                                            <td class="p-3">
+                                                <div class="font-bold text-gray-800">{{ $trx->created_at->format('d/m/Y') }}</div>
+                                                <div class="text-xs text-gray-500">{{ $trx->created_at->format('H:i') }} WIB</div>
+                                            </td>
+                                            <td class="p-3">{{ $trx->user?->name ?? '—' }}</td>
+                                            <td class="p-3 text-center font-bold">{{ $trx->details->count() }} Pcs</td>
+                                            <td class="p-3 text-center uppercase font-bold text-xs text-gray-600">
+                                                {{ $trx->payment_method }}
+                                            </td>
+                                            <td class="p-3 text-right font-black text-gray-800">
+                                                {{ number_format($trx->total_amount, 0, ',', '.') }}
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="6" class="p-6 text-center text-gray-500 italic">
+                                                Tidak ada data transaksi pada periode ini.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                @if($transactions->count() > 0)
+                                    <tfoot class="bg-gray-50 font-bold border-t-2 border-gray-300">
+                                        <tr>
+                                            <td colspan="5" class="p-3 text-right uppercase text-gray-700">Total Keseluruhan</td>
+                                            <td class="p-3 text-right text-lg text-green-700 font-black">Rp {{ number_format($totalOmzet, 0, ',', '.') }}</td>
+                                        </tr>
+                                    </tfoot>
+                                @endif
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- ─── SIDEBAR KANAN (PRODUK & METODE) ─── --}}
+                <div class="space-y-6 no-print">
+                    
+                    {{-- TOP PRODUK --}}
+                    <div class="bg-white shadow-sm sm:rounded-lg border border-gray-200">
+                        <div class="p-4 border-b border-gray-200 bg-gray-50">
+                            <h4 class="font-bold text-gray-800">Produk Terlaris</h4>
+                        </div>
+                        <div class="p-0">
+                            @forelse ($topProducts as $i => $tp)
+                                <div class="p-4 py-3 border-b last:border-0 flex items-center justify-between hover:bg-gray-50">
+                                    <div class="flex-1 pr-4">
+                                        <p class="font-bold text-sm text-gray-800 truncate" title="{{ $tp->product?->name }}">{{ $i+1 }}. {{ $tp->product?->name ?? 'ID: '.$tp->product_id }}</p>
+                                        <p class="text-xs text-gray-500">{{ number_format($tp->total_qty) }} Pcs Terjual</p>
+                                    </div>
+                                    <div class="text-right font-bold text-sm text-gray-800">
+                                        Rp {{ number_format($tp->total_revenue / 1000, 0, ',', '.') }}K
+                                    </div>
+                                </div>
                             @empty
-                            <tr>
-                                <td colspan="8" style="text-align:center;padding:3rem;color:#94a3b8;">
-                                    Tidak ada transaksi pada periode ini.
-                                </td>
-                            </tr>
+                                <div class="p-4 text-center text-sm text-gray-500 italic">Belum ada data.</div>
                             @endforelse
-                        </tbody>
-                        @if($transactions->count() > 0)
-                        <tfoot>
-                            <tr>
-                                <td colspan="4" style="text-align:right;font-weight:700;">TOTAL OMZET</td>
-                                <td style="font-weight:800;color:#10b981;">Rp {{ number_format($totalOmzet, 0, ',', '.') }}</td>
-                                <td colspan="3"></td>
-                            </tr>
-                        </tfoot>
-                        @endif
-                    </table>
+                        </div>
+                    </div>
+
+                    {{-- METODE PEMBAYARAN --}}
+                    <div class="bg-white shadow-sm sm:rounded-lg border border-gray-200">
+                        <div class="p-4 border-b border-gray-200 bg-gray-50">
+                            <h4 class="font-bold text-gray-800">Metode Pembayaran</h4>
+                        </div>
+                        <div class="p-0">
+                            @forelse($byPayment as $p)
+                                <div class="p-4 py-3 border-b last:border-0 flex items-center justify-between hover:bg-gray-50">
+                                    <div>
+                                        <p class="font-bold text-sm text-gray-800 uppercase">{{ $p['label'] }}</p>
+                                        <p class="text-xs text-gray-500">{{ $p['count'] }} Trx</p>
+                                    </div>
+                                    <div class="text-right font-bold text-sm text-gray-800">
+                                        Rp {{ number_format($p['amount'], 0, ',', '.') }}
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="p-4 text-center text-sm text-gray-500 italic">Belum ada data.</div>
+                            @endforelse
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            {{-- ===== SIDEBAR ===== --}}
-            <div>
-                {{-- Top Products --}}
-                <div class="card" style="padding:1.25rem; margin-bottom:1rem;">
-                    <div style="font-weight:700;color:#1e293b;margin-bottom:1rem;font-size:0.875rem;">🏆 Produk Terlaris</div>
-                    @forelse ($topProducts as $i => $tp)
-                    @php
-                        $maxRev = $topProducts->first()->total_revenue ?: 1;
-                        $pct = ($tp->total_revenue / $maxRev) * 100;
-                        $medal = $i === 0 ? '🥇' : ($i === 1 ? '🥈' : ($i === 2 ? '🥉' : ($i+1).'.'));
-                    @endphp
-                    <div style="margin-bottom:0.875rem;">
-                        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem;">
-                            <span style="font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">
-                                {{ $medal }} {{ $tp->product ? $tp->product->name : 'Produk #'.$tp->product_id }}
-                            </span>
-                            <span style="color:#64748b;font-size:0.75rem;flex-shrink:0;margin-left:4px;">{{ number_format($tp->total_qty) }} pcs</span>
-                        </div>
-                        <div style="background:#f1f5f9;border-radius:999px;height:5px;margin-bottom:0.2rem;">
-                            <div style="width:{{ $pct }}%;background:linear-gradient(90deg,#10b981,#34d399);height:5px;border-radius:999px;"></div>
-                        </div>
-                        <div style="font-size:0.72rem;font-weight:700;color:#10b981;">Rp {{ number_format($tp->total_revenue, 0, ',', '.') }}</div>
-                    </div>
-                    @empty
-                    <div style="font-size:0.85rem;color:#94a3b8;text-align:center;padding:1rem 0;">Tidak ada data.</div>
-                    @endforelse
+            {{-- ─── FOOTER CETAK (TTD) ─── --}}
+            <div class="print-only-footer mt-10 flex justify-end">
+                <div class="text-center w-64">
+                    <p class="mb-1 text-sm">Medan, {{ now()->format('d F Y') }}</p>
+                    <p class="text-sm">Mengetahui,</p>
+                    <br><br><br><br>
+                    <p class="font-bold underline text-sm">{{ auth()->user()->name ?? 'Administrator' }}</p>
+                    <p class="text-sm text-gray-600">Admin DodPOS</p>
                 </div>
-
-                {{-- Payment Breakdown --}}
-                <div class="card" style="padding:1.25rem; margin-bottom:1rem;">
-                    <div style="font-weight:700;color:#1e293b;margin-bottom:1rem;font-size:0.875rem;">💳 Metode Pembayaran</div>
-                    @foreach($byPayment as $p)
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.625rem;">
-                        <div>
-                            <div style="font-size:0.8rem;font-weight:600;color:#1e293b;">{{ $p['label'] }}</div>
-                            <div style="font-size:0.7rem;color:#94a3b8;">{{ $p['count'] }} transaksi</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:0.8rem;font-weight:700;color:#4f46e5;">Rp {{ number_format($p['amount'], 0, ',', '.') }}</div>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-
-                {{-- Per Cashier --}}
-                @if($byCashier->count() > 1)
-                <div class="card" style="padding:1.25rem;">
-                    <div style="font-weight:700;color:#1e293b;margin-bottom:1rem;font-size:0.875rem;">👤 Performa Kasir</div>
-                    @foreach($byCashier as $c)
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.625rem;padding:0.5rem;background:#f8fafc;border-radius:8px;">
-                        <div>
-                            <div style="font-size:0.8rem;font-weight:600;color:#1e293b;">{{ $c['name'] }}</div>
-                            <div style="font-size:0.7rem;color:#94a3b8;">{{ $c['count'] }} transaksi</div>
-                        </div>
-                        <div style="font-weight:700;color:#10b981;font-size:0.8rem;">Rp {{ number_format($c['amount'], 0, ',', '.') }}</div>
-                    </div>
-                    @endforeach
-                </div>
-                @endif
             </div>
+
         </div>
     </div>
 
-    <style>
-        @media print {
-            .sidebar, .topbar, form, button { display: none !important; }
-            .main-wrapper { margin-left: 0 !important; }
-            .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
-        }
-    </style>
+    @push('styles')
+        <style>
+            .print-only-header, .print-only-footer { display: none; }
+            
+            @media print {
+                @page { size: A4 portrait; margin: 1cm; }
+                body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .py-6 { padding-top: 0 !important; }
+                .max-w-7xl { max-width: 100% !important; margin: 0 !important; padding: 0 !important; }
+                
+                /* Sembunyikan elemen non-cetak */
+                header, nav, .no-print { display: none !important; }
+                
+                /* Tampilkan Header & Footer khusus cetak */
+                .print-only-header { display: block; margin-bottom: 20px; }
+                .print-only-footer { display: flex !important; }
+                
+                /* Reset Container & Table margin */
+                .print-table-wrapper { border: none !important; box-shadow: none !important; overflow: visible !important; }
+                
+                /* Styling Tabel Khusus Print */
+                .print-table { width: 100% !important; border-collapse: collapse !important; font-size: 11pt !important; }
+                .print-table th, .print-table td { border: 1px solid #000 !important; padding: 6px 8px !important; color: #000 !important; }
+                .print-table th { background-color: #f2f2f2 !important; font-weight: bold; }
+                
+                /* Hindari terpotong halaman */
+                .print-table thead { display: table-header-group; }
+                .print-table tfoot { display: table-footer-group; }
+                .print-row { page-break-inside: avoid; }
+            }
+        </style>
+    @endpush
 </x-app-layout>

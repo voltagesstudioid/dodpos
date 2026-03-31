@@ -84,12 +84,31 @@
                                     @error('type') <div class="tr-error">{{ $message }}</div> @enderror
                                 </div>
 
-                                {{-- Jumlah --}}
+                                {{-- Satuan --}}
                                 <div class="tr-col-half">
-                                    <label class="tr-label">Jumlah (Qty) <span class="tr-req">*</span></label>
-                                    <input type="number" name="quantity" class="tr-input @error('quantity') is-invalid @enderror" required min="1" value="{{ old('quantity') }}" placeholder="Cth: 50">
-                                    @error('quantity') <div class="tr-error">{{ $message }}</div> @enderror
+                                    <label class="tr-label">Satuan <span class="tr-text-muted font-normal">(Opsional)</span></label>
+                                    <div class="tr-select-wrapper">
+                                        <select name="unit_id" id="unitSelect" class="tr-select @error('unit_id') is-invalid @enderror">
+                                            <option value="">-- Satuan Dasar --</option>
+                                            @foreach($units ?? [] as $u)
+                                                <option value="{{ $u->id }}" data-factor="{{ $u->conversion_factor ?? 1 }}" {{ old('unit_id') == $u->id ? 'selected' : '' }}>
+                                                    {{ $u->name }} {{ $u->conversion_factor && $u->conversion_factor != 1 ? '(1 = '.$u->conversion_factor.' base)' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <input type="hidden" name="conversion_factor" id="conversionFactor" value="{{ old('conversion_factor', 1) }}">
+                                    @error('unit_id') <div class="tr-error">{{ $message }}</div> @enderror
                                 </div>
+                            </div>
+
+                            <div class="tr-form-group">
+                                <label class="tr-label">Jumlah (Qty) <span class="tr-req">*</span></label>
+                                <input type="number" name="quantity" id="quantityInput" class="tr-input @error('quantity') is-invalid @enderror" required min="1" value="{{ old('quantity') }}" placeholder="Cth: 50">
+                                <div class="tr-input-hint" id="qtyHint" style="margin-top:4px; display: none;">
+                                    Setara dengan <strong id="baseQty">0</strong> satuan dasar
+                                </div>
+                                @error('quantity') <div class="tr-error">{{ $message }}</div> @enderror
                             </div>
 
                             {{-- Gudang Tujuan (Hanya Muncul Jika Tipe: Transfer) --}}
@@ -140,6 +159,40 @@
             const typeSelect = document.getElementById('typeSelect');
             const warehouseToGroup = document.getElementById('warehouseToGroup');
             const toWarehouseSelect = document.querySelector('select[name="to_warehouse_id"]');
+            const unitSelect = document.getElementById('unitSelect');
+            const conversionFactorInput = document.getElementById('conversionFactor');
+            const quantityInput = document.getElementById('quantityInput');
+            const qtyHint = document.getElementById('qtyHint');
+            const baseQtyDisplay = document.getElementById('baseQty');
+
+            // Update conversion factor when unit changes
+            if (unitSelect) {
+                unitSelect.addEventListener('change', function() {
+                    const selected = unitSelect.options[unitSelect.selectedIndex];
+                    const factor = parseFloat(selected.dataset.factor) || 1;
+                    conversionFactorInput.value = factor;
+                    updateQtyHint();
+                });
+            }
+
+            // Update hint when quantity changes
+            if (quantityInput) {
+                quantityInput.addEventListener('input', updateQtyHint);
+            }
+
+            function updateQtyHint() {
+                if (!qtyHint || !baseQtyDisplay || !quantityInput) return;
+                const qty = parseFloat(quantityInput.value) || 0;
+                const factor = parseFloat(conversionFactorInput.value) || 1;
+                const baseQty = Math.round(qty * factor);
+                
+                if (factor !== 1 && qty > 0) {
+                    baseQtyDisplay.textContent = baseQty;
+                    qtyHint.style.display = 'block';
+                } else {
+                    qtyHint.style.display = 'none';
+                }
+            }
 
             if(form && submitBtn) {
                 form.addEventListener('submit', function () {
@@ -172,6 +225,9 @@
                 typeSelect.addEventListener('change', refreshType);
                 refreshType(); // Initialize on page load
             }
+
+            // Initialize qty hint on page load
+            updateQtyHint();
         });
     </script>
     @endpush

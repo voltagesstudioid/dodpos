@@ -10,18 +10,34 @@
         @endif
 
         {{-- Stats Row --}}
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">🔄</div>
-                <div><div style="font-size:1.5rem;font-weight:800;color:#1e293b;">{{ $returns->total() }}</div><div style="font-size:0.75rem;color:#64748b;">Total Retur</div></div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📋</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#4f46e5;">{{ number_format($stats['total']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Total Retur</div>
+                </div>
             </div>
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">📋</div>
-                <div><div style="font-size:1.5rem;font-weight:800;color:#1e293b;">{{ $returns->where('status','draft')->count() }}</div><div style="font-size:0.75rem;color:#64748b;">Draft</div></div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📝</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#d97706;">{{ number_format($stats['draft']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Draft</div>
+                </div>
             </div>
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">✅</div>
-                <div><div style="font-size:1.5rem;font-weight:800;color:#1e293b;">{{ $returns->where('status','returned')->count() }}</div><div style="font-size:0.75rem;color:#64748b;">Selesai</div></div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">👍</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#2563eb;">{{ number_format($stats['approved']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Disetujui</div>
+                </div>
+            </div>
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">✅</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#16a34a;">{{ number_format($stats['returned']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Selesai</div>
+                </div>
             </div>
         </div>
 
@@ -38,22 +54,26 @@
 
             {{-- Filters --}}
             <div style="padding:1rem 1.5rem; background:#f8fafc; border-bottom:1px solid #f1f5f9; display:flex; gap:0.75rem; flex-wrap:wrap;">
-                <form method="GET" style="display:flex;gap:0.75rem;flex-wrap:wrap;width:100%;">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nomor retur..." class="form-input" style="max-width:220px;">
-                    <select name="status" class="form-input" style="max-width:160px;">
+                <form method="GET" style="display:flex;gap:0.75rem;flex-wrap:wrap;width:100%;align-items:center;">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nomor retur..." class="form-input" style="max-width:180px;">
+                    <select name="status" class="form-input" style="max-width:140px;">
                         <option value="">Semua Status</option>
                         <option value="draft" @selected(request('status')=='draft')>Draft</option>
                         <option value="approved" @selected(request('status')=='approved')>Disetujui</option>
                         <option value="returned" @selected(request('status')=='returned')>Selesai</option>
                     </select>
-                    <select name="supplier_id" class="form-input" style="max-width:200px;">
+                    <select name="supplier_id" class="form-input" style="max-width:180px;">
                         <option value="">Semua Supplier</option>
                         @foreach($suppliers as $s)
                             <option value="{{ $s->id }}" @selected(request('supplier_id')==$s->id)>{{ $s->name }}</option>
                         @endforeach
                     </select>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-input" style="max-width:135px;" title="Dari Tanggal">
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input" style="max-width:135px;" title="Sampai Tanggal">
                     <button type="submit" class="btn-primary btn-sm">Filter</button>
-                    <a href="{{ route('pembelian.retur.index') }}" class="btn-secondary btn-sm">Reset</a>
+                    @if(request('search') || request('status') || request('supplier_id') || request('date_from') || request('date_to'))
+                        <a href="{{ route('pembelian.retur.index') }}" class="btn-secondary btn-sm">Reset</a>
+                    @endif
                 </form>
             </div>
 

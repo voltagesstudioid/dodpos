@@ -60,7 +60,14 @@
                         </div>
                         <div class="tr-info-row">
                             <span class="tr-info-label">Total Fisik</span>
-                            <span class="tr-info-value tr-info-accent">{{ number_format($summary->total_qty) }}</span>
+                            <span class="tr-info-value tr-info-accent">
+                                {{ number_format($summary->total_qty) }}
+                                @if($summary->unit_name && $summary->unit_name !== 'satuan dasar')
+                                    <span style="font-size: 0.85rem; color: var(--tr-text-muted); margin-left: 4px;">
+                                        ({{ $summary->total_qty_in_unit }} {{ $summary->unit_name }})
+                                    </span>
+                                @endif
+                            </span>
                         </div>
                         <div class="tr-info-row tr-info-row-last">
                             <span class="tr-info-label">Jumlah SKU</span>

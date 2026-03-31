@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\OperationalExpense;
 use App\Models\OperationalCategory;
+use App\Models\OperationalSession;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class OperationalExpenseController extends Controller
 {
@@ -205,5 +208,123 @@ class OperationalExpenseController extends Controller
     {
         $pengeluaran->delete();
         return redirect()->route('operasional.riwayat.index')->with('success', 'Pengeluaran operasional berhasil dihapus.');
+    }
+
+    /**
+     * Dashboard Operasional
+     */
+    public function dashboard(Request $request)
+    {
+        $period = $request->input('period', 'month');
+        $startDate = match($period) {
+            'quarter' => now()->subMonths(3)->startOfMonth(),
+            'year' => now()->subMonths(12)->startOfMonth(),
+            default => now()->subMonths(1)->startOfMonth(),
+        };
+
+        // Statistik Utama
+        $totalSessions = OperationalSession::count();
+        $openSessions = OperationalSession::where('status', 'open')->count();
+        $totalExpenses = OperationalExpense::count();
+        $totalAmount = OperationalExpense::sum('amount');
+
+        // Statistik Periode
+        $periodExpenses = OperationalExpense::where('date', '>=', $startDate)->sum('amount');
+        $periodCount = OperationalExpense::where('date', '>=', $startDate)->count();
+
+        // Data untuk Chart (6 bulan terakhir)
+        $months = [];
+        $chartData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $months[] = $month->format('M Y');
+            $chartData[] = OperationalExpense::whereYear('date', $month->year)
+                ->whereMonth('date', $month->month)
+                ->sum('amount');
+        }
+
+        // Top Kategori
+        $topCategories = OperationalCategory::withSum(['expenses as total_amount' => function($q) use ($startDate) {
+                $q->where('date', '>=', $startDate);
+            }], 'amount')
+            ->having('total_amount', '>', 0)
+            ->orderByDesc('total_amount')
+            ->limit(5)
+            ->get();
+
+        // Recent Expenses
+        $recentExpenses = OperationalExpense::with(['category', 'user'])
+            ->orderByDesc('date')
+            ->limit(10)
+            ->get();
+
+        // Sesi Aktif
+        $activeSession = OperationalSession::with(['user'])
+            ->withSum('expenses', 'amount')
+            ->where('status', 'open')
+            ->latest()
+            ->first();
+
+        // Stats per Status Sesi
+        $sessionStats = [
+            'open' => OperationalSession::where('status', 'open')->count(),
+            'closed' => OperationalSession::where('status', 'closed')->count(),
+        ];
+
+        // Total Modal vs Terpakai
+        $totalModal = OperationalSession::sum('opening_amount');
+        $totalTerpakai = OperationalExpense::sum('amount');
+
+        return view('operasional.dashboard', compact(
+            'totalSessions', 'openSessions', 'totalExpenses', 'totalAmount',
+            'periodExpenses', 'periodCount', 'months', 'chartData',
+            'topCategories', 'recentExpenses', 'activeSession',
+            'sessionStats', 'totalModal', 'totalTerpakai', 'period'
+        ));
+    }
+
+    /**
+     * Export Riwayat Operasional
+     */
+    public function export(Request $request)
+    {
+        $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->format('Y-m-d'));
+        $categoryId = $request->input('category_id');
+
+        $query = OperationalExpense::with(['category', 'vehicle', 'user'])
+            ->whereBetween('date', [$startDate, $endDate]);
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        $expenses = $query->latest('date')->get();
+
+        $filename = 'riwayat-operasional-' . now()->format('Y-m-d') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($expenses) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Tanggal', 'Kategori', 'Kendaraan', 'Jumlah', 'Catatan', 'Petugas']);
+            
+            foreach ($expenses as $e) {
+                fputcsv($file, [
+                    $e->date->format('d/m/Y'),
+                    $e->category?->name ?? '-',
+                    $e->vehicle?->license_plate ?? '-',
+                    $e->amount,
+                    $e->notes ?? '-',
+                    $e->user?->name ?? '-',
+                ]);
+            }
+            fclose($file);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
     }
 }

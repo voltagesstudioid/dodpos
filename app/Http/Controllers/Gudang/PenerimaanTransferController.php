@@ -7,6 +7,8 @@ use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\TransferReceipt;
 use App\Models\TransferReceiptItem;
+use App\Support\SearchSanitizer;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,17 +21,19 @@ class PenerimaanTransferController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $role = strtolower((string) ($user?->role ?? ''));
 
-        // Hanya Admin 4 atau Supervisor yang boleh akses. Ambil ID Gudang Cabang
-        // Idealnya dinamis dari user->warehouse_id, tapi kita pakai statik ID 2 (Gudang Cabang) sesuai alur.
-        $warehouseId = 2;
+        // Get branch warehouse ID dynamically from config
+        $warehouseId = WarehouseConfig::getBranchId();
 
-        if ($user->role === 'admin3') {
-            abort(403, 'Admin 3 tidak memiliki akses ke Penerimaan Transfer cabang.');
+        // Only allow Admin 4, Admin with access, or Supervisor
+        if (! WarehouseConfig::canAccess($role, $warehouseId)) {
+            abort(403, 'Anda tidak memiliki akses ke Penerimaan Transfer cabang.');
         }
 
         $search = trim((string) $request->input('search'));
         $status = trim((string) $request->input('status'));
+        $sanitizedSearch = SearchSanitizer::sanitize($search);
 
         // Ambil semua dokumen transfer yang masuk ke gudang ini
         $referenceQuery = StockMovement::query()
@@ -39,10 +43,10 @@ class PenerimaanTransferController extends Controller
             ->when($status !== '' && in_array($status, ['pending', 'partial', 'completed'], true), function ($query) use ($status) {
                 $query->where('status', $status);
             })
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('reference_number', 'like', "%{$search}%")
-                        ->orWhere('notes', 'like', "%{$search}%");
+            ->when($search !== '', function ($query) use ($sanitizedSearch) {
+                $query->where(function ($q) use ($sanitizedSearch) {
+                    $q->where('reference_number', 'like', "%{$sanitizedSearch}%")
+                        ->orWhere('notes', 'like', "%{$sanitizedSearch}%");
                 });
             })
             ->selectRaw('reference_number, MAX(created_at) as latest_created_at, MAX(status) as current_status')
@@ -57,7 +61,7 @@ class PenerimaanTransferController extends Controller
             ->values()
             ->all();
 
-        $ins = StockMovement::with(['product', 'warehouse', 'location', 'user'])
+        $ins = StockMovement::with(['product', 'warehouse', 'location', 'user', 'unit'])
             ->where('type', 'transfer_in')
             ->whereIn('reference_number', $referenceNumbers)
             ->orderBy('created_at', 'desc')
@@ -126,9 +130,9 @@ class PenerimaanTransferController extends Controller
      */
     public function show($reference_number)
     {
-        $warehouseId = 2; // Gudang Cabang
+        $warehouseId = WarehouseConfig::getBranchId(); // Gudang Cabang
 
-        $ins = StockMovement::with(['product', 'warehouse', 'location'])
+        $ins = StockMovement::with(['product', 'warehouse', 'location', 'unit'])
             ->where('reference_number', $reference_number)
             ->where('type', 'transfer_in')
             ->where('warehouse_id', $warehouseId)
@@ -149,6 +153,9 @@ class PenerimaanTransferController extends Controller
             'status' => $firstIn->status,
             'to_warehouse' => $firstIn->warehouse,
             'total_qty' => (int) $ins->sum('quantity'),
+            'total_qty_in_unit' => $ins->first()?->quantity_in_unit,
+            'unit_name' => $ins->first()?->unit?->name ?? 'satuan dasar',
+            'conversion_factor' => $ins->first()?->conversion_factor ?? 1,
             'total_items' => (int) $ins->count(),
         ];
 
@@ -166,7 +173,7 @@ class PenerimaanTransferController extends Controller
      */
     public function receive(Request $request, $reference_number)
     {
-        $warehouseId = 2;
+        $warehouseId = WarehouseConfig::getBranchId();
 
         $request->validate([
             'notes' => 'nullable|string|max:2000',
@@ -211,6 +218,7 @@ class PenerimaanTransferController extends Controller
 
             $anyPartial = false;
 
+            /** @var \App\Models\StockMovement $movIn */
             foreach ($movementsIn as $movIn) {
                 $row = (array) ($payloadById->get((int) $movIn->id) ?? []);
                 $expected = (int) $movIn->quantity;

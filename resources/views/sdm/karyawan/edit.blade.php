@@ -147,6 +147,85 @@
                         </div>
                     </div>
 
+                    {{-- ─── KOMPONEN TUNJANGAN TETAP ─── --}}
+                    <div class="tr-allowance-section"
+                        x-data="allowanceManager({{ json_encode($karyawan->allowances->map(fn($a) => ['id' => $a->id, 'label' => $a->label, 'amount' => (float)$a->amount, 'active' => (bool)$a->active])->values()->all()) }})"
+                    >
+                        <div class="tr-allowance-header">
+                            <div>
+                                <div class="tr-allowance-title">Komponen Tunjangan Tetap</div>
+                                <div class="tr-allowance-sub">Tunjangan bulanan tambahan di luar gaji pokok dan uang kehadiran. Akan dihitung otomatis saat generate payroll.</div>
+                            </div>
+                            <button type="button" class="tr-btn-add-row" @click="addRow()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Tambah Komponen
+                            </button>
+                        </div>
+
+                        <div class="tr-allowance-list">
+                            <template x-if="rows.length === 0">
+                                <div class="tr-allowance-empty">Belum ada komponen tunjangan tetap. Klik "Tambah Komponen" untuk menambahkan.</div>
+                            </template>
+
+                            <template x-for="(row, idx) in rows" :key="row._key">
+                                <div class="tr-allowance-row" :class="{ 'is-inactive': !row.active }">
+                                    <input type="hidden" :name="'allowances[' + idx + '][id]'" :value="row.id || ''">
+
+                                    <div class="tr-ar-label">
+                                        <label class="tr-label-sm">Label Tunjangan</label>
+                                        <input type="text"
+                                            :name="'allowances[' + idx + '][label]'"
+                                            x-model="row.label"
+                                            class="tr-input-sm"
+                                            placeholder="Cth: Transport, Jabatan, BPJS"
+                                            required>
+                                    </div>
+
+                                    <div class="tr-ar-amount">
+                                        <label class="tr-label-sm">Jumlah (Rp / Bulan)</label>
+                                        <div class="tr-input-prefix-group-sm">
+                                            <span class="prefix-sm">Rp</span>
+                                            <input type="number"
+                                                :name="'allowances[' + idx + '][amount]'"
+                                                x-model="row.amount"
+                                                class="tr-input-sm"
+                                                min="0"
+                                                step="1000"
+                                                placeholder="0"
+                                                required>
+                                        </div>
+                                    </div>
+
+                                    <div class="tr-ar-active">
+                                        <label class="tr-label-sm">Aktif</label>
+                                        <label class="tr-toggle">
+                                            <input type="checkbox"
+                                                :name="'allowances[' + idx + '][active]'"
+                                                value="1"
+                                                x-model="row.active"
+                                                :checked="row.active">
+                                            <span class="tr-toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="tr-ar-action">
+                                        <label class="tr-label-sm">&nbsp;</label>
+                                        <button type="button" class="tr-btn-remove-row" @click="removeRow(idx)" title="Hapus">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="rows.length > 0">
+                                <div class="tr-allowance-total">
+                                    <span>Total Tunjangan Tetap Aktif:</span>
+                                    <strong x-text="'Rp ' + activeTotal.toLocaleString('id-ID')"></strong>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
                     {{-- SUBMIT AREA --}}
                     <div class="tr-form-actions">
                         <a href="{{ route('sdm.karyawan.index') }}" class="tr-btn tr-btn-outline">Batalkan</a>
@@ -261,7 +340,62 @@
             .tr-account-empty { flex-direction: column; align-items: flex-start; gap: 10px; }
             .tr-form-actions { flex-direction: column-reverse; }
             .tr-btn { width: 100%; }
+            .tr-allowance-row { flex-wrap: wrap; }
         }
+
+        /* ─── ALLOWANCE SECTION ─── */
+        .tr-allowance-section { background: #fff; border: 1px solid var(--tr-border); border-radius: var(--tr-radius-lg); overflow: hidden; margin-bottom: 1.5rem; }
+        .tr-allowance-header { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--tr-border-light); gap: 1rem; flex-wrap: wrap; }
+        .tr-allowance-title { font-size: 0.9rem; font-weight: 800; color: var(--tr-text-main); }
+        .tr-allowance-sub { font-size: 0.78rem; color: var(--tr-text-muted); margin-top: 2px; }
+        .tr-btn-add-row { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; font-family: inherit; cursor: pointer; background: #f0fdfa; color: var(--tr-teal); border: 1.5px solid #99f6e4; transition: 0.2s; white-space: nowrap; }
+        .tr-btn-add-row:hover { background: #ccfbf1; }
+        .tr-allowance-list { padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        .tr-allowance-empty { font-size: 0.82rem; color: var(--tr-text-muted); text-align: center; padding: 1.5rem 0; font-style: italic; }
+        .tr-allowance-row { display: flex; align-items: flex-end; gap: 0.75rem; padding: 0.85rem 1rem; background: #f8fafc; border-radius: 10px; border: 1px solid var(--tr-border); transition: 0.2s; }
+        .tr-allowance-row.is-inactive { opacity: 0.55; }
+        .tr-ar-label { flex: 2; min-width: 140px; }
+        .tr-ar-amount { flex: 2; min-width: 140px; }
+        .tr-ar-active { flex: 0 0 60px; display: flex; flex-direction: column; align-items: center; }
+        .tr-ar-action { flex: 0 0 36px; display: flex; flex-direction: column; align-items: center; }
+        .tr-label-sm { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: var(--tr-text-muted); display: block; margin-bottom: 4px; }
+        .tr-input-sm { width: 100%; padding: 7px 10px; border: 1px solid var(--tr-border); border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; transition: 0.2s; box-sizing: border-box; }
+        .tr-input-sm:focus { outline: none; border-color: var(--tr-teal); box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+        .tr-input-prefix-group-sm { display: flex; align-items: center; border: 1px solid var(--tr-border); border-radius: 8px; overflow: hidden; background: #fff; }
+        .tr-input-prefix-group-sm .prefix-sm { padding: 7px 8px 7px 10px; font-size: 0.8rem; font-weight: 700; color: var(--tr-text-muted); background: #f1f5f9; white-space: nowrap; border-right: 1px solid var(--tr-border); }
+        .tr-input-prefix-group-sm input { flex: 1; border: none; padding: 7px 10px; font-size: 0.85rem; font-family: inherit; background: #fff; min-width: 0; outline: none; }
+        .tr-toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+        .tr-toggle input { display: none; }
+        .tr-toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 20px; cursor: pointer; transition: 0.2s; }
+        .tr-toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+        .tr-toggle input:checked + .tr-toggle-slider { background: var(--tr-teal); }
+        .tr-toggle input:checked + .tr-toggle-slider::before { transform: translateX(16px); }
+        .tr-btn-remove-row { width: 30px; height: 30px; border: 1px solid #fecaca; background: #fff5f5; border-radius: 8px; color: var(--tr-danger); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .tr-btn-remove-row:hover { background: #fee2e2; }
+        .tr-allowance-total { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 0.75rem 1rem; background: #f0fdfa; border-radius: 10px; border: 1px solid #99f6e4; font-size: 0.85rem; color: var(--tr-text-main); }
+        .tr-allowance-total strong { font-size: 1rem; color: var(--tr-teal); font-weight: 800; }
     </style>
+    @endpush
+
+    @push('scripts')
+    <script>
+        function allowanceManager(initial) {
+            return {
+                rows: initial.map((r, i) => ({ ...r, _key: i })),
+                _nextKey: initial.length,
+                get activeTotal() {
+                    return this.rows
+                        .filter(r => r.active)
+                        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                },
+                addRow() {
+                    this.rows.push({ id: null, label: '', amount: 0, active: true, _key: this._nextKey++ });
+                },
+                removeRow(idx) {
+                    this.rows.splice(idx, 1);
+                }
+            };
+        }
+    </script>
     @endpush
 </x-app-layout>

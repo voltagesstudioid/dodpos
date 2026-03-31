@@ -38,9 +38,158 @@ class PurchaseOrderController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Filter periode
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
+        }
+
         $orders = $query->paginate(15)->withQueryString();
 
-        return view('pembelian.order.index', compact('orders'));
+        // Statistik
+        $statsQuery = PurchaseOrder::query();
+        if ($request->date_from) {
+            $statsQuery->whereDate('order_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $statsQuery->whereDate('order_date', '<=', $request->date_to);
+        }
+
+        $stats = [
+            'total' => $statsQuery->count(),
+            'draft' => (clone $statsQuery)->where('status', 'draft')->count(),
+            'ordered' => (clone $statsQuery)->where('status', 'ordered')->count(),
+            'partial' => (clone $statsQuery)->where('status', 'partial')->count(),
+            'received' => (clone $statsQuery)->where('status', 'received')->count(),
+            'cancelled' => (clone $statsQuery)->where('status', 'cancelled')->count(),
+            'total_amount' => (clone $statsQuery)->whereIn('status', ['ordered', 'partial', 'received'])->sum('total_amount'),
+            'late' => (clone $statsQuery)
+                ->whereIn('status', ['ordered', 'partial'])
+                ->whereNotNull('expected_date')
+                ->whereDate('expected_date', '<', now())
+                ->count(),
+        ];
+
+        // Export Excel jika diminta
+        if ($request->export === 'excel') {
+            return $this->exportExcel($orders, $stats);
+        }
+
+        return view('pembelian.order.index', compact('orders', 'stats'));
+    }
+
+    /**
+     * Export PO to Excel (CSV)
+     */
+    private function exportExcel($orders, $stats)
+    {
+        $filename = 'purchase-orders-' . now()->format('Ymd-His') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ];
+
+        $callback = function () use ($orders, $stats) {
+            $output = fopen('php://output', 'w');
+            
+            // Header CSV
+            fputcsv($output, ['No. PO', 'Supplier', 'Tgl Pesan', 'Tgl Estimasi', 'Status', 'Total', 'Item']);
+            
+            foreach ($orders as $order) {
+                fputcsv($output, [
+                    $order->po_number,
+                    $order->supplier->name ?? '-',
+                    $order->order_date->format('d/m/Y'),
+                    $order->expected_date?->format('d/m/Y') ?? '-',
+                    $order->statusLabel['label'] ?? $order->status,
+                    $order->total_amount,
+                    $order->items->count(),
+                ]);
+            }
+            
+            // Summary
+            fputcsv($output, []);
+            fputcsv($output, ['Ringkasan', '', '', '', '', '', '']);
+            fputcsv($output, ['Total PO', $stats['total'], '', '', '', '', '']);
+            fputcsv($output, ['Dalam Proses', $stats['ordered'] + $stats['partial'], '', '', '', '', '']);
+            fputcsv($output, ['Selesai', $stats['received'], '', '', '', '', '']);
+            fputcsv($output, ['Terlambat', $stats['late'], '', '', '', '', '']);
+            
+            fclose($output);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Dashboard Pembelian dengan grafik dan ringkasan.
+     */
+    public function dashboard(Request $request)
+    {
+        $period = $request->input('period', 'month'); // month, quarter, year
+        
+        $startDate = match($period) {
+            'quarter' => now()->subMonths(3)->startOfMonth(),
+            'year' => now()->subMonths(12)->startOfMonth(),
+            default => now()->subMonths(1)->startOfMonth(),
+        };
+        
+        $endDate = now()->endOfDay();
+
+        // Statistik utama
+        $stats = [
+            'total_po' => PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])->count(),
+            'total_value' => PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
+                ->whereIn('status', ['ordered', 'partial', 'received'])
+                ->sum('total_amount'),
+            'completed' => PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
+                ->where('status', 'received')
+                ->count(),
+            'late' => PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
+                ->whereIn('status', ['ordered', 'partial'])
+                ->whereNotNull('expected_date')
+                ->whereDate('expected_date', '<', now())
+                ->count(),
+        ];
+
+        // Data grafik PO per hari/bulan
+        $chartData = PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->selectRaw('DATE(order_date) as date, COUNT(*) as count, SUM(total_amount) as total')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        // Top supplier
+        $topSuppliers = PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
+            ->whereIn('status', ['ordered', 'partial', 'received'])
+            ->selectRaw('supplier_id, COUNT(*) as po_count, SUM(total_amount) as total_value')
+            ->groupBy('supplier_id')
+            ->with('supplier:id,name')
+            ->orderByDesc('total_value')
+            ->limit(5)
+            ->get();
+
+        // PO terbaru
+        $recentOrders = PurchaseOrder::with(['supplier'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // PO terlambat
+        $lateOrders = PurchaseOrder::with(['supplier'])
+            ->whereIn('status', ['ordered', 'partial'])
+            ->whereNotNull('expected_date')
+            ->whereDate('expected_date', '<', now())
+            ->orderBy('expected_date')
+            ->limit(5)
+            ->get();
+
+        return view('pembelian.dashboard', compact(
+            'stats', 'chartData', 'topSuppliers', 'recentOrders', 'lateOrders', 'period'
+        ));
     }
 
     /**

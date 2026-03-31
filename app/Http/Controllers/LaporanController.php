@@ -12,6 +12,7 @@ use App\Models\Transaction;
 use App\Models\TransactionDetail;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\Export\TabularExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,7 @@ class LaporanController extends Controller
 
     public function pembelian(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $dateFrom = $request->date_from ?? now()->startOfMonth()->format('Y-m-d');
         $dateTo = $request->date_to ?? now()->format('Y-m-d');
 
@@ -81,22 +83,70 @@ class LaporanController extends Controller
             ]);
 
         // Paginated list — tidak load semua sekaligus
+        $perPage = $isPrint ? 5000 : 25;
         $orders = (clone $baseQuery)
             ->with(['supplier:id,name', 'user:id,name'])
             ->orderBy('order_date', 'desc')
-            ->paginate(25)
+            ->paginate($perPage)
             ->withQueryString();
 
         $suppliers = Supplier::orderBy('name')->get(['id', 'name']);
 
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-pembelian-'.$dateFrom.'-sd-'.$dateTo.'.'.$export;
+            $headers = [
+                'po_number',
+                'tanggal_order',
+                'supplier',
+                'status',
+                'total_amount',
+                'jumlah_item',
+                'dibuat_oleh',
+            ];
+
+            $rows = (function () use ($baseQuery) {
+                $list = (clone $baseQuery)
+                    ->with(['supplier:id,name', 'user:id,name'])
+                    ->withCount('items')
+                    ->orderBy('order_date', 'desc')
+                    ->get();
+
+                foreach ($list as $o) {
+                    yield [
+                        $o->po_number,
+                        optional($o->order_date)->format('Y-m-d'),
+                        $o->supplier?->name ?? '',
+                        (string) ($o->status ?? ''),
+                        (float) ($o->total_amount ?? 0),
+                        (int) ($o->items_count ?? 0),
+                        $o->user?->name ?? '',
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
+
         return view('laporan.pembelian', compact(
-            'orders', 'suppliers', 'totalOrders', 'totalAmount',
-            'totalReceived', 'totalPending', 'bySupplier', 'dateFrom', 'dateTo'
+            'orders',
+            'suppliers',
+            'totalOrders',
+            'totalAmount',
+            'totalReceived',
+            'totalPending',
+            'bySupplier',
+            'dateFrom',
+            'dateTo',
+            'isPrint'
         ));
     }
 
     public function penjualan(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $dateFrom = $request->date_from ?? now()->startOfMonth()->format('Y-m-d');
         $dateTo = $request->date_to ?? now()->format('Y-m-d');
 
@@ -184,24 +234,77 @@ class LaporanController extends Controller
             ]);
 
         // Paginated transaction list
+        $perPage = $isPrint ? 5000 : 25;
         $transactions = (clone $baseQuery)
             ->with(['user:id,name', 'details'])
             ->orderBy('created_at', 'desc')
-            ->paginate(25)
+            ->paginate($perPage)
             ->withQueryString();
 
         $kasirs = User::orderBy('name')->get(['id', 'name']);
 
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-penjualan-'.$dateFrom.'-sd-'.$dateTo.'.'.$export;
+            $headers = [
+                'trx_id',
+                'tanggal',
+                'waktu',
+                'kasir',
+                'metode',
+                'total',
+                'bayar',
+                'kembalian',
+                'jumlah_item',
+            ];
+
+            $rows = (function () use ($baseQuery) {
+                $list = (clone $baseQuery)
+                    ->with(['user:id,name'])
+                    ->withCount('details')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                foreach ($list as $t) {
+                    yield [
+                        (int) $t->id,
+                        optional($t->created_at)->format('Y-m-d'),
+                        optional($t->created_at)->format('H:i:s'),
+                        $t->user?->name ?? '',
+                        (string) ($t->payment_method ?? ''),
+                        (float) ($t->total_amount ?? 0),
+                        (float) ($t->paid_amount ?? 0),
+                        (float) ($t->change_amount ?? 0),
+                        (int) ($t->details_count ?? 0),
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
+
         return view('laporan.penjualan', compact(
-            'transactions', 'kasirs',
-            'totalTrx', 'totalOmzet', 'avgPerTrx', 'totalItems',
-            'dailyData', 'byPayment', 'topProducts', 'byCashier',
-            'dateFrom', 'dateTo'
+            'transactions',
+            'kasirs',
+            'totalTrx',
+            'totalOmzet',
+            'avgPerTrx',
+            'totalItems',
+            'dailyData',
+            'byPayment',
+            'topProducts',
+            'byCashier',
+            'dateFrom',
+            'dateTo',
+            'isPrint'
         ));
     }
 
     public function stok(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $warehouseId = $request->warehouse_id;
         $categoryId = $request->category_id;
         $search = $request->search;
@@ -235,7 +338,8 @@ class LaporanController extends Controller
             $stockQuery->whereHas('productStocks', fn ($q) => $q->where('warehouse_id', $warehouseId)->where('stock', '>', 0));
         }
 
-        $products = $stockQuery->orderBy('stock', 'desc')->paginate(25)->withQueryString();
+        $perPage = $isPrint ? 5000 : 25;
+        $products = $stockQuery->orderBy('stock', 'desc')->paginate($perPage)->withQueryString();
 
         // ── Per-product stok di masing-masing gudang (dari ProductStock) ────
         $productIds = $products->pluck('id');
@@ -267,18 +371,55 @@ class LaporanController extends Controller
 
         $maskStock = $this->shouldMaskStock();
 
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-stok-'.now()->format('Y-m-d').'.'.$export;
+            $headers = [
+                'sku',
+                'nama',
+                'kategori',
+                'satuan',
+                'stok_global',
+                'min_stok',
+            ];
+
+            $rows = (function () use ($stockQuery) {
+                $list = (clone $stockQuery)
+                    ->with(['category:id,name', 'unit:id,name'])
+                    ->orderBy('stock', 'desc')
+                    ->get();
+
+                foreach ($list as $p) {
+                    yield [
+                        (string) ($p->sku ?? ''),
+                        (string) ($p->name ?? ''),
+                        (string) ($p->category?->name ?? ''),
+                        (string) ($p->unit?->name ?? ''),
+                        (float) ($p->stock ?? 0),
+                        (float) ($p->min_stock ?? 0),
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
+
         return view('laporan.stok', compact(
             'totalProducts', 'totalStockQty', 'lowStockCount',
             'expiredCount', 'nearExpiredCount',
             'warehouses', 'products', 'lowStockProducts', 'recentMovements',
             'categories', 'warehouseId', 'categoryId', 'search',
             'warehouseStocks',
-            'maskStock'
+            'maskStock',
+            'isPrint'
         ));
     }
 
     public function keuangan(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $dateFrom = $request->date_from ?? now()->startOfMonth()->format('Y-m-d');
         $dateTo = $request->date_to ?? now()->format('Y-m-d');
 
@@ -347,15 +488,43 @@ class LaporanController extends Controller
             $start->addDay();
         }
 
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-keuangan-'.$dateFrom.'-sd-'.$dateTo.'.'.$export;
+            $headers = [
+                'tanggal',
+                'pendapatan',
+                'pengeluaran',
+                'laba_bersih',
+            ];
+
+            $rows = (function () use ($dates) {
+                foreach ($dates as $row) {
+                    $profit = (float) $row['revenue'] - (float) $row['expense'];
+                    yield [
+                        (string) $row['date'],
+                        (float) $row['revenue'],
+                        (float) $row['expense'],
+                        (float) $profit,
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
+
         return view('laporan.keuangan', compact(
             'totalRevenue', 'totalHPP', 'totalOperasional', 'totalPembelian',
             'labaKotor', 'netProfit', 'dates',
-            'dateFrom', 'dateTo'
+            'dateFrom', 'dateTo', 'isPrint'
         ));
     }
 
     public function pelanggan(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $search = $request->search;
 
         $totalCustomers = \App\Models\Customer::count();
@@ -371,16 +540,52 @@ class LaporanController extends Controller
 
         $customers = $query->orderByDesc('current_debt')
             ->orderBy('name')
-            ->paginate(20)
+            ->paginate($isPrint ? 5000 : 20)
             ->withQueryString();
 
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-pelanggan-'.now()->format('Y-m-d').'.'.$export;
+            $headers = [
+                'nama',
+                'telepon',
+                'aktif',
+                'limit_piutang',
+                'sisa_limit',
+                'piutang_berjalan',
+            ];
+
+            $rows = (function () use ($query) {
+                $list = (clone $query)
+                    ->orderByDesc('current_debt')
+                    ->orderBy('name')
+                    ->get();
+
+                foreach ($list as $c) {
+                    yield [
+                        (string) ($c->name ?? ''),
+                        (string) ($c->phone ?? ''),
+                        (bool) ($c->is_active ?? true),
+                        (float) ($c->credit_limit ?? 0),
+                        (float) ($c->remaining_credit_limit ?? 0),
+                        (float) ($c->current_debt ?? 0),
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
+
         return view('laporan.pelanggan', compact(
-            'totalCustomers', 'totalDebt', 'customersWithDebt', 'customers', 'search'
+            'totalCustomers', 'totalDebt', 'customersWithDebt', 'customers', 'search', 'isPrint'
         ));
     }
 
     public function supplier(Request $request)
     {
+        $isPrint = $request->boolean('print');
         $search = $request->search;
 
         $totalSuppliers = \App\Models\Supplier::where('active', true)->count();
@@ -400,10 +605,45 @@ class LaporanController extends Controller
                 ->orWhere('contact_person', 'like', "%{$search}%");
         }
 
-        $suppliers = $query->orderBy('name')->paginate(20)->withQueryString();
+        $suppliers = $query->orderBy('name')->paginate($isPrint ? 5000 : 20)->withQueryString();
+
+        $export = strtolower((string) $request->query('export', ''));
+        if (in_array($export, ['csv', 'xlsx'], true)) {
+            $filename = 'laporan-supplier-'.now()->format('Y-m-d').'.'.$export;
+            $headers = [
+                'nama',
+                'kontak_person',
+                'telepon',
+                'aktif',
+                'total_tagihan',
+                'sisa_hutang',
+            ];
+
+            $rows = (function () use ($query) {
+                $list = (clone $query)->orderBy('name')->get();
+                foreach ($list as $s) {
+                    $outstandingDebts = $s->debts->whereIn('status', ['unpaid', 'partial']);
+                    $totalInvoiceAmt = (float) $outstandingDebts->sum('total_amount');
+                    $totalRemainingAmt = (float) $outstandingDebts->sum(fn ($d) => $d->total_amount - $d->paid_amount);
+
+                    yield [
+                        (string) ($s->name ?? ''),
+                        (string) ($s->contact_person ?? ''),
+                        (string) ($s->phone ?? ''),
+                        (bool) ($s->active ?? true),
+                        $totalInvoiceAmt,
+                        $totalRemainingAmt,
+                    ];
+                }
+            })();
+
+            return $export === 'csv'
+                ? TabularExport::streamCsv($filename, $headers, $rows)
+                : TabularExport::streamXlsx($filename, $headers, $rows);
+        }
 
         return view('laporan.supplier', compact(
-            'totalSuppliers', 'totalDebt', 'suppliersWithDebt', 'suppliers', 'search'
+            'totalSuppliers', 'totalDebt', 'suppliersWithDebt', 'suppliers', 'search', 'isPrint'
         ));
     }
 }

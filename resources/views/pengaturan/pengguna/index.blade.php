@@ -335,11 +335,10 @@
                                         'admin2' => 'pill-teal',
                                         'admin3' => 'pill-yellow',
                                         'admin4' => 'pill-red',
-                                        'pasgar' => 'pill-teal',
-                                        'sales_kanvas' => 'pill-yellow',
-                                        'sales_minyak' => 'pill-yellow',
-                                        'sales_mineral' => 'pill-blue',
-                                        'sales_gula' => 'pill-red',
+                                        'kasir' => 'pill-blue',
+                                        'gudang' => 'pill-teal',
+                                        'admin_sales' => 'pill-green',
+                                        'sales' => 'pill-blue',
                                     ];
                                     $label = $roleLabels[$user->role] ?? strtoupper($user->role);
                                     $color = $roleColors[$user->role] ?? 'pill-gray';

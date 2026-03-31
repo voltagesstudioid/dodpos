@@ -36,7 +36,7 @@
                         <div class="tr-info-list">
                             <div class="tr-info-row">
                                 <span class="tr-info-label">No. Referensi</span>
-                                <span class="tr-info-value tr-text-primary tr-font-mono tr-font-bold">{{ $transfer->reference_number }}</span>
+                                <span class="tr-info-value tr-font-bold tr-text-primary tr-font-mono tr-font-bold">{{ $transfer->reference_number }}</span>
                             </div>
                             <div class="tr-info-row">
                                 <span class="tr-info-label">Tanggal / Waktu</span>
@@ -50,6 +50,12 @@
                                     <span class="tr-pill-light">{{ $summary->total_items }} baris</span>
                                     <span class="tr-dot-divider">•</span>
                                     Total Qty: <span class="tr-text-primary">{{ $summary->total_qty }}</span>
+                                    @if($summary->unit_name && $summary->unit_name !== 'satuan dasar')
+                                        <span class="tr-unit-badge" style="margin-left: 8px;">{{ $summary->unit_name }}</span>
+                                        <div class="tr-conversion-text" style="margin-top: 4px;">
+                                            {{ $summary->total_qty_in_unit }} {{ $summary->unit_name }} = {{ $summary->total_qty }} satuan dasar
+                                        </div>
+                                    @endif
                                 </span>
                             </div>
                             <div class="tr-info-row">

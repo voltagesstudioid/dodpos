@@ -224,6 +224,24 @@
         <p>{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }} &mdash; Berikut ringkasan bisnis Anda hari ini.</p>
     </div>
 
+    <!-- Alerts / Notifications -->
+    @if(!empty($alerts))
+    <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;">
+        @foreach($alerts as $alert)
+        <a href="{{ $alert['link'] }}" style="text-decoration:none;">
+            <div style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; border-radius:12px; background:{{ $alert['type'] === 'danger' ? '#fef2f2' : ($alert['type'] === 'warning' ? '#fffbeb' : '#eff6ff') }}; border:1px solid {{ $alert['type'] === 'danger' ? '#fecaca' : ($alert['type'] === 'warning' ? '#fcd34d' : '#bfdbfe') }}; transition:all 0.2s;" onmouseover="this.style.transform='translateX(4px)';" onmouseout="this.style.transform='translateX(0)';">
+                <div style="font-size:1.5rem;">{{ $alert['icon'] }}</div>
+                <div style="flex:1;">
+                    <div style="font-weight:700; color:{{ $alert['type'] === 'danger' ? '#dc2626' : ($alert['type'] === 'warning' ? '#d97706' : '#2563eb') }};">{{ $alert['title'] }}</div>
+                    <div style="font-size:0.8125rem; color:#64748b;">{{ $alert['message'] }}</div>
+                </div>
+                <div style="font-size:0.75rem; color:{{ $alert['type'] === 'danger' ? '#dc2626' : ($alert['type'] === 'warning' ? '#d97706' : '#2563eb') }}; font-weight:600;">Lihat →</div>
+            </div>
+        </a>
+        @endforeach
+    </div>
+    @endif
+
     <!-- Stat Cards -->
     <div class="stat-grid">
         <div class="stat-card">
@@ -339,10 +357,6 @@
                                 Buka Kasir
                             </a>
                         @endcan
-                        <a href="{{ route('pasgar.setoran.index') }}" class="qa-btn">
-                            <div class="qa-icon" style="background:#fffbeb;color:#d97706;border-color:#fde68a;">💰</div>
-                            Validasi Setoran
-                        </a>
                         <a href="{{ route('gudang.terimapo.index') }}" class="qa-btn">
                             <div class="qa-icon" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;">📥</div>
                             Terima PO (Supplier)

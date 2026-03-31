@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppRole;
 use App\Models\User;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -21,10 +22,11 @@ class UserController extends Controller
         $query = User::query();
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('nik', 'like', "%{$search}%");
+            $sanitizedSearch = SearchSanitizer::sanitize($search);
+            $query->where(function ($q) use ($sanitizedSearch) {
+                $q->where('name', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('email', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('nik', 'like', "%{$sanitizedSearch}%");
             });
         }
         if ($role) {

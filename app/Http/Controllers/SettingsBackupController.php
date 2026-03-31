@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\BackupValidationService;
+use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class SettingsBackupController extends Controller
 {
@@ -44,6 +47,13 @@ class SettingsBackupController extends Controller
             'tables' => $tables,
         ];
 
+        // Generate signature for data integrity (optional, for future use)
+        $signature = BackupValidationService::generateSignature(
+            $payload,
+            config('app.key')
+        );
+        $payload['signature'] = $signature;
+
         $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
         $filename = 'dodpos-backup-settings-'.now()->format('Ymd-His').'.json';
 
@@ -65,10 +75,46 @@ class SettingsBackupController extends Controller
             return back()->with('error', 'Password salah. Restore dibatalkan.');
         }
 
-        $raw = $request->file('backup_file')->get();
+        // Securely upload and validate the backup file
+        try {
+            $upload = FileUploadService::uploadDocument(
+                $request->file('backup_file'),
+                'temp/backups',
+                'private',
+                ['application/json' => 'json', 'text/plain' => 'txt']
+            );
+            $filePath = storage_path('app/private/' . $upload['path']);
+            $raw = file_get_contents($filePath);
+
+            // Clean up temp file immediately
+            FileUploadService::delete($upload['path'], 'private');
+        } catch (\Exception $e) {
+            Log::error('Backup file upload failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Gagal mengunggah file backup: ' . $e->getMessage());
+        }
+
         $data = json_decode($raw, true);
-        if (! is_array($data) || ($data['type'] ?? null) !== 'dodpos_settings_backup' || ! isset($data['tables']) || ! is_array($data['tables'])) {
-            return back()->with('error', 'File backup tidak valid.');
+
+        // Validate backup structure and content
+        $validation = BackupValidationService::validate($data, strlen($raw));
+        if (! $validation['valid']) {
+            $errorMsg = 'Validasi backup gagal: ' . implode('; ', array_slice($validation['errors'], 0, 3));
+            Log::warning('Backup restore validation failed', [
+                'user_id' => $user->id,
+                'errors' => $validation['errors'],
+            ]);
+            return back()->with('error', $errorMsg);
+        }
+
+        // Verify signature if present
+        if (isset($data['signature'])) {
+            $signature = $data['signature'];
+            unset($data['signature']); // Remove before verification
+
+            if (! BackupValidationService::verifySignature($data, $signature, config('app.key'))) {
+                Log::warning('Backup signature verification failed', ['user_id' => $user->id]);
+                return back()->with('error', 'Tanda tangan digital backup tidak valid. File mungkin telah dimodifikasi.');
+            }
         }
 
         DB::transaction(function () use ($data) {
@@ -96,6 +142,12 @@ class SettingsBackupController extends Controller
                 }
             }
         });
+
+        Log::info('Backup restored successfully', [
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'backup_created_at' => $data['created_at'] ?? 'unknown',
+        ]);
 
         return redirect()->route('pengaturan.backup')->with('success', 'Restore selesai. Data pengaturan/master sudah diperbarui.');
     }

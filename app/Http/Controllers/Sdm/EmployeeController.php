@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\SdmDeduction;
 use App\Models\SdmEmployee;
+use App\Models\SdmEmployeeAllowance;
 use App\Models\SdmHoliday;
 use App\Models\SdmLeaveRequest;
 use App\Models\SdmPayroll;
@@ -167,7 +168,7 @@ class EmployeeController extends Controller
 
     public function edit(SdmEmployee $karyawan)
     {
-        $karyawan->load('user');
+        $karyawan->load(['user', 'allowances']);
 
         return view('sdm.karyawan.edit', compact('karyawan'));
     }
@@ -407,6 +408,11 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string',
             'basic_salary' => 'nullable|numeric|min:0',
             'daily_allowance' => 'nullable|numeric|min:0',
+            'allowances' => 'nullable|array',
+            'allowances.*.id' => 'nullable|integer|exists:sdm_employee_allowances,id',
+            'allowances.*.label' => 'required_with:allowances|string|max:100',
+            'allowances.*.amount' => 'required_with:allowances|numeric|min:0',
+            'allowances.*.active' => 'nullable|in:1',
         ]);
 
         $karyawan->update([
@@ -419,6 +425,33 @@ class EmployeeController extends Controller
             'basic_salary' => $validated['basic_salary'] ?? 0,
             'daily_allowance' => $validated['daily_allowance'] ?? 0,
         ]);
+
+        // Sync allowance rows
+        $submittedAllowances = $validated['allowances'] ?? [];
+        $submittedIds = array_filter(array_column($submittedAllowances, 'id'));
+
+        // Delete rows not in submitted list
+        SdmEmployeeAllowance::where('employee_id', $karyawan->id)
+            ->when(! empty($submittedIds), fn ($q) => $q->whereNotIn('id', $submittedIds))
+            ->when(empty($submittedIds), fn ($q) => $q)
+            ->delete();
+
+        foreach ($submittedAllowances as $row) {
+            $data = [
+                'employee_id' => $karyawan->id,
+                'label' => $row['label'],
+                'amount' => (float) $row['amount'],
+                'active' => ($row['active'] ?? null) === '1',
+            ];
+
+            if (! empty($row['id'])) {
+                SdmEmployeeAllowance::where('id', $row['id'])
+                    ->where('employee_id', $karyawan->id)
+                    ->update($data);
+            } else {
+                SdmEmployeeAllowance::create($data);
+            }
+        }
 
         return redirect()->route('sdm.karyawan.index')->with('success', 'Karyawan berhasil diperbarui.');
     }

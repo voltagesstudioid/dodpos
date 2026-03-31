@@ -3,6 +3,23 @@
 
     <div class="tr-page-wrapper">
         <div class="tr-page">
+            @php $isPrint = (bool) ($isPrint ?? request()->boolean('print')); @endphp
+
+            @if($isPrint && request()->boolean('preview'))
+                @include('print.partials.preview-toolbar', ['title' => 'Laporan Stok'])
+            @endif
+
+            @if($isPrint)
+                <div style="margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
+                    <div style="font-size:1.25rem; font-weight:900; color:#0f172a;">Laporan Stok</div>
+                    <div style="font-size:0.8rem; color:#475569; margin-top:0.25rem;">
+                        @if($search) Pencarian: <strong>{{ $search }}</strong> • @endif
+                        @if($warehouseId) Gudang: <strong>{{ optional($warehouses->firstWhere('id', (int) $warehouseId))->name ?? $warehouseId }}</strong> • @endif
+                        @if($categoryId) Kategori: <strong>{{ optional($categories->firstWhere('id', (int) $categoryId))->name ?? $categoryId }}</strong> • @endif
+                        Dicetak: <strong>{{ now()->format('d/m/Y H:i') }}</strong>
+                    </div>
+                </div>
+            @endif
 
             {{-- ─── HEADER ─── --}}
             <div class="tr-header">
@@ -29,6 +46,11 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                         Expired
                     </a>
+                    @if(! $isPrint)
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'page' => null]) }}" class="tr-btn tr-btn-outline">⬇️ CSV</a>
+                        <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null]) }}" class="tr-btn tr-btn-outline">⬇️ Excel</a>
+                        <a href="{{ request()->fullUrlWithQuery(['print' => 1, 'preview' => 1, 'page' => null]) }}" target="_blank" class="tr-btn tr-btn-outline">🖨️ Cetak</a>
+                    @endif
                 </div>
             </div>
 
@@ -528,4 +550,25 @@
         }
     </style>
     @endpush
+
+    <style>
+        @page { size: A4; margin: 12mm; }
+        @media print {
+            .sidebar, .sidebar-overlay, .topbar { display: none !important; }
+            body { background: #fff !important; }
+            .tr-page-wrapper { background: #fff !important; padding: 0 !important; min-height: auto !important; height: auto !important; overflow: visible !important; }
+            .tr-page { padding: 0 !important; max-width: 100% !important; min-height: auto !important; height: auto !important; }
+            .tr-header-actions, .tr-tabs, .tr-filter-bar, .tr-col-side { display: none !important; }
+            .tr-card { box-shadow: none !important; }
+            a { color: #000 !important; text-decoration: none !important; }
+        }
+    </style>
+
+    @if($isPrint && ! request()->boolean('preview'))
+        <script>
+            window.addEventListener('load', function () {
+                window.print();
+            });
+        </script>
+    @endif
 </x-app-layout>

@@ -70,13 +70,6 @@
                     </div>
                 </a>
 
-                <a href="{{ route('pasgar.setoran.index') }}" class="quick-item">
-                    <div class="quick-icon" style="background:#dcfce7;color:#16a34a;">🚚</div>
-                    <div>
-                        <div class="quick-title">Setoran Armada</div>
-                        <div class="quick-sub">Validasi uang masuk</div>
-                    </div>
-                </a>
 
                 <a href="{{ route('laporan.penjualan') }}" class="quick-item">
                     <div class="quick-icon" style="background:#fef3c7;color:#b45309;">📈</div>

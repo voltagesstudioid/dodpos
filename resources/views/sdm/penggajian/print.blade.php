@@ -140,6 +140,28 @@
                 </td>
                 <td></td>
             </tr>
+            @if(($penggajian->fixed_allowance_total ?? 0) > 0)
+                @php
+                    $employeeAllowances = $penggajian->user->employee
+                        ? \App\Models\SdmEmployeeAllowance::where('employee_id', $penggajian->user->employee->id)
+                            ->where('active', true)
+                            ->get()
+                        : collect();
+                @endphp
+                @if($employeeAllowances->count() > 0)
+                    @foreach($employeeAllowances as $ea)
+                    <tr>
+                        <td>{{ $ea->label }}</td>
+                        <td class="amount">Rp {{ number_format($ea->amount, 0, ',', '.') }}</td>
+                    </tr>
+                    @endforeach
+                @else
+                    <tr>
+                        <td>Tunjangan Tetap</td>
+                        <td class="amount">Rp {{ number_format($penggajian->fixed_allowance_total, 0, ',', '.') }}</td>
+                    </tr>
+                @endif
+            @endif
             <tr>
                 <td>Lembur</td>
                 <td class="amount">Rp {{ number_format($penggajian->overtime_pay ?? 0, 0, ',', '.') }}</td>
@@ -168,6 +190,7 @@
                     Rp {{ number_format(
                         ($penggajian->total_basic_salary ?? 0)
                         + ($penggajian->total_allowance ?? 0)
+                        + ($penggajian->fixed_allowance_total ?? 0)
                         + ($penggajian->overtime_pay ?? 0)
                         + ($penggajian->incentive_amount ?? 0)
                         + ($penggajian->performance_bonus ?? 0),

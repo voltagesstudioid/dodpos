@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\SdmDeduction;
 use App\Models\SdmBonus;
+use App\Models\SdmEmployeeAllowance;
 use App\Models\SdmHoliday;
 use App\Models\SdmLeaveRequest;
 use App\Models\SdmPayroll;
@@ -108,6 +109,7 @@ class PenggajianController extends Controller
             $monthStart = Carbon::createFromDate((int) $year, (int) $m, 1)->startOfDay();
             $monthEnd = Carbon::createFromDate((int) $year, (int) $m, 1)->endOfMonth()->endOfDay();
 
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\Attendance> $attRows */
             $attRows = Attendance::query()
                 ->whereIn('user_id', $userIds)
                 ->whereYear('date', $year)
@@ -130,6 +132,7 @@ class PenggajianController extends Controller
                 $overtimeByUser[$uid] = (int) (($overtimeByUser[$uid] ?? 0) + (int) ($row->overtime_minutes ?? 0));
             }
 
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\SdmLeaveRequest> $leaveRows */
             $leaveRows = SdmLeaveRequest::query()
                 ->whereIn('user_id', $userIds)
                 ->where('status', 'approved')
@@ -156,6 +159,7 @@ class PenggajianController extends Controller
                 }
             }
 
+            /** @var \Illuminate\Support\Collection<int, float> $deductionsByUser */
             $deductionsByUser = SdmDeduction::query()
                 ->select(['user_id', DB::raw('SUM(amount) as total_deductions')])
                 ->whereNotNull('user_id')
@@ -164,6 +168,7 @@ class PenggajianController extends Controller
                 ->groupBy('user_id')
                 ->pluck('total_deductions', 'user_id');
 
+            /** @var \Illuminate\Support\Collection<int, float> $bonusesByUser */
             $bonusesByUser = SdmBonus::query()
                 ->select(['user_id', DB::raw('SUM(amount) as total_bonuses')])
                 ->whereNotNull('user_id')
@@ -172,17 +177,30 @@ class PenggajianController extends Controller
                 ->groupBy('user_id')
                 ->pluck('total_bonuses', 'user_id');
 
+            // Pre-load fixed allowances per employee_id → sum active amounts
+            $employeeIds = $users->pluck('employee.id')->filter()->all();
+            $fixedAllowanceByEmployeeId = SdmEmployeeAllowance::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->where('active', true)
+                ->get(['employee_id', 'amount'])
+                ->groupBy('employee_id')
+                ->map(fn ($rows) => $rows->sum('amount'))
+                ->all();
+
+            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\SdmPayroll> $payrollsByUser */
             $payrollsByUser = SdmPayroll::query()
                 ->where('period_year', $year)
                 ->where('period_month', $m)
                 ->get()
                 ->keyBy('user_id');
 
+            /** @var \App\Models\User $user */
             foreach ($users as $user) {
                 if (! $user->employee) {
                     continue;
                 }
 
+                /** @var \App\Models\SdmPayroll|null $existing */
                 $existing = $payrollsByUser->get($user->id);
                 if ($existing && $existing->locked_at) {
                     continue;
@@ -190,6 +208,7 @@ class PenggajianController extends Controller
 
                 $basicSalary = $user->employee->basic_salary ?? 0;
                 $mealAllowancePerDay = $user->employee->daily_allowance ?? 0;
+                $fixedAllowanceTotal = (float) ($fixedAllowanceByEmployeeId[$user->employee->id] ?? 0);
 
                 $presentDays = (int) (($countsByUser[$user->id]['present'] ?? 0));
                 $lateDays = (int) (($countsByUser[$user->id]['late'] ?? 0));
@@ -249,7 +268,7 @@ class PenggajianController extends Controller
 
                 $effectiveAbsenceDeduction = (float) ($existing?->override_absence_deduction ?? $absenceDeduction);
 
-                $netSalary = ($effectiveBasicSalary + $totalAllowance + $overtimePay + $incentiveAmount + $performanceBonus) - ($totalDeductions + $effectiveAbsenceDeduction);
+                $netSalary = ($effectiveBasicSalary + $totalAllowance + $fixedAllowanceTotal + $overtimePay + $incentiveAmount + $performanceBonus) - ($totalDeductions + $effectiveAbsenceDeduction);
                 if ($netSalary < 0) {
                     $netSalary = 0;
                 }
@@ -267,6 +286,7 @@ class PenggajianController extends Controller
                         'total_attendance' => $totalAttendance,
                         'total_basic_salary' => $effectiveBasicSalary,
                         'total_allowance' => $totalAllowance,
+                        'fixed_allowance_total' => $fixedAllowanceTotal,
                         'meal_allowance_per_day' => $mealAllowancePerDay,
                         'meal_allowance_gross' => $mealAllowanceGross,
                         'late_meal_penalty' => $effectiveLateMealPenalty,
@@ -294,6 +314,7 @@ class PenggajianController extends Controller
                         'total_attendance' => $totalAttendance,
                         'total_basic_salary' => $effectiveBasicSalary,
                         'total_allowance' => $totalAllowance,
+                        'fixed_allowance_total' => $fixedAllowanceTotal,
                         'meal_allowance_per_day' => $mealAllowancePerDay,
                         'meal_allowance_gross' => $mealAllowanceGross,
                         'late_meal_penalty' => $effectiveLateMealPenalty,
@@ -370,15 +391,16 @@ class PenggajianController extends Controller
             'override_absence_deduction' => 'nullable|numeric|min:0',
         ]);
 
-        $penggajian->incentive_amount = (float) ($validated['incentive_amount'] ?? 0);
-        $penggajian->performance_bonus = (float) ($validated['performance_bonus'] ?? 0);
-        $penggajian->override_total_basic_salary = array_key_exists('override_total_basic_salary', $validated) ? $validated['override_total_basic_salary'] : $penggajian->override_total_basic_salary;
-        $penggajian->override_late_meal_penalty = array_key_exists('override_late_meal_penalty', $validated) ? $validated['override_late_meal_penalty'] : $penggajian->override_late_meal_penalty;
-        $penggajian->override_absence_deduction = array_key_exists('override_absence_deduction', $validated) ? $validated['override_absence_deduction'] : $penggajian->override_absence_deduction;
+        $updates = [];
+        $updates['incentive_amount'] = (float) ($validated['incentive_amount'] ?? 0);
+        $updates['performance_bonus'] = (float) ($validated['performance_bonus'] ?? 0);
+        $updates['override_total_basic_salary'] = array_key_exists('override_total_basic_salary', $validated) ? $validated['override_total_basic_salary'] : $penggajian->override_total_basic_salary;
+        $updates['override_late_meal_penalty'] = array_key_exists('override_late_meal_penalty', $validated) ? $validated['override_late_meal_penalty'] : $penggajian->override_late_meal_penalty;
+        $updates['override_absence_deduction'] = array_key_exists('override_absence_deduction', $validated) ? $validated['override_absence_deduction'] : $penggajian->override_absence_deduction;
 
-        $effectiveBasic = $penggajian->override_total_basic_salary !== null ? (float) $penggajian->override_total_basic_salary : (float) ($penggajian->total_basic_salary ?? 0);
-        $effectiveLateMealPenalty = $penggajian->override_late_meal_penalty !== null ? (float) $penggajian->override_late_meal_penalty : (float) ($penggajian->late_meal_penalty ?? 0);
-        $effectiveAbsenceDeduction = $penggajian->override_absence_deduction !== null ? (float) $penggajian->override_absence_deduction : (float) ($penggajian->absence_deduction ?? 0);
+        $effectiveBasic = $updates['override_total_basic_salary'] !== null ? (float) $updates['override_total_basic_salary'] : (float) ($penggajian->total_basic_salary ?? 0);
+        $effectiveLateMealPenalty = $updates['override_late_meal_penalty'] !== null ? (float) $updates['override_late_meal_penalty'] : (float) ($penggajian->late_meal_penalty ?? 0);
+        $effectiveAbsenceDeduction = $updates['override_absence_deduction'] !== null ? (float) $updates['override_absence_deduction'] : (float) ($penggajian->absence_deduction ?? 0);
 
         $mealGross = (float) ($penggajian->meal_allowance_gross ?? 0);
         $totalAllowance = $mealGross - $effectiveLateMealPenalty;
@@ -386,26 +408,28 @@ class PenggajianController extends Controller
             $totalAllowance = 0;
         }
 
-        if ($penggajian->override_total_basic_salary !== null && (float) $penggajian->total_basic_salary !== $effectiveBasic) {
-            $penggajian->total_basic_salary = $effectiveBasic;
+        if ($updates['override_total_basic_salary'] !== null && (float) $penggajian->total_basic_salary !== $effectiveBasic) {
+            $updates['total_basic_salary'] = $effectiveBasic;
         }
-        if ($penggajian->override_late_meal_penalty !== null && (float) $penggajian->late_meal_penalty !== $effectiveLateMealPenalty) {
-            $penggajian->late_meal_penalty = $effectiveLateMealPenalty;
+        if ($updates['override_late_meal_penalty'] !== null && (float) $penggajian->late_meal_penalty !== $effectiveLateMealPenalty) {
+            $updates['late_meal_penalty'] = $effectiveLateMealPenalty;
         }
-        if ($penggajian->override_absence_deduction !== null && (float) $penggajian->absence_deduction !== $effectiveAbsenceDeduction) {
-            $penggajian->absence_deduction = $effectiveAbsenceDeduction;
+        if ($updates['override_absence_deduction'] !== null && (float) $penggajian->absence_deduction !== $effectiveAbsenceDeduction) {
+            $updates['absence_deduction'] = $effectiveAbsenceDeduction;
         }
-        $penggajian->total_allowance = $totalAllowance;
+        $updates['total_allowance'] = $totalAllowance;
 
         $overtimePay = (float) ($penggajian->overtime_pay ?? 0);
         $totalDeductions = (float) ($penggajian->total_deductions ?? 0);
+        $fixedAllowanceTotal = (float) ($penggajian->fixed_allowance_total ?? 0);
 
-        $netSalary = ($effectiveBasic + $totalAllowance + $overtimePay + (float) $penggajian->incentive_amount + (float) $penggajian->performance_bonus) - ($totalDeductions + $effectiveAbsenceDeduction);
+        $netSalary = ($effectiveBasic + $totalAllowance + $fixedAllowanceTotal + $overtimePay + (float) $updates['incentive_amount'] + (float) $updates['performance_bonus']) - ($totalDeductions + $effectiveAbsenceDeduction);
         if ($netSalary < 0) {
             $netSalary = 0;
         }
-        $penggajian->net_salary = $netSalary;
-        $penggajian->save();
+        $updates['net_salary'] = $netSalary;
+        
+        $penggajian->update($updates);
 
         return redirect()->back()->with('success', 'Komponen slip gaji berhasil diperbarui.');
     }
@@ -481,8 +505,8 @@ class PenggajianController extends Controller
 
             $dow = (int) $cursor->dayOfWeek;
             $isWorkingDay = $mode === 'mon_fri'
-                ? ($dow >= Carbon::MONDAY && $dow <= Carbon::FRIDAY)
-                : ($dow >= Carbon::MONDAY && $dow <= Carbon::SATURDAY);
+                ? ($dow >= 1 && $dow <= 5)
+                : ($dow >= 1 && $dow <= 6);
 
             if ($isWorkingDay && ! isset($holidaySet[$dateStr])) {
                 $dates[] = $dateStr;

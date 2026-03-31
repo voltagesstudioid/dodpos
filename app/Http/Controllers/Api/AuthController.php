@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\MinyakSales;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,8 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
+            'device_id' => 'nullable|string',
+            'fcm_token' => 'nullable|string',
         ]);
 
         // ── Account Lockout — max 5 percobaan per email per 15 menit ──
@@ -50,7 +53,12 @@ class AuthController extends Controller
         // Hapus token lama agar tidak menumpuk
         $user->tokens()->where('name', 'auth_token')->delete();
 
-        return response()->json([
+        // Cek apakah user adalah sales minyak
+        $sales = MinyakSales::where('user_id', $user->id)
+            ->where('status', 'aktif')
+            ->first();
+
+        $response = [
             'status'  => 'success',
             'message' => 'Login berhasil',
             'token'   => $user->createToken('auth_token')->plainTextToken,
@@ -60,7 +68,23 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'role'  => $user->role,
             ],
-        ]);
+        ];
+
+        // Jika user adalah sales, tambahkan data sales
+        if ($sales) {
+            $response['sales'] = [
+                'id' => $sales->id,
+                'kode_sales' => $sales->kode_sales,
+                'nama' => $sales->nama,
+                'no_hp' => $sales->no_hp,
+                'no_kendaraan' => $sales->no_kendaraan,
+                'jenis_kendaraan' => $sales->jenis_kendaraan,
+                'target_harian' => (float) $sales->target_harian,
+                'divisi' => 'minyak',
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function logout(Request $request)

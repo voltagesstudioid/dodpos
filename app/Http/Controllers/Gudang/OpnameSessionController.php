@@ -8,6 +8,8 @@ use App\Models\ProductStock;
 use App\Models\StockOpnameItem;
 use App\Models\StockOpnameSession;
 use App\Models\Warehouse;
+use App\Support\SearchSanitizer;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,18 +21,12 @@ class OpnameSessionController extends Controller
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
 
-        $allowedWarehouseId = null;
-        if ($role === 'admin3') {
-            $allowedWarehouseId = 1;
-        }
-        if ($role === 'admin4') {
-            $allowedWarehouseId = 2;
-        }
+        $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
 
         $query = StockOpnameSession::with(['warehouse', 'creator', 'approver'])
             ->orderByDesc('created_at');
 
-        if ($allowedWarehouseId) {
+        if ($allowedWarehouseId !== null) {
             $query->where('warehouse_id', $allowedWarehouseId);
         }
 
@@ -40,10 +36,11 @@ class OpnameSessionController extends Controller
 
         if ($request->filled('q')) {
             $q = trim((string) $request->q);
-            $query->where(function ($sub) use ($q) {
-                $sub->where('reference_number', 'like', '%'.$q.'%')
-                    ->orWhereHas('creator', function ($u) use ($q) {
-                        $u->where('name', 'like', '%'.$q.'%');
+            $sanitizedQ = SearchSanitizer::sanitize($q);
+            $query->where(function ($sub) use ($sanitizedQ) {
+                $sub->where('reference_number', 'like', '%'.$sanitizedQ.'%')
+                    ->orWhereHas('creator', function ($u) use ($sanitizedQ) {
+                        $u->where('name', 'like', '%'.$sanitizedQ.'%');
                     });
             });
         }
@@ -59,11 +56,9 @@ class OpnameSessionController extends Controller
         $role = strtolower((string) ($user?->role ?? ''));
 
         $whQuery = Warehouse::where('active', true);
-        if ($role === 'admin3') {
-            $whQuery->where('id', 1);
-        }
-        if ($role === 'admin4') {
-            $whQuery->where('id', 2);
+        $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
+        if ($allowedWarehouseId !== null) {
+            $whQuery->where('id', $allowedWarehouseId);
         }
         $warehouses = $whQuery->orderBy('name')->get();
 
@@ -81,11 +76,8 @@ class OpnameSessionController extends Controller
         $role = strtolower((string) ($user?->role ?? ''));
         $warehouseId = (int) $request->warehouse_id;
 
-        if ($role === 'admin3' && $warehouseId !== 1) {
-            return back()->withInput()->with('error', 'Admin 3 hanya dapat melakukan opname di Gudang Utama.');
-        }
-        if ($role === 'admin4' && $warehouseId !== 2) {
-            return back()->withInput()->with('error', 'Admin 4 hanya dapat melakukan opname di Gudang Cabang.');
+        if (! WarehouseConfig::canAccess($role, $warehouseId)) {
+            return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk melakukan opname di gudang ini.');
         }
 
         $session = StockOpnameSession::create([
@@ -252,13 +244,7 @@ class OpnameSessionController extends Controller
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
 
-        $allowedWarehouseId = null;
-        if ($role === 'admin3') {
-            $allowedWarehouseId = 1;
-        }
-        if ($role === 'admin4') {
-            $allowedWarehouseId = 2;
-        }
+        $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
 
         if ($allowedWarehouseId && (int) $session->warehouse_id !== $allowedWarehouseId) {
             abort(403);

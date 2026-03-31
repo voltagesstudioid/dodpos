@@ -29,14 +29,29 @@
 
             {{-- TABBED NAVIGATION --}}
             <div class="tr-tabs">
-                <a href="{{ route('gudang.pengeluaran') }}" class="tr-tab-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                    Mutasi Pengeluaran
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin3', 'admin1', 'admin2', 'supervisor', 'superadmin']))
+                <a href="{{ route('gudang.transfer.requests') }}" class="tr-tab-item {{ request()->routeIs('gudang.transfer.requests') ? 'active' : '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Permintaan Transfer
+                    @if($pendingReqCount > 0)
+                        <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingReqCount }}</span>
+                    @endif
                 </a>
-                <a href="{{ route('gudang.transfer') }}" class="tr-tab-item active">
+                <a href="{{ route('gudang.transfer') }}" class="tr-tab-item {{ request()->routeIs('gudang.transfer') ? 'active' : '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
-                    Transfer Cabang
+                    Kirim Transfer (Out)
                 </a>
+                @endif
+
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin4', 'admin1', 'admin2', 'supervisor', 'superadmin']))
+                <a href="{{ route('gudang.terima_transfer.index') }}" class="tr-tab-item {{ request()->routeIs('gudang.terima_transfer.index') ? 'active' : '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Terima Transfer (In)
+                    @if($pendingTransferCount > 0)
+                        <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingTransferCount }}</span>
+                    @endif
+                </a>
+                @endif
             </div>
 
             {{-- ALERTS --}}

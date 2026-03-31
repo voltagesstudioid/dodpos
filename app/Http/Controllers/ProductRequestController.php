@@ -8,7 +8,7 @@ class ProductRequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = \App\Models\ProductRequest::with(['user', 'product', 'fromWarehouse', 'toWarehouse'])->latest();
+        $query = \App\Models\ProductRequest::with(['user', 'product', 'fromWarehouse', 'toWarehouse', 'unit'])->latest();
 
         // Admin3/Admin4 hanya melihat request mereka sendiri. Supervisor melihat semua.
         $role = strtolower(auth()->user()->role);
@@ -61,10 +61,11 @@ class ProductRequestController extends Controller
 
     public function create()
     {
-        $products = \App\Models\Product::orderBy('name')->get();
+        $products = \App\Models\Product::with(['unit', 'unitConversions.unit'])->orderBy('name')->get();
         $warehouses = \App\Models\Warehouse::where('active', true)->orderBy('name')->get();
+        $units = \App\Models\Unit::orderBy('name')->get();
 
-        return view('gudang.request.create', compact('products', 'warehouses'));
+        return view('gudang.request.create', compact('products', 'warehouses', 'units'));
     }
 
     public function store(\App\Http\Requests\StoreProductRequestRequest $request)
@@ -72,7 +73,8 @@ class ProductRequestController extends Controller
         $data = $request->validated();
         $data['user_id'] = auth()->id();
         $data['status'] = 'pending';
-        $data['quantity'] = (int) ($data['quantity'] ?? 0);
+        $data['quantity'] = (float) ($data['quantity'] ?? 0);
+        $data['conversion_factor'] = (float) ($data['conversion_factor'] ?? 1);
 
         if (($data['type'] ?? null) === 'transfer') {
             $role = strtolower(auth()->user()->role);

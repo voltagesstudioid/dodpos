@@ -6,6 +6,8 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
+use App\Services\ReferenceNumberService;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +73,7 @@ class SalesOrderController extends Controller
     public function searchProducts(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
+        $sanitizedQ = SearchSanitizer::sanitize($q);
 
         $query = Product::query()
             ->with(['productStocks.warehouse', 'unit', 'unitConversions.unit'])
@@ -78,10 +81,10 @@ class SalesOrderController extends Controller
             ->whereNull('deleted_at');
 
         if ($q !== '') {
-            $query->where(function ($x) use ($q) {
-                $x->where('name', 'like', '%'.$q.'%')
-                    ->orWhere('sku', 'like', '%'.$q.'%')
-                    ->orWhere('barcode', 'like', '%'.$q.'%');
+            $query->where(function ($x) use ($sanitizedQ) {
+                $x->where('name', 'like', "%{$sanitizedQ}%")
+                    ->orWhere('sku', 'like', "%{$sanitizedQ}%")
+                    ->orWhere('barcode', 'like', "%{$sanitizedQ}%");
             });
         }
 
@@ -128,19 +131,20 @@ class SalesOrderController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $sanitizedSearch = SearchSanitizer::sanitize($search);
         $status = $request->input('status');
         $date = $request->input('date');
 
         $baseQuery = SalesOrder::query();
 
         if ($search) {
-            $baseQuery->where(function ($q) use ($search) {
-                $q->where('so_number', 'like', '%'.$search.'%')
-                    ->orWhereHas('customer', function ($c) use ($search) {
-                        $c->where('name', 'like', '%'.$search.'%');
+            $baseQuery->where(function ($q) use ($sanitizedSearch) {
+                $q->where('so_number', 'like', "%{$sanitizedSearch}%")
+                    ->orWhereHas('customer', function ($c) use ($sanitizedSearch) {
+                        $c->where('name', 'like', "%{$sanitizedSearch}%");
                     })
-                    ->orWhereHas('user', function ($u) use ($search) {
-                        $u->where('name', 'like', '%'.$search.'%');
+                    ->orWhereHas('user', function ($u) use ($sanitizedSearch) {
+                        $u->where('name', 'like', "%{$sanitizedSearch}%");
                     });
             });
         }
@@ -360,20 +364,10 @@ class SalesOrderController extends Controller
 
     /**
      * Generate SO Number yang aman dari race condition menggunakan DB lock.
+     * @deprecated Use ReferenceNumberService::generateSoNumber()
      */
     private function generateSoNumber(): string
     {
-        $prefix = 'SO-'.date('Ymd').'-';
-
-        $last = SalesOrder::where('so_number', 'like', $prefix.'%')
-            ->lockForUpdate()
-            ->orderByDesc('so_number')
-            ->first();
-
-        $sequence = $last
-            ? (int) substr($last->so_number, -4) + 1
-            : 1;
-
-        return $prefix.str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return ReferenceNumberService::generateSoNumber();
     }
 }

@@ -1,10 +1,19 @@
 <!DOCTYPE html>
+@php
+    $storeSetting = \App\Models\StoreSetting::current();
+    $pageTitle = ($title ?? null) ? $title . ' - ' . ($storeSetting->store_name ?? config('app.name', 'DODPOS')) : ($storeSetting->store_name ?? config('app.name', 'DODPOS'));
+@endphp
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? config('app.name', 'DODPOS') }}</title>
+    <title>{{ $pageTitle }}</title>
+    @if($storeSetting->logo_path)
+        <link rel="icon" type="image/png" href="{{ asset($storeSetting->logo_path) }}">
+    @else
+        <link rel="icon" href="{{ asset('favicon.ico') }}">
+    @endif
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -591,8 +600,12 @@
 
     <aside class="sidebar" id="sidebar">
         <a href="{{ route('dashboard') }}" class="sidebar-logo">
-            <div class="sidebar-logo-icon">🧾</div>
-            <span class="sidebar-logo-text">DOD<span>POS</span></span>
+            @if($storeSetting->logo_path)
+                <img src="{{ asset($storeSetting->logo_path) }}" alt="Logo" style="height:36px;width:36px;object-fit:contain;border-radius:8px;">
+            @else
+                <div class="sidebar-logo-icon">🧾</div>
+            @endif
+            <span class="sidebar-logo-text">{{ Str::limit($storeSetting->store_name ?? 'DODPOS', 12) }}</span>
             <span class="sidebar-logo-badge">v1.0</span>
         </a>
 
@@ -672,47 +685,34 @@
             @endif
             @endcanany
 
-            {{-- SDM Self-Service --}}
+            {{-- HR & Payroll Self-Service (untuk karyawan non-supervisor) --}}
             @php $role = strtolower(auth()->user()?->role ?? ''); @endphp
-            @if(auth()->check() && $role !== 'supervisor')
-            @if(in_array($role, ['admin1', 'admin2', 'admin3', 'admin4']))
-            {{-- FLAT for admin1/admin2/admin3/admin4: tanpa group header --}}
-            <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
-            <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti Saya</span></a>
-            <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Gaji Saya</span></a>
-            <a href="{{ route('sdm.potongan.self_index') }}" class="nav-item {{ request()->routeIs('sdm.potongan.self_*') ? 'active' : '' }}"><span class="nav-item-icon">➖</span><span>Potongan Saya</span></a>
-            @else
-            <div class="nav-group {{ request()->routeIs('sdm.absensi.self_*','sdm.cuti.self_*','sdm.penggajian.self_*','sdm.potongan.self_*') ? 'open' : '' }}" id="grp-sdm-self">
+            @if(auth()->check() && $role !== 'supervisor' && in_array($role, ['kasir', 'gudang', 'sales', 'admin_sales']))
+            <div class="nav-group {{ request()->routeIs('sdm.absensi.self_*','sdm.cuti.self_*','sdm.penggajian.self_*') ? 'open' : '' }}" id="grp-sdm-self">
                 <button class="nav-group-header" onclick="toggleGroup('grp-sdm-self')" type="button">
-                    <span class="nav-group-label">🧑‍🤝‍🧑 SDM Saya</span>
+                    <span class="nav-group-label">🧑‍🤝‍🧑 HR &amp; Payroll</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
-                    <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
-                    <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti Saya</span></a>
-                    <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Gaji Saya</span></a>
-                    <a href="{{ route('sdm.potongan.self_index') }}" class="nav-item {{ request()->routeIs('sdm.potongan.self_*') ? 'active' : '' }}"><span class="nav-item-icon">➖</span><span>Potongan Saya</span></a>
+                    <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absensi</span></a>
+                    <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti</span></a>
+                    <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
                 </div>
             </div>
             @endif
-            @endif
 
-            {{-- SDM / HR (Supervisor) --}}
-            @if(auth()->check() && strtolower((string) auth()->user()->role) === 'supervisor')
+            {{-- HR & Payroll (Supervisor) --}}
+            @if(auth()->check() && $role === 'supervisor')
             <div class="nav-group {{ request()->routeIs('sdm.*') ? 'open' : '' }}" id="grp-sdm">
                 <button class="nav-group-header" onclick="toggleGroup('grp-sdm')" type="button">
                     <span class="nav-group-label">🧑‍🤝‍🧑 HR &amp; Payroll</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
-                    <a href="{{ route('sdm.karyawan.index') }}" class="nav-item {{ request()->routeIs('sdm.karyawan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Data Karyawan</span></a>
-                    <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.index') ? 'active' : '' }}"><span class="nav-item-icon">🕒</span><span>Absensi</span></a>
-                    <a href="{{ route('sdm.absensi.monthly') }}" class="nav-item {{ request()->routeIs('sdm.absensi.monthly*') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Rekap Absensi</span></a>
-                    <a href="{{ route('sdm.cuti.index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti</span></a>
-                    <a href="{{ route('sdm.libur.index') }}" class="nav-item {{ request()->routeIs('sdm.libur.*') ? 'active' : '' }}"><span class="nav-item-icon">📅</span><span>Kalender Libur</span></a>
-                    <a href="{{ route('sdm.potongan.index') }}" class="nav-item {{ request()->routeIs('sdm.potongan.*') ? 'active' : '' }}"><span class="nav-item-icon">✂️</span><span>Potongan & Bonus</span></a>
-                    <a href="{{ route('sdm.penggajian.index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Penggajian</span></a>
-                    <a href="{{ route('sdm.performa.index') }}" class="nav-item {{ request()->routeIs('sdm.performa.*') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Performa</span></a>
+                    <a href="{{ route('sdm.karyawan.index') }}" class="nav-item {{ request()->routeIs('sdm.karyawan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Karyawan</span></a>
+                    <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.*') ? 'active' : '' }}"><span class="nav-item-icon">⏱️</span><span>Absensi</span></a>
+                    <a href="{{ route('sdm.cuti.index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.*','sdm.libur.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti &amp; Libur</span></a>
+                    <a href="{{ route('sdm.penggajian.index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.*','sdm.potongan.*','sdm.performa.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Payroll</span></a>
                 </div>
             </div>
             @endif
@@ -767,177 +767,52 @@
 
             <div class="sidebar-divider"></div>
 
-            {{-- Pasukan Garuda --}}
-            @canany(['view_pasgar_pesanan', 'view_pasgar_pelanggan', 'view_pasgar_stok', 'view_pasgar_pengembalian', 'view_pasgar_penjualan', 'view_pasgar_penagihan', 'view_pasgar_setoran', 'view_pasgar_jadwal', 'view_pasgar_kunjungan', 'view_pasgar_anggota', 'view_pasgar_kendaraan'])
-            <div class="nav-group {{ request()->routeIs('pasgar.*') ? 'open' : '' }}" id="grp-pasgar">
-                <button class="nav-group-header" onclick="toggleGroup('grp-pasgar')" type="button">
-                    <span class="nav-group-label">🦅 PASUKAN GARUDA</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
-                    @can('view_pasgar_pesanan')
-                    <a href="{{ route('pasgar.loadings.index') }}" class="nav-item {{ request()->routeIs('pasgar.loadings.*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Pesanan Pasgar</span></a>
-                    @endcan
-                    @can('view_pasgar_pelanggan')
-                    <a href="{{ route('pasgar.pelanggan.index') }}" class="nav-item {{ request()->routeIs('pasgar.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Data Pelanggan</span></a>
-                    @endcan
-                    @can('view_pasgar_stok')
-                    <a href="{{ route('pasgar.stok-onhand.index') }}" class="nav-item {{ request()->routeIs('pasgar.stok-onhand.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok On-Hand</span></a>
-                    @endcan
-                    @can('view_pasgar_pengembalian')
-                    <a href="{{ route('pasgar.pengembalian.index') }}" class="nav-item {{ request()->routeIs('pasgar.pengembalian.*') ? 'active' : '' }}"><span class="nav-item-icon">↩️</span><span>Pengembalian Sisa</span></a>
-                    @endcan
-                    @can('view_pasgar_penjualan')
-                    <a href="{{ route('pasgar.penjualan.index') }}" class="nav-item {{ request()->routeIs('pasgar.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Penjualan Kanvas</span></a>
-                    @endcan
-                    @can('view_pasgar_penagihan')
-                    <a href="{{ route('pasgar.penagihan.index') }}" class="nav-item {{ request()->routeIs('pasgar.penagihan.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Penagihan Piutang</span></a>
-                    @endcan
-                    @can('view_pasgar_setoran')
-                    <a href="{{ route('pasgar.setoran.index') }}" class="nav-item {{ request()->routeIs('pasgar.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Setoran Harian</span></a>
-                    @endcan
-                    @can('view_pasgar_jadwal')
-                    <a href="{{ route('pasgar.jadwal.index') }}" class="nav-item {{ request()->routeIs('pasgar.jadwal.*') ? 'active' : '' }}"><span class="nav-item-icon">📅</span><span>Jadwal Kunjungan</span></a>
-                    @endcan
-                    @can('view_pasgar_kunjungan')
-                    <a href="{{ route('pasgar.kunjungan.index') }}" class="nav-item {{ request()->routeIs('pasgar.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Laporan Kunjungan</span></a>
-                    @endcan
-                    @can('view_pasgar_anggota')
-                    <a href="{{ route('pasgar.anggota.index') }}" class="nav-item {{ request()->routeIs('pasgar.anggota.*') ? 'active' : '' }}"><span class="nav-item-icon">👤</span><span>Daftar Anggota</span></a>
-                    @endcan
-                    @can('view_pasgar_kendaraan')
-                    <a href="{{ route('pasgar.vehicles.index') }}" class="nav-item {{ request()->routeIs('pasgar.vehicles.*') ? 'active' : '' }}"><span class="nav-item-icon">🚗</span><span>Kendaraan</span></a>
-                    @endcan
-                </div>
-            </div>
-            @endcanany
 
-            {{-- Modul Kanvas --}}
-            @canany(['view_kanvas_loading', 'view_kanvas_rute', 'view_kanvas_setoran'])
-            <div class="nav-group {{ request()->routeIs('kanvas.*') ? 'open' : '' }}" id="grp-kanvas">
-                <button class="nav-group-header" onclick="toggleGroup('grp-kanvas')" type="button">
-                    <span class="nav-group-label">🚐 MODUL KANVAS</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
-                    @can('view_kanvas_loading')
-                    <a href="{{ route('kanvas.loading.index') }}" class="nav-item {{ request()->routeIs('kanvas.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Armada</span></a>
-                    @endcan
-                    @can('view_kanvas_rute')
-                    <a href="{{ route('kanvas.route.index') }}" class="nav-item {{ request()->routeIs('kanvas.route.*') ? 'active' : '' }}"><span class="nav-item-icon">🗺️</span><span>Journey Plan (Rute)</span></a>
-                    @endcan
-                    @can('view_kanvas_setoran')
-                    <a href="{{ route('kanvas.setoran.index') }}" class="nav-item {{ request()->routeIs('kanvas.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Validasi Setoran</span></a>
-                    @endcan
-                </div>
-            </div>
-            @endcanany
-
-            {{-- Modul Gula --}}
-            @canany(['view_gula_stok', 'view_gula_repacking', 'view_gula_loading', 'view_gula_setoran'])
-            @php $gulaActive = request()->routeIs('gula.*'); @endphp
-            <div class="nav-group {{ $gulaActive ? 'open' : '' }}" id="grp-gula">
-                <button class="nav-group-header" onclick="toggleGroup('grp-gula')" type="button">
-                    <span class="nav-group-label">🍬 MODUL GULA</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
-                    @can('view_gula_stok')
-                    <a href="{{ route('gula.stok.index') }}" class="nav-item {{ request()->routeIs('gula.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang Induk</span></a>
-                    @endcan
-                    @can('view_gula_repacking')
-                    <a href="{{ route('gula.repacking.index') }}" class="nav-item {{ request()->routeIs('gula.repacking.*') ? 'active' : '' }}"><span class="nav-item-icon">✂️</span><span>Repacking & Susut</span></a>
-                    @endcan
-                    @can('view_gula_loading')
-                    <a href="{{ route('gula.loading.index') }}" class="nav-item {{ request()->routeIs('gula.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">🚚</span><span>Loading Armada</span></a>
-                    @endcan
-                    @can('view_gula_setoran')
-                    <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Validasi Setoran</span></a>
-                    @endcan
-                </div>
-            </div>
-            @endcanany
-
-            {{-- Modul Mineral --}}
-            @canany(['view_mineral_stok', 'view_mineral_loading', 'view_mineral_setoran'])
-            @php $mineralActive = request()->routeIs('mineral.*'); @endphp
-            <div class="nav-group {{ $mineralActive ? 'open' : '' }}" id="grp-mineral">
-                <button class="nav-group-header" onclick="toggleGroup('grp-mineral')" type="button">
-                    <span class="nav-group-label">💧 MODUL MINERAL</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
-                    @can('view_mineral_stok')
-                    <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok & Mutasi Gudang</span></a>
-                    @endcan
-                    @can('view_mineral_loading')
-                    <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">🚚</span><span>Loading Armada</span></a>
-                    @endcan
-                    @can('view_mineral_setoran')
-                    <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Validasi Setoran</span></a>
-                    @endcan
-                </div>
-            </div>
-            @endcanany
-
-            {{-- Minyak --}}
-            @canany(['view_minyak_pelanggan', 'view_minyak_setoran'])
-            @php $minyakActive = request()->routeIs('minyak.*'); @endphp
-            <div class="nav-group {{ $minyakActive ? 'open' : '' }}" id="grp-minyak">
-                <button class="nav-group-header" onclick="toggleGroup('grp-minyak')" type="button">
-                    <span class="nav-group-label">🛢️ MINYAK</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
-                    @can('view_minyak_pelanggan')
-                    <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Data Pelanggan</span></a>
-                    @endcan
-                    @can('view_minyak_setoran')
-                    <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Setoran & Retur</span></a>
-                    @endcan
-                </div>
-            </div>
-            @endcanany
 
             {{-- Manajemen Gudang --}}
             @canany(['view_stok_gudang', 'view_penerimaan_barang', 'view_pengeluaran_barang', 'view_opname_stok', 'view_permintaan_barang'])
             @php $gudangActive = request()->routeIs('gudang.*') || request()->routeIs('products.*'); @endphp
             @if(in_array($role, ['admin3', 'admin4']))
-            {{-- FLAT for admin3/admin4: tanpa group header --}}
+            {{-- FLAT for admin3/admin4: terstruktur dengan subheading --}}
             <div class="sidebar-divider"></div>
-            @if($role === 'admin3')
+
+            {{-- STOK & PERMINTAAN --}}
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📦 STOK &amp; REQUEST</span></div>
             @can('view_stok_gudang')
             <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Data Stok Gudang</span></a>
-            @endcan
-            @can('view_penerimaan_barang')
-            <a href="{{ route('gudang.inout') }}" class="nav-item {{ request()->routeIs('gudang.inout') ? 'active' : '' }}"><span class="nav-item-icon">🔄</span><span>Masuk &amp; Keluar</span></a>
-            <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima dari PO</span></a>
-            <a href="{{ route('gudang.penerimaan') }}" class="nav-item {{ request()->routeIs('gudang.penerimaan*') || request()->routeIs('gudang.terimapo*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima Brg Supplier</span></a>
-            @endcan
-            @can('view_pengeluaran_barang')
-            <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') || request()->routeIs('gudang.transfer*') ? 'active' : '' }}"><span class="nav-item-icon">📤</span><span>Pengeluaran Gudang Utama</span></a>
-            @endcan
-            @can('view_opname_stok')
-            <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Stok</span></a>
             @endcan
             @can('view_permintaan_barang')
             <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
             @endcan
+
+            {{-- BARANG MASUK --}}
+            @can('view_penerimaan_barang')
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📥 BARANG MASUK</span></div>
+            @if($role === 'admin3')
+            <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima dari PO</span></a>
+            <a href="{{ route('gudang.inout') }}" class="nav-item {{ request()->routeIs('gudang.inout') ? 'active' : '' }}"><span class="nav-item-icon">🔄</span><span>Masuk &amp; Keluar</span></a>
             @elseif($role === 'admin4')
-            @can('view_stok_gudang')
-            <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Data Stok Gudang</span></a>
+            @php $pendingTransferCount = \App\Models\StockMovement::where('type','transfer_in')->where('status','pending')->where('warehouse_id', auth()->user()->employee?->warehouse_id)->count(); @endphp
+            <a href="{{ route('gudang.terima_transfer.index') }}" class="nav-item {{ request()->routeIs('gudang.terima_transfer*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima Transfer</span>@if((int)$pendingTransferCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca;">{{ $pendingTransferCount }}</span> @endif</a>
+            @endif
             @endcan
-            <a href="{{ route('gudang.terima_transfer.index') }}" class="nav-item {{ request()->routeIs('gudang.terima_transfer*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima Transfer Cabang</span></a>
+
+            {{-- BARANG KELUAR --}}
             @can('view_pengeluaran_barang')
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📤 BARANG KELUAR</span></div>
+            @if($role === 'admin3')
+            @php $pendingReqCount = \App\Models\ProductRequest::where('status','approved')->count(); @endphp
+            <a href="{{ route('gudang.transfer.requests') }}" class="nav-item {{ request()->routeIs('gudang.transfer*') ? 'active' : '' }}"><span class="nav-item-icon">🔁</span><span>Kirim Transfer</span>@if((int)$pendingReqCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#eef2ff;color:#4338ca;">{{ $pendingReqCount }}</span> @endif</a>
+            @endif
             <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') ? 'active' : '' }}"><span class="nav-item-icon">📤</span><span>Pengeluaran Penjualan</span></a>
             @endcan
+
+            {{-- PENYESUAIAN STOK --}}
             @can('view_opname_stok')
-            <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Stok</span></a>
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">⚖️ OPNAME STOK</span></div>
+            <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Hitung Fisik</span></a>
             @endcan
-            @can('view_permintaan_barang')
-            <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
-            @endcan
-            @endif
+
             @else
             <div class="nav-group {{ $gudangActive ? 'open' : '' }}" id="grp-gudang">
                 <button class="nav-group-header" onclick="toggleGroup('grp-gudang')" type="button">
@@ -948,19 +823,20 @@
                     @can('view_stok_gudang')
                     <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Data Stok Gudang</span></a>
                     @endcan
+                    @can('view_permintaan_barang')
+                    <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
+                    @endcan
                     @can('view_penerimaan_barang')
                     <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima dari PO</span></a>
                     <a href="{{ route('gudang.inout') }}" class="nav-item {{ request()->routeIs('gudang.inout') ? 'active' : '' }}"><span class="nav-item-icon">🔄</span><span>Masuk &amp; Keluar</span></a>
+                    <a href="{{ route('gudang.terima_transfer.index') }}" class="nav-item {{ request()->routeIs('gudang.terima_transfer*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima Transfer Cabang</span></a>
                     @endcan
                     @can('view_pengeluaran_barang')
+                    <a href="{{ route('gudang.transfer.requests') }}" class="nav-item {{ request()->routeIs('gudang.transfer*') ? 'active' : '' }}"><span class="nav-item-icon">🔁</span><span>Transfer Antar Gudang</span></a>
                     <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') ? 'active' : '' }}"><span class="nav-item-icon">📤</span><span>Pengeluaran Barang</span></a>
-                    <a href="{{ route('gudang.transfer.requests') }}" class="nav-item {{ request()->routeIs('gudang.transfer*') ? 'active' : '' }}"><span class="nav-item-icon">🔁</span><span>Transfer Gudang</span></a>
                     @endcan
                     @can('view_opname_stok')
-                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Stok</span></a>
-                    @endcan
-                    @can('view_permintaan_barang')
-                    <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
+                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Stok Fisik</span></a>
                     @endcan
                 </div>
             </div>
@@ -1000,6 +876,31 @@
             @endif
             @endcanany
 
+            {{-- Minyak --}}
+            @if(in_array($role, ['admin4', 'supervisor', 'sales_minyak']))
+            @php $minyakActive = request()->routeIs('minyak.*'); @endphp
+            <div class="nav-group {{ $minyakActive ? 'open' : '' }}" id="grp-minyak">
+                <button class="nav-group-header" onclick="toggleGroup('grp-minyak')" type="button">
+                    <span class="nav-group-label">🛢️ MINYAK</span>
+                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="nav-group-items">
+                    <a href="{{ route('minyak.dashboard') }}" class="nav-item {{ request()->routeIs('minyak.dashboard') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Dashboard Minyak</span></a>
+                    <a href="{{ route('minyak.sales.index') }}" class="nav-item {{ request()->routeIs('minyak.sales.*') ? 'active' : '' }}"><span class="nav-item-icon">👤</span><span>Data Sales</span></a>
+                    <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
+                    <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
+                    <a href="{{ route('minyak.loading.index') }}" class="nav-item {{ request()->routeIs('minyak.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Harian</span></a>
+                    <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Stok Kendaraan</span></a>
+                    <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Monitoring Penjualan</span></a>
+                    <a href="{{ route('minyak.hutang.index') }}" class="nav-item {{ request()->routeIs('minyak.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                    <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
+                    <a href="{{ route('minyak.rekonsiliasi') }}" class="nav-item {{ request()->routeIs('minyak.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
+                    <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Monitoring Kunjungan</span></a>
+                    <a href="{{ route('minyak.laporan') }}" class="nav-item {{ request()->routeIs('minyak.laporan*') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Laporan</span></a>
+                </div>
+            </div>
+            @endif
+
             {{-- Master Data --}}
             @canany(['view_master_produk', 'view_master_kategori', 'view_master_satuan', 'view_master_supplier', 'view_master_gudang'])
             @php $masterActive = request()->routeIs('products.*','master.*'); @endphp
@@ -1034,14 +935,15 @@
             @if(in_array($role, ['admin1', 'admin2', 'admin3', 'admin4']))
             {{-- FLAT for admin1/admin2/admin3/admin4 --}}
             <div class="sidebar-divider"></div>
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📊 LAPORAN &amp; ANALISIS</span></div>
             @can('view_laporan_penjualan')
-            <a href="{{ route('laporan.penjualan') }}" class="nav-item {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Lap. Penjualan</span></a>
-            @endcan
-            @can('view_laporan_pelanggan')
-            <a href="{{ route('laporan.pelanggan') }}" class="nav-item {{ request()->routeIs('laporan.pelanggan') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Lap. Pelanggan</span></a>
+            <a href="{{ route('laporan.penjualan') }}" class="nav-item {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Penjualan</span></a>
             @endcan
             @can('view_laporan_stok')
-            <a href="{{ route('laporan.stok') }}" class="nav-item {{ request()->routeIs('laporan.stok') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Lap. Stok</span></a>
+            <a href="{{ route('laporan.stok') }}" class="nav-item {{ request()->routeIs('laporan.stok') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang</span></a>
+            @endcan
+            @can('view_laporan_pelanggan')
+            <a href="{{ route('laporan.pelanggan') }}" class="nav-item {{ request()->routeIs('laporan.pelanggan') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Data Pelanggan</span></a>
             @endcan
             @else
             <div class="nav-group {{ $laporanActive ? 'open' : '' }}" id="grp-laporan">
@@ -1051,22 +953,22 @@
                 </button>
                 <div class="nav-group-items">
                     @can('view_laporan_penjualan')
-                    <a href="{{ route('laporan.penjualan') }}" class="nav-item {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Lap. Penjualan</span></a>
+                    <a href="{{ route('laporan.penjualan') }}" class="nav-item {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Penjualan</span></a>
                     @endcan
                     @can('view_laporan_pembelian')
-                    <a href="{{ route('laporan.pembelian') }}" class="nav-item {{ request()->routeIs('laporan.pembelian') ? 'active' : '' }}"><span class="nav-item-icon">📉</span><span>Lap. Pembelian</span></a>
+                    <a href="{{ route('laporan.pembelian') }}" class="nav-item {{ request()->routeIs('laporan.pembelian') ? 'active' : '' }}"><span class="nav-item-icon">📉</span><span>Pembelian</span></a>
                     @endcan
                     @can('view_laporan_stok')
-                    <a href="{{ route('laporan.stok') }}" class="nav-item {{ request()->routeIs('laporan.stok') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Lap. Stok</span></a>
+                    <a href="{{ route('laporan.stok') }}" class="nav-item {{ request()->routeIs('laporan.stok') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang</span></a>
                     @endcan
                     @can('view_laporan_keuangan')
-                    <a href="{{ route('laporan.keuangan') }}" class="nav-item {{ request()->routeIs('laporan.keuangan') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Lap. Keuangan</span></a>
+                    <a href="{{ route('laporan.keuangan') }}" class="nav-item {{ request()->routeIs('laporan.keuangan') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Keuangan</span></a>
                     @endcan
                     @can('view_laporan_pelanggan')
-                    <a href="{{ route('laporan.pelanggan') }}" class="nav-item {{ request()->routeIs('laporan.pelanggan') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Lap. Pelanggan</span></a>
+                    <a href="{{ route('laporan.pelanggan') }}" class="nav-item {{ request()->routeIs('laporan.pelanggan') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Pelanggan</span></a>
                     @endcan
                     @can('view_laporan_supplier')
-                    <a href="{{ route('laporan.supplier') }}" class="nav-item {{ request()->routeIs('laporan.supplier') ? 'active' : '' }}"><span class="nav-item-icon">🏭</span><span>Lap. Supplier</span></a>
+                    <a href="{{ route('laporan.supplier') }}" class="nav-item {{ request()->routeIs('laporan.supplier') ? 'active' : '' }}"><span class="nav-item-icon">🏭</span><span>Supplier</span></a>
                     @endcan
                 </div>
             </div>
@@ -1089,7 +991,8 @@
                     <a href="{{ route('pengaturan.roles.index') }}" class="nav-item {{ request()->routeIs('pengaturan.roles.*') ? 'active' : '' }}"><span class="nav-item-icon">🔐</span><span>Master Roles</span></a>
                     @endcan
                     @can('view_pengaturan_toko')
-                    <a href="{{ route('pengaturan.toko') }}" class="nav-item {{ request()->routeIs('pengaturan.toko') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Pengaturan Toko</span></a>
+                    <a href="{{ route('pengaturan.toko') }}" class="nav-item {{ request()->routeIs('pengaturan.toko') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Toko</span></a>
+                    <a href="{{ route('pengaturan.sdm') }}" class="nav-item {{ request()->routeIs('pengaturan.sdm') ? 'active' : '' }}"><span class="nav-item-icon">🧑‍🤝‍🧑</span><span>SDM/HR</span></a>
                     @endcan
                     @can('view_backup_restore')
                     <a href="{{ route('pengaturan.backup') }}" class="nav-item {{ request()->routeIs('pengaturan.backup') ? 'active' : '' }}"><span class="nav-item-icon">🛡️</span><span>Backup &amp; Restore</span></a>

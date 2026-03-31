@@ -3,9 +3,22 @@
 
     <div class="page-container">
 
+        {{-- ─── PRINT HEADER ─── --}}
+        <div class="print-only-header">
+            <div class="print-kop">
+                <div class="print-kop-title">{{ config('app.name', 'DODPOS') }}</div>
+                <div class="print-kop-subtitle">Sistem Manajemen Bisnis & Gudang</div>
+            </div>
+            <div class="print-title">LAPORAN DATA SUPPLIER</div>
+            <div class="print-period">
+                Status: Real-Time / Saat Ini ({{ now()->format('d/m/Y H:i') }})
+            </div>
+        </div>
+
         <!-- Page Header -->
-        <div style="margin-bottom:1.5rem;">
-            <h1 style="font-size:1.5rem; font-weight:800; color:#1e293b; margin:0;">🏭 Laporan Supplier</h1>
+        <div class="print-hidden" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.5rem;">
+            <div>
+                <h1 style="font-size:1.5rem; font-weight:800; color:#1e293b; margin:0;">🏭 Laporan Supplier</h1>
             <p style="color:#64748b; font-size:0.875rem; margin:0.35rem 0 0;">Ringkasan data supplier aktif dan status hutang berjalan.</p>
         </div>
 
@@ -33,8 +46,8 @@
         </div>
 
         <!-- Table Section -->
-        <div class="card">
-            <div style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+        <div class="card print-no-border">
+            <div class="print-hidden" style="padding:1rem 1.5rem; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
                 <h3 style="font-size:0.95rem; font-weight:700; color:#1e293b; margin:0;">📋 Daftar Supplier Berdasarkan Hutang</h3>
                 <form action="{{ route('laporan.supplier') }}" method="GET" style="display:flex; gap:0.5rem; align-items:center;">
                     <input type="text" name="search" value="{{ $search }}" placeholder="🔍 Cari nama supplier / kontak..." class="form-input" style="width:280px;">
@@ -102,5 +115,55 @@
             @endif
         </div>
 
+        {{-- ─── PRINT FOOTER ─── --}}
+        <div class="print-only-footer">
+            <div class="print-signature">
+                <p>Dicetak Pada: {{ now()->format('d M Y, H:i') }}</p>
+                <p>Oleh: <strong>{{ auth()->user()->name ?? 'Administrator' }}</strong></p>
+                <br><br><br><br>
+                <p>( ________________________ )</p>
+            </div>
+        </div>
+
     </div>
+
+    <style>
+        @media screen {
+            .print-only-header, .print-only-footer { display: none; }
+        }
+        @media print {
+            @page { size: portrait; margin: 1cm; }
+            body, .page-wrapper, .page-container, .page-content { background: #fff !important; color: #000 !important; padding:0 !important; margin:0 !important; }
+            .sidebar, .topbar, .print-hidden { display: none !important; }
+            .card.print-no-border { box-shadow: none !important; border: none !important; margin:0 !important; padding:0 !important;}
+            form, button, a.btn-secondary { display: none !important; }
+
+            /* Header Cetak */
+            .print-only-header { display: block; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+            .print-kop { text-align: center; margin-bottom: 10px; }
+            .print-kop-title { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: #000; line-height: 1; }
+            .print-kop-subtitle { font-size: 12px; color: #444; }
+            .print-title { font-size: 16px; font-weight: 800; text-align: center; margin-bottom: 5px; text-transform: uppercase; text-decoration: underline; color: #000; }
+            .print-period { text-align: center; font-size: 11px; margin-bottom: 15px; color: #000; }
+
+            /* Tabel Cetak */
+            .data-table { border-collapse: collapse !important; width: 100% !important; font-size: 11px !important; color: #000 !important; margin-top:20px;}
+            .data-table th, .data-table td { border: 1px solid #000 !important; padding: 6px 8px !important; color: #000 !important; }
+            .data-table th { background-color: #f1f5f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; text-transform: uppercase; }
+            .data-table tfoot td { border-top: 2px solid #000 !important; background: #fff !important; font-weight: bold; }
+            
+            /* Footer Cetak */
+            .print-only-footer { display: flex; justify-content: flex-end; margin-top: 40px; page-break-inside: avoid; }
+            .print-signature { text-align: center; width: 250px; font-size: 12px; color: #000; }
+
+            /* Hide Action Column in Print */
+            td:last-child, th:last-child { display: none !important; }
+        }
+    </style>
+
+    <script>
+        function triggerPrint() {
+            window.print();
+        }
+    </script>
 </x-app-layout>

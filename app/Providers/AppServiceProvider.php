@@ -37,9 +37,6 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $role = strtolower(trim((string) ($user->role ?? '')));
-            if ($role === 'supervisor') {
-                return true;
-            }
 
             return \App\Support\RoleAbilities::allows($role, $ability);
         });

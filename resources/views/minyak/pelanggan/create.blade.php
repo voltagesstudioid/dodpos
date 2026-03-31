@@ -1,93 +1,102 @@
 <x-app-layout>
-    <x-slot name="header">Data Pelanggan (Minyak)</x-slot>
+    <x-slot name="header">
+        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            {{ __('Tambah Pelanggan') }}
+        </h2>
+    </x-slot>
 
-    <div class="page-container animate-in" style="max-width: 980px; margin: 0 auto;">
-        <div class="page-header">
-            <div>
-                <div class="page-header-title">Tambah Pelanggan Minyak</div>
-                <div class="page-header-subtitle">Data pelanggan ini otomatis muncul di Rute Kunjungan aplikasi Android</div>
-            </div>
-            <div class="page-header-actions">
-                <a href="{{ route('minyak.pelanggan.index') }}" class="btn-secondary">← Kembali</a>
+    <div class="py-6">
+        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg">
+                <form method="POST" action="{{ route('minyak.pelanggan.store') }}" class="p-6">
+                    @csrf
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Nama Toko</label>
+                            <input type="text" name="nama_toko" value="{{ old('nama_toko') }}" required
+                                class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            @error('nama_toko')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Nama Pemilik</label>
+                            <input type="text" name="nama_pemilik" value="{{ old('nama_pemilik') }}" required
+                                class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            @error('nama_pemilik')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">No HP</label>
+                            <input type="text" name="no_hp" value="{{ old('no_hp') }}"
+                                class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            @error('no_hp')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Email</label>
+                            <input type="email" name="email" value="{{ old('email') }}"
+                                class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            @error('email')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Alamat</label>
+                            <textarea name="alamat" rows="3" class="mt-1 block w-full border rounded-lg px-4 py-2">{{ old('alamat') }}</textarea>
+                            @error('alamat')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Kecamatan</label>
+                                <input type="text" name="kecamatan" value="{{ old('kecamatan') }}"
+                                    class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Kota</label>
+                                <input type="text" name="kota" value="{{ old('kota') }}"
+                                    class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tipe Pelanggan</label>
+                            <select name="tipe" required class="mt-1 block w-full border rounded-lg px-4 py-2">
+                                <option value="eceran" {{ old('tipe') == 'eceran' ? 'selected' : '' }}>Eceran</option>
+                                <option value="grosir" {{ old('tipe') == 'grosir' ? 'selected' : '' }}>Grosir</option>
+                                <option value="agen" {{ old('tipe') == 'agen' ? 'selected' : '' }}>Agen</option>
+                            </select>
+                            @error('tipe')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Limit Hutang (Rp)</label>
+                            <input type="number" name="limit_hutang" value="{{ old('limit_hutang') }}"
+                                class="mt-1 block w-full border rounded-lg px-4 py-2">
+                            @error('limit_hutang')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Status</label>
+                            <select name="status" required class="mt-1 block w-full border rounded-lg px-4 py-2">
+                                <option value="aktif" {{ old('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                                <option value="nonaktif" {{ old('status') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                                <option value="blacklist" {{ old('status') == 'blacklist' ? 'selected' : '' }}>Blacklist</option>
+                            </select>
+                            @error('status')<p class="text-red-500 text-sm mt-1">{{ $message }}</p>@enderror
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex gap-4">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                            Simpan
+                        </button>
+                        <a href="{{ route('minyak.pelanggan.index') }}" class="bg-gray-200 px-6 py-2 rounded-lg hover:bg-gray-300">
+                            Batal
+                        </a>
+                    </div>
+                </form>
             </div>
         </div>
-
-        <div class="ph-breadcrumb">
-            <a href="{{ route('minyak.pelanggan.index') }}">Pelanggan Minyak</a>
-            <span class="ph-breadcrumb-sep">›</span>
-            <span>Tambah</span>
-        </div>
-
-        @if($errors->any())
-            <div class="alert alert-danger" role="alert">
-                <div style="font-weight:900;margin-bottom:0.25rem;">Ada input yang belum valid</div>
-                <ul style="margin:0;padding-left:1.1rem;">
-                    @foreach($errors->all() as $err)
-                        <li>{{ $err }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        <form action="{{ route('minyak.pelanggan.store') }}" method="POST">
-            @csrf
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <div class="panel-title">Identitas Pelanggan / Warung</div>
-                        <div class="panel-subtitle">Lengkapi nama, kontak, dan alamat untuk rute kunjungan</div>
-                    </div>
-                </div>
-                <div class="panel-body" style="padding: 1.25rem;">
-                    <div class="form-group">
-                        <label class="form-label">Nama Warung / Pelanggan <span class="required">*</span></label>
-                        <input
-                            type="text"
-                            name="name"
-                            class="form-input @error('name') input-error @enderror"
-                            value="{{ old('name') }}"
-                            placeholder="Contoh: Toko Sembako Budi"
-                            required
-                        >
-                        <div class="form-hint">Gunakan nama yang mudah dikenali sales saat kunjungan.</div>
-                        @error('name')<div class="form-error">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group" style="margin:0;">
-                            <label class="form-label">No. Telepon</label>
-                            <input type="text" name="phone" class="form-input @error('phone') input-error @enderror" value="{{ old('phone') }}" placeholder="08xx-xxxx-xxxx">
-                            @error('phone')<div class="form-error">{{ $message }}</div>@enderror
-                        </div>
-                        <div class="form-group" style="margin:0;">
-                            <label class="form-label">Email (Opsional)</label>
-                            <input type="email" name="email" class="form-input @error('email') input-error @enderror" value="{{ old('email') }}" placeholder="email@contoh.com">
-                            @error('email')<div class="form-error">{{ $message }}</div>@enderror
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Alamat Lengkap</label>
-                        <textarea name="address" class="form-input @error('address') input-error @enderror" rows="3" placeholder="Jl. ...">{{ old('address') }}</textarea>
-                        <div class="form-hint">Tulis patokan agar sales lebih mudah menemukan lokasi.</div>
-                        @error('address')<div class="form-error">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="form-label">Catatan Tambahan</label>
-                        <textarea name="notes" class="form-input @error('notes') input-error @enderror" rows="2" placeholder="Posisi patokan, jam buka, dll...">{{ old('notes') }}</textarea>
-                        @error('notes')<div class="form-error">{{ $message }}</div>@enderror
-                    </div>
-                </div>
-            </div>
-
-            <div class="floating-bar">
-                <span class="floating-bar-info">Pastikan data sudah benar sebelum disimpan.</span>
-                <div class="floating-bar-actions">
-                    <a href="{{ route('minyak.pelanggan.index') }}" class="btn-secondary">Batal</a>
-                    <button type="submit" class="btn-primary">✓ Simpan Pelanggan</button>
-                </div>
-            </div>
-        </form>
     </div>
 </x-app-layout>

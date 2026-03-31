@@ -3,21 +3,45 @@
 namespace App\Http\Controllers\Minyak;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\MinyakPelanggan;
 use Illuminate\Http\Request;
 
 class PelangganController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Customer::where('category', 'minyak');
-        if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('phone', 'like', '%' . $request->search . '%');
-        }
-        
-        $customers = $query->orderBy('name')->paginate(20)->withQueryString();
-        return view('minyak.pelanggan.index', compact('customers'));
+        $search = $request->input('search');
+        $tipe = $request->input('tipe');
+        $status = $request->input('status');
+
+        $pelanggans = MinyakPelanggan::query()
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('kode_pelanggan', 'like', "%{$search}%")
+                        ->orWhere('nama_toko', 'like', "%{$search}%")
+                        ->orWhere('nama_pemilik', 'like', "%{$search}%")
+                        ->orWhere('no_hp', 'like', "%{$search}%");
+                });
+            })
+            ->when($tipe, function ($query) use ($tipe) {
+                $query->where('tipe', $tipe);
+            })
+            ->when($status, function ($query) use ($status) {
+                $query->where('status', $status);
+            })
+            ->orderBy('created_at', 'desc')
+            ->paginate(15)
+            ->withQueryString();
+
+        $stats = [
+            'total' => MinyakPelanggan::count(),
+            'aktif' => MinyakPelanggan::where('status', 'aktif')->count(),
+            'eceran' => MinyakPelanggan::where('tipe', 'eceran')->count(),
+            'grosir' => MinyakPelanggan::where('tipe', 'grosir')->count(),
+            'total_hutang' => MinyakPelanggan::sum('total_hutang'),
+        ];
+
+        return view('minyak.pelanggan.index', compact('pelanggans', 'stats'));
     }
 
     public function create()
@@ -27,60 +51,70 @@ class PelangganController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name'         => 'required|string|max:100',
-            'phone'        => 'nullable|string|max:30',
-            'email'        => 'nullable|email|max:100',
-            'address'      => 'nullable|string',
-            'notes'        => 'nullable|string',
+        $validated = $request->validate([
+            'nama_toko' => 'required|string|max:100',
+            'nama_pemilik' => 'required|string|max:100',
+            'no_hp' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:100',
+            'alamat' => 'nullable|string',
+            'kecamatan' => 'nullable|string|max:50',
+            'kota' => 'nullable|string|max:50',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'tipe' => 'required|in:eceran,grosir,agen',
+            'limit_hutang' => 'nullable|numeric|min:0',
+            'status' => 'required|in:aktif,nonaktif,blacklist',
         ]);
 
-        Customer::create([
-            'name'         => $request->name,
-            'phone'        => $request->phone,
-            'email'        => $request->email,
-            'address'      => $request->address,
-            'credit_limit' => 0,
-            'current_debt' => 0,
-            'category'     => 'minyak',
-            'is_active'    => true,
-            'notes'        => $request->notes,
-        ]);
+        $validated['kode_pelanggan'] = MinyakPelanggan::generateKode();
+        $validated['total_hutang'] = 0;
 
-        return redirect()->route('minyak.pelanggan.index')->with('success', 'Pelanggan Minyak berhasil ditambahkan.');
+        MinyakPelanggan::create($validated);
+
+        return redirect()->route('minyak.pelanggan.index')
+            ->with('success', 'Data Pelanggan berhasil ditambahkan.');
     }
 
-    public function edit($id)
+    public function show(MinyakPelanggan $pelanggan)
     {
-        $pelanggan = Customer::findOrFail($id);
+        $pelanggan->load(['penjualans.sales', 'hutangs.penjualan', 'kunjungans.sales']);
+        
+        return view('minyak.pelanggan.show', compact('pelanggan'));
+    }
+
+    public function edit(MinyakPelanggan $pelanggan)
+    {
         return view('minyak.pelanggan.edit', compact('pelanggan'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, MinyakPelanggan $pelanggan)
     {
-        $pelanggan = Customer::findOrFail($id);
-
-        $request->validate([
-            'name'         => 'required|string|max:100',
-            'phone'        => 'nullable|string|max:30',
-            'email'        => 'nullable|email|max:100',
-            'address'      => 'nullable|string',
-            'notes'        => 'nullable|string',
+        $validated = $request->validate([
+            'nama_toko' => 'required|string|max:100',
+            'nama_pemilik' => 'required|string|max:100',
+            'no_hp' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:100',
+            'alamat' => 'nullable|string',
+            'kecamatan' => 'nullable|string|max:50',
+            'kota' => 'nullable|string|max:50',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'tipe' => 'required|in:eceran,grosir,agen',
+            'limit_hutang' => 'nullable|numeric|min:0',
+            'status' => 'required|in:aktif,nonaktif,blacklist',
         ]);
 
-        $pelanggan->update($request->only('name', 'phone', 'email', 'address', 'notes'));
-        return redirect()->route('minyak.pelanggan.index')->with('success', 'Data Pelanggan Minyak diperbarui.');
+        $pelanggan->update($validated);
+
+        return redirect()->route('minyak.pelanggan.index')
+            ->with('success', 'Data Pelanggan berhasil diperbarui.');
     }
 
-    public function destroy($id)
+    public function destroy(MinyakPelanggan $pelanggan)
     {
-        $pelanggan = Customer::findOrFail($id);
-        
-        if ($pelanggan->current_debt > 0) {
-            return back()->with('error', 'Pelanggan masih memiliki hutang. Selesaikan dulu sebelum menghapus.');
-        }
-
         $pelanggan->delete();
-        return redirect()->route('minyak.pelanggan.index')->with('success', 'Pelanggan Minyak dihapus.');
+
+        return redirect()->route('minyak.pelanggan.index')
+            ->with('success', 'Data Pelanggan berhasil dihapus.');
     }
 }

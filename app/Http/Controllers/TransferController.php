@@ -6,42 +6,36 @@ use App\Models\Product;
 use App\Models\ProductRequest;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
+use App\Services\ReferenceNumberService;
+use App\Support\Roles;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TransferController extends Controller
 {
+    /** @deprecated Use ReferenceNumberService::generateTransferRef() */
     private function generateRef(string $prefix = 'TRF'): string
     {
-        $date = date('Ymd');
-        $base = "{$prefix}-{$date}";
-        $last = \App\Models\StockMovement::where('type', 'transfer_out')
-            ->where('reference_number', 'like', $base.'-%')
-            ->orderBy('reference_number', 'desc')
-            ->first();
-        if (! $last) {
-            return $base.'-001';
-        }
-        $lastNum = (int) substr($last->reference_number, -3);
-
-        return $base.'-'.str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
+        return ReferenceNumberService::generateTransferRef();
     }
 
     public function index(Request $request)
     {
         $search = trim((string) $request->input('search'));
+        $sanitizedSearch = SearchSanitizer::sanitize($search);
 
         // Riwayat ditampilkan per dokumen transfer (reference_number), bukan per item.
         // Tetap bisa cari berdasarkan no referensi / nama barang.
         $referenceQuery = StockMovement::query()
             ->where('type', 'transfer_out')
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('reference_number', 'like', "%{$search}%")
-                        ->orWhereHas('product', function ($p) use ($search) {
-                            $p->where('name', 'like', "%{$search}%")
-                                ->orWhere('sku', 'like', "%{$search}%");
+            ->when($search !== '', function ($query) use ($sanitizedSearch) {
+                $query->where(function ($q) use ($sanitizedSearch) {
+                    $q->where('reference_number', 'like', "%{$sanitizedSearch}%")
+                        ->orWhereHas('product', function ($p) use ($sanitizedSearch) {
+                            $p->where('name', 'like', "%{$sanitizedSearch}%")
+                                ->orWhere('sku', 'like', "%{$sanitizedSearch}%");
                         });
                 });
             })
@@ -105,13 +99,24 @@ class TransferController extends Controller
             ]
         );
 
-        return view('gudang.transfer.index', compact('transfers'));
+        // Stats untuk badge (hindari N+1 di view)
+        $pendingReqCount = ProductRequest::where('status', 'approved')->count();
+        $whId = auth()->user()->employee?->warehouse_id;
+        $pendingTransferQuery = StockMovement::where('type', 'transfer_in')->where('status', 'pending');
+        if ($whId) {
+            $pendingTransferQuery->where('warehouse_id', $whId);
+        }
+        $pendingTransferCount = $pendingTransferQuery->count();
+
+        return view('gudang.transfer.index', compact(
+            'transfers', 'pendingReqCount', 'pendingTransferCount'
+        ));
     }
 
     public function create()
     {
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, ['admin3', 'supervisor'], true)) {
+        if (! Roles::canTransfer($role)) {
             abort(403);
         }
 
@@ -126,11 +131,12 @@ class TransferController extends Controller
     public function approvedRequests(Request $request)
     {
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, ['admin3', 'supervisor'], true)) {
+        if (! in_array($role, Roles::transferApprovers(), true)) {
             abort(403);
         }
 
         $search = trim((string) $request->input('search'));
+        $sanitizedSearch = SearchSanitizer::sanitize($search);
 
         $query = ProductRequest::query()
             ->with(['user', 'product', 'fromWarehouse', 'toWarehouse'])
@@ -140,14 +146,14 @@ class TransferController extends Controller
             ->orderByDesc('created_at');
 
         if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->orWhereHas('product', function ($p) use ($search) {
-                    $p->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%");
+            $query->where(function ($q) use ($sanitizedSearch) {
+                $q->orWhereHas('product', function ($p) use ($sanitizedSearch) {
+                    $p->where('name', 'like', "%{$sanitizedSearch}%")
+                        ->orWhere('sku', 'like', "%{$sanitizedSearch}%");
                 })
-                    ->orWhereHas('user', function ($u) use ($search) {
-                        $u->where('name', 'like', "%{$search}%")
-                            ->orWhere('role', 'like', "%{$search}%");
+                    ->orWhereHas('user', function ($u) use ($sanitizedSearch) {
+                        $u->where('name', 'like', "%{$sanitizedSearch}%")
+                            ->orWhere('role', 'like', "%{$sanitizedSearch}%");
                     });
             });
         }
@@ -160,7 +166,7 @@ class TransferController extends Controller
     public function processFromRequest(ProductRequest $productRequest)
     {
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, ['admin3', 'supervisor'], true)) {
+        if (! in_array($role, Roles::transferApprovers(), true)) {
             abort(403);
         }
         if ($productRequest->type !== 'transfer' || $productRequest->status !== 'approved') {
@@ -172,7 +178,12 @@ class TransferController extends Controller
 
         $fromWarehouseId = (int) ($productRequest->from_warehouse_id ?: 1);
         $toWarehouseId = (int) ($productRequest->to_warehouse_id ?: 2);
-        $qtyToTransfer = (int) ($productRequest->quantity ?: 0);
+
+        // Handle unit conversion
+        $conversionFactor = (float) ($productRequest->conversion_factor ?: 1);
+        $quantityInUnit = (float) ($productRequest->quantity ?: 0);
+        $qtyToTransfer = (int) round($quantityInUnit * $conversionFactor);
+
         if ($qtyToTransfer <= 0) {
             return back()->with('error', 'Qty permintaan transfer tidak valid.');
         }
@@ -184,7 +195,8 @@ class TransferController extends Controller
             DB::beginTransaction();
 
             $referenceNumber = $this->generateRef('TRF');
-            $notesWithUnit = trim("Auto dari permintaan #{$productRequest->id}".($productRequest->notes ? ' | '.$productRequest->notes : '').' | Input: '.$qtyToTransfer.' satuan dasar');
+            $unitName = $productRequest->unit?->name ?? 'satuan dasar';
+            $notesWithUnit = trim("Auto dari permintaan #{$productRequest->id}".($productRequest->notes ? ' | '.$productRequest->notes : '')." | Input: {$quantityInUnit} {$unitName} (={$qtyToTransfer} satuan dasar)");
 
             $availableStocks = ProductStock::where('product_id', $productRequest->product_id)
                 ->where('warehouse_id', $fromWarehouseId)
@@ -206,6 +218,7 @@ class TransferController extends Controller
             $remainingQty = $qtyToTransfer;
             $firstOut = null;
 
+            /** @var \App\Models\ProductStock $stock */
             foreach ($availableStocks as $stock) {
                 if ($remainingQty <= 0) {
                     break;
@@ -225,6 +238,9 @@ class TransferController extends Controller
                     'batch_number' => $stock->batch_number,
                     'expired_date' => $stock->expired_date,
                     'quantity' => $deductQty,
+                    'unit_id' => $productRequest->unit_id,
+                    'conversion_factor' => $conversionFactor,
+                    'quantity_in_unit' => $quantityInUnit,
                     'balance' => $stock->stock,
                     'notes' => $notesWithUnit,
                     'user_id' => Auth::id(),
@@ -244,6 +260,9 @@ class TransferController extends Controller
                     'batch_number' => $stock->batch_number,
                     'expired_date' => $stock->expired_date,
                     'quantity' => $deductQty,
+                    'unit_id' => $productRequest->unit_id,
+                    'conversion_factor' => $conversionFactor,
+                    'quantity_in_unit' => $quantityInUnit,
                     'balance' => 0,
                     'notes' => $notesWithUnit,
                     'user_id' => Auth::id(),
@@ -273,13 +292,13 @@ class TransferController extends Controller
     {
         abort_if($transfer->type !== 'transfer_out', 404);
 
-        $outs = StockMovement::with(['product', 'warehouse', 'location', 'user'])
+        $outs = StockMovement::with(['product', 'warehouse', 'location', 'user', 'unit'])
             ->where('reference_number', $transfer->reference_number)
             ->where('type', 'transfer_out')
             ->orderBy('created_at')
             ->get();
 
-        $ins = StockMovement::with(['product', 'warehouse', 'location'])
+        $ins = StockMovement::with(['product', 'warehouse', 'location', 'unit'])
             ->where('reference_number', $transfer->reference_number)
             ->where('type', 'transfer_in')
             ->orderBy('created_at')
@@ -308,6 +327,9 @@ class TransferController extends Controller
                     'product_name' => $first?->product?->name ?? 'Produk Dihapus',
                     'sku' => $first?->product?->sku ?? '-',
                     'qty' => (int) $rows->sum('quantity'),
+                    'qty_in_unit' => $rows->first()?->quantity_in_unit,
+                    'unit_name' => $rows->first()?->unit?->name ?? 'satuan dasar',
+                    'conversion_factor' => $rows->first()?->conversion_factor ?? 1,
                     'rows' => (int) $rows->count(),
                 ];
             })
@@ -321,7 +343,7 @@ class TransferController extends Controller
         abort_if($transfer->type !== 'transfer_out', 404);
 
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, ['admin3', 'supervisor'], true)) {
+        if (! in_array($role, Roles::transferApprovers(), true)) {
             abort(403);
         }
 
@@ -349,6 +371,7 @@ class TransferController extends Controller
 
             $movements = StockMovement::where('reference_number', $refNumber)->get();
 
+            /** @var \App\Models\StockMovement $mov */
             foreach ($movements as $mov) {
                 // Revert stock in product_stocks
                 $query = ProductStock::where('product_id', $mov->product_id)

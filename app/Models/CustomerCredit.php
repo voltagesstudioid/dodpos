@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ReferenceNumberService;
 use Illuminate\Database\Eloquent\Model;
 
 class CustomerCredit extends Model
@@ -64,11 +65,11 @@ class CustomerCredit extends Model
         };
     }
 
+    /**
+     * @deprecated Use ReferenceNumberService::generateCreditNumber()
+     */
     public static function generateNumber(string $type = 'debt'): string
     {
-        $prefix = $type === 'debt' ? 'HUT' : 'PIU';
-        $last = static::where('credit_number', 'like', $prefix . '-' . date('Ymd') . '%')->latest()->first();
-        $num  = $last ? (int) substr($last->credit_number, -4) + 1 : 1;
-        return $prefix . '-' . date('Ymd') . '-' . str_pad($num, 4, '0', STR_PAD_LEFT);
+        return ReferenceNumberService::generateCreditNumber($type);
     }
 }

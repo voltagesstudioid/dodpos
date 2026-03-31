@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Warehouse;
+use App\Support\SearchSanitizer;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,23 +21,22 @@ class OpnameController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $role = strtolower((string) ($user?->role ?? ''));
 
-        // Admin 4 hanya bisa view opname gudangnya sendiri (Cabang)
-        $allowedWarehouseId = null;
-        if ($user->role === 'admin3') $allowedWarehouseId = 1; // Asumsi ID 1 Gudang Utama
-        if ($user->role === 'admin4') $allowedWarehouseId = 2; // Asumsi ID 2 Gudang Cabang
+        // Get allowed warehouse based on role (not hardcoded)
+        $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
 
         $query = StockMovement::with(['product', 'warehouse', 'location', 'user'])
             ->where('type', 'adjustment');
 
-        if ($allowedWarehouseId) {
+        if ($allowedWarehouseId !== null) {
             $query->where('warehouse_id', $allowedWarehouseId);
         }
 
         $query->orderBy('created_at', 'desc');
 
         if ($request->has('search') && $request->search != '') {
-            $search = $request->search;
+            $search = SearchSanitizer::sanitize($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('reference_number', 'like', "%{$search}%")
                     ->orWhereHas('product', function ($q) use ($search) {
@@ -56,14 +57,15 @@ class OpnameController extends Controller
     public function create()
     {
         $user = Auth::user();
-        
+        $role = strtolower((string) ($user?->role ?? ''));
+
         $products = Product::orderBy('name')->get();
         $whQuery = Warehouse::where('active', true);
 
-        if ($user->role === 'admin3') {
-            $whQuery->where('id', 1);
-        } elseif ($user->role === 'admin4') {
-            $whQuery->where('id', 2); // Gudang Cabang
+        // Use WarehouseConfig for proper authorization
+        $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
+        if ($allowedWarehouseId !== null) {
+            $whQuery->where('id', $allowedWarehouseId);
         }
 
         $warehouses = $whQuery->orderBy('name')->get();
@@ -105,14 +107,16 @@ class OpnameController extends Controller
             DB::beginTransaction();
 
             $product = Product::findOrFail($request->product_id);
-            $warehouseId = $request->warehouse_id;
+            $warehouseId = (int) $request->warehouse_id;
 
             $user = Auth::user();
-            if ($user->role === 'admin3' && $warehouseId != 1) {
-                return redirect()->back()->with('error', 'Admin 3 hanya dapat melakukan opname di Gudang Utama.');
-            }
-            if ($user->role === 'admin4' && $warehouseId != 2) {
-                return redirect()->back()->with('error', 'Admin 4 hanya dapat melakukan opname di Gudang Cabang.');
+            $role = strtolower((string) ($user?->role ?? ''));
+
+            // Validate warehouse access using WarehouseConfig
+            if (! WarehouseConfig::canAccess($role, $warehouseId)) {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk melakukan opname di gudang ini.')->withInput();
             }
 
             // Find existing specific stock record or calculate total system qty for this specific wh
@@ -167,6 +171,7 @@ class OpnameController extends Controller
                 $qtyToRemove = abs($difference);
 
                 // FIFO deduction for the missing stock
+                /** @var \App\Models\ProductStock $stock */
                 foreach ($stockRecords->sortBy('expired_date')->sortBy('created_at') as $stock) {
                     if ($qtyToRemove <= 0) {
                         break;
@@ -240,11 +245,11 @@ class OpnameController extends Controller
         abort_if($opname->type !== 'adjustment', 404);
 
         $user = Auth::user();
-        if ($user->role === 'admin3' && $opname->warehouse_id != 1) {
-            return redirect()->back()->with('error', 'Admin 3 tidak dapat membatalkan opname di luar Gudang Utama.');
-        }
-        if ($user->role === 'admin4' && $opname->warehouse_id != 2) {
-            return redirect()->back()->with('error', 'Admin 4 tidak dapat membatalkan opname di luar Gudang Cabang.');
+        $role = strtolower((string) ($user?->role ?? ''));
+
+        // Validate warehouse access using WarehouseConfig
+        if (! WarehouseConfig::canAccess($role, $opname->warehouse_id)) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses untuk membatalkan opname di gudang ini.');
         }
 
         try {
@@ -273,6 +278,7 @@ class OpnameController extends Controller
 
                 $stocks = $query->get();
 
+                /** @var \App\Models\ProductStock $stock */
                 foreach ($stocks as $stock) {
                     if ($qtyToDeduct <= 0) {
                         break;

@@ -8,8 +8,12 @@ use App\Models\Warehouse;
 use App\Models\Location;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
+use App\Models\Unit;
+use App\Models\ProductUnitConversion;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InboundController extends Controller
 {
@@ -27,6 +31,8 @@ class InboundController extends Controller
     {
         $search = $request->input('search');
         $type   = $request->input('source_type');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
 
         $movements = StockMovement::with(['product', 'warehouse', 'location', 'user'])
             ->where('type', 'in')
@@ -36,17 +42,89 @@ class InboundController extends Controller
                   ->orWhereHas('product', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
             )
             ->when($type, fn($q) => $q->where('source_type', $type))
+            ->when($dateFrom, fn($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn($q) => $q->whereDate('created_at', '<=', $dateTo))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
+        // Stats
+        $statsQuery = StockMovement::where('type', 'in')
+            ->whereNull('purchase_order_id')
+            ->when($type, fn($q) => $q->where('source_type', $type))
+            ->when($dateFrom, fn($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn($q) => $q->whereDate('created_at', '<=', $dateTo));
+
+        $totalQty = (clone $statsQuery)->sum('quantity');
+        $totalTransactions = (clone $statsQuery)->count();
+
+        // Get stats grouped by source type
+        $statsBySource = (clone $statsQuery)
+            ->select('source_type', DB::raw('COUNT(*) as count'), DB::raw('SUM(quantity) as total_qty'))
+            ->groupBy('source_type')
+            ->get()
+            ->keyBy('source_type')
+            ->toArray();
+
         $sourceTypes = self::SOURCE_TYPES;
-        return view('gudang.penerimaan.index', compact('movements', 'sourceTypes'));
+        return view('gudang.penerimaan.index', compact(
+            'movements', 'sourceTypes', 'totalQty', 'totalTransactions', 'statsBySource'
+        ));
+    }
+
+    public function export(Request $request)
+    {
+        $search = $request->input('search');
+        $type   = $request->input('source_type');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $movements = StockMovement::with(['product', 'warehouse', 'user'])
+            ->where('type', 'in')
+            ->whereNull('purchase_order_id')
+            ->when($search, fn($q) =>
+                $q->where('reference_number', 'like', "%{$search}%")
+                  ->orWhereHas('product', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
+            )
+            ->when($type, fn($q) => $q->where('source_type', $type))
+            ->when($dateFrom, fn($q) => $q->whereDate('created_at', '>=', $dateFrom))
+            ->when($dateTo, fn($q) => $q->whereDate('created_at', '<=', $dateTo))
+            ->latest()
+            ->get();
+
+        $filename = 'penerimaan-barang-' . now()->format('Y-m-d') . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($movements) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Tanggal', 'No. Referensi', 'Sumber', 'Produk', 'SKU', 'Gudang', 'Qty', 'Petugas', 'Catatan']);
+            
+            foreach ($movements as $m) {
+                fputcsv($file, [
+                    $m->created_at->format('d/m/Y H:i'),
+                    $m->reference_number,
+                    self::SOURCE_TYPES[$m->source_type] ?? 'Lainnya',
+                    $m->product?->name ?? '-',
+                    $m->product?->sku ?? '-',
+                    $m->warehouse?->name ?? '-',
+                    $m->quantity,
+                    $m->user?->name ?? '-',
+                    $m->notes ?? '-',
+                ]);
+            }
+            fclose($file);
+        };
+
+        return new StreamedResponse($callback, 200, $headers);
     }
 
     public function create()
     {
-        $products   = Product::orderBy('name')->get();
+        $products = Product::with(['unit', 'unitConversions.unit'])->orderBy('name')->get();
         $warehouses = Warehouse::where('active', true)->orderBy('name')->get();
         $locations  = Location::orderBy('name')->get();
         $sourceTypes = self::SOURCE_TYPES;
@@ -59,11 +137,13 @@ class InboundController extends Controller
         $request->validate([
             'source_type'      => 'required|in:' . implode(',', array_keys(self::SOURCE_TYPES)),
             'product_id'       => 'required|exists:products,id',
+            'unit_id'          => 'nullable|exists:units,id',
             'warehouse_id'     => 'required|exists:warehouses,id',
             'reference_number' => 'required|string|max:100',
             'batch_number'     => 'nullable|string|max:100',
             'expired_date'     => 'nullable|date',
             'quantity'         => 'required|integer|min:1',
+            'conversion_factor' => 'nullable|numeric|min:0.001',
             'notes'            => 'nullable|string',
         ]);
 
@@ -72,7 +152,25 @@ class InboundController extends Controller
 
             $productId   = $request->product_id;
             $warehouseId = $request->warehouse_id;
-            $qty         = $request->quantity;
+            $unitId      = $request->unit_id;
+            $quantityInUnit = (float) $request->quantity;
+
+            // Get product with unit conversions
+            $product = Product::with(['unit', 'unitConversions.unit'])->findOrFail($productId);
+
+            // Calculate base quantity from unit conversion
+            $conversionFactor = 1;
+            if ($unitId) {
+                // Check if it's the base unit
+                $baseUnitId = $product->unit_id;
+                if ((int) $unitId !== (int) $baseUnitId) {
+                    $uc = $product->unitConversions->firstWhere('unit_id', $unitId);
+                    if ($uc) {
+                        $conversionFactor = (float) $uc->conversion_factor;
+                    }
+                }
+            }
+            $baseQty = (int) round($quantityInUnit * $conversionFactor);
 
             // 1. Cari atau buat record stok di product_stocks
             $stockRecord = ProductStock::firstOrCreate(
@@ -86,17 +184,19 @@ class InboundController extends Controller
                 ['stock' => 0]
             );
 
-            // 2. Tambahkan stok
-            $stockRecord->stock += $qty;
+            // 2. Tambahkan stok (in base quantity)
+            $stockRecord->stock += $baseQty;
             $stockRecord->save();
 
             // 3. Update total stok global di products
-            $product = Product::findOrFail($productId);
-            $product->stock += $qty;
+            $product->stock += $baseQty;
             $product->save();
 
             // 4. Catat pergerakan stok
             $sourceLabel = self::SOURCE_TYPES[$request->source_type] ?? $request->source_type;
+            $unitName = $unitId ? Unit::find($unitId)?->name : ($product->unit?->name ?? 'satuan dasar');
+            $notesWithUnit = "[{$sourceLabel}] Input: {$quantityInUnit} {$unitName} (= {$baseQty} satuan dasar). " . ($request->notes ?? '');
+
             StockMovement::create([
                 'product_id'       => $productId,
                 'warehouse_id'     => $warehouseId,
@@ -106,14 +206,17 @@ class InboundController extends Controller
                 'reference_number' => $request->reference_number,
                 'batch_number'     => $request->batch_number,
                 'expired_date'     => $request->expired_date,
-                'quantity'         => $qty,
+                'quantity'         => $baseQty,
+                'unit_id'          => $unitId,
+                'conversion_factor'=> $conversionFactor,
+                'quantity_in_unit' => $quantityInUnit,
                 'balance'          => $stockRecord->stock,
-                'notes'            => "[{$sourceLabel}] " . ($request->notes ?? ''),
+                'notes'            => $notesWithUnit,
                 'user_id'          => Auth::id(),
             ]);
 
             DB::commit();
-            return redirect()->route('gudang.penerimaan')->with('success', "Barang berhasil diterima ({$sourceLabel}). Stok bertambah {$qty} unit.");
+            return redirect()->route('gudang.penerimaan')->with('success', "Barang berhasil diterima ({$sourceLabel}). Stok bertambah {$baseQty} satuan dasar (Input: {$quantityInUnit} {$unitName}).");
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());

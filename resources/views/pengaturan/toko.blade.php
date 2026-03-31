@@ -63,7 +63,6 @@
                                 <a href="#sec-transaksi">🧾 Aturan <span class="muted">Pajak/Rounding</span></a>
                                 <a href="#sec-struk">🧾 Struk <span class="muted">Header/Footer</span></a>
                                 <a href="#sec-fingerprint">👆 Fingerprint <span class="muted">X606-S</span></a>
-                                <a href="#sec-sdm">🧑‍🤝‍🧑 SDM/HR <span class="muted">Aturan</span></a>
                                 <a href="#sec-logo">🖼️ Logo <span class="muted">Upload</span></a>
                                 @can('view_backup_restore')
                                 <a href="{{ route('pengaturan.backup') }}">🛡️ Backup <span class="muted">JSON</span></a>
@@ -234,91 +233,6 @@
                                         <input name="fingerprint_port" value="{{ old('fingerprint_port', $setting->fingerprint_port ?? '4370') }}" class="form-input" style="background: #f8fafc;" placeholder="Default: 4370">
                                         <div class="settings-help">Port TCP standar biasanya 4370 (Tipe ZKTeco/Solution).</div>
                                         @error('fingerprint_port') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="sec-sdm" class="settings-section settings-anchor">
-                            <div class="settings-section-header">
-                                <div>
-                                    <div class="settings-section-title">🧑‍🤝‍🧑 Aturan SDM/HR</div>
-                                    <div class="settings-section-sub">Jam kerja, toleransi telat, lembur, dan potongan uang makan</div>
-                                </div>
-                            </div>
-                            <div class="settings-section-content">
-                                <div class="settings-grid-2">
-                                    <div>
-                                        <label class="form-label">Jam Masuk Kerja</label>
-                                        <input type="time" name="sdm_work_start_time" value="{{ old('sdm_work_start_time', $setting->sdm_work_start_time ?? '08:00') }}" class="form-input">
-                                        @error('sdm_work_start_time') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="form-label">Jam Pulang Kerja</label>
-                                        <input type="time" name="sdm_work_end_time" value="{{ old('sdm_work_end_time', $setting->sdm_work_end_time ?? '17:00') }}" class="form-input">
-                                        @error('sdm_work_end_time') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-
-                                <div class="settings-grid-2" style="margin-top: 1rem;">
-                                    <div>
-                                        <label class="form-label">Toleransi Telat (menit)</label>
-                                        <input type="number" min="0" max="600" name="sdm_late_grace_minutes" value="{{ old('sdm_late_grace_minutes', $setting->sdm_late_grace_minutes ?? 10) }}" class="form-input">
-                                        @error('sdm_late_grace_minutes') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div>
-                                        <label class="form-label">Rate Lembur per Jam (Rp)</label>
-                                        <input type="number" min="0" step="0.01" name="sdm_overtime_rate_per_hour" value="{{ old('sdm_overtime_rate_per_hour', $setting->sdm_overtime_rate_per_hour ?? 0) }}" class="form-input">
-                                        @error('sdm_overtime_rate_per_hour') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                </div>
-
-                                <div class="settings-grid-2" style="margin-top: 1rem;">
-                                    <div>
-                                        <label class="form-label">Skema Hari Kerja</label>
-                                        @php $wdm = old('sdm_working_days_mode', $setting->sdm_working_days_mode ?? 'mon_sat'); @endphp
-                                        <select name="sdm_working_days_mode" class="form-input">
-                                            <option value="mon_sat" {{ $wdm === 'mon_sat' ? 'selected' : '' }}>Senin–Sabtu</option>
-                                            <option value="mon_fri" {{ $wdm === 'mon_fri' ? 'selected' : '' }}>Senin–Jumat</option>
-                                        </select>
-                                        @error('sdm_working_days_mode') <div class="settings-error">{{ $message }}</div> @enderror
-                                    </div>
-                                    <div></div>
-                                </div>
-
-                                <div style="margin-top: 1rem;">
-                                    <label class="form-label">Mode Kalender Kerja</label>
-                                    @php $cm = old('sdm_calendar_mode', $setting->sdm_calendar_mode ?? 'auto'); @endphp
-                                    <select name="sdm_calendar_mode" class="form-input">
-                                        <option value="auto" {{ $cm === 'auto' ? 'selected' : '' }}>Otomatis (Skema + Override Libur)</option>
-                                        <option value="manual" {{ $cm === 'manual' ? 'selected' : '' }}>Manual (Setiap tanggal ditentukan)</option>
-                                    </select>
-                                    @error('sdm_calendar_mode') <div class="settings-error">{{ $message }}</div> @enderror
-                                    <div class="settings-help">
-                                        Jika Manual, sistem hanya menganggap hari kerja dari kalender di menu SDM/HR → Libur (gunakan tombol Generate per bulan).
-                                    </div>
-                                </div>
-
-                                <div style="margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e2e8f0;">
-                                    <div style="font-weight: 900; color: #0f172a; margin-bottom: 0.75rem;">🍱 Potongan Uang Makan saat Telat</div>
-                                    <div class="settings-grid-2">
-                                        <div>
-                                            <label class="form-label">Mode Potongan</label>
-                                            @php $lmm = old('sdm_late_meal_cut_mode', $setting->sdm_late_meal_cut_mode ?? 'full'); @endphp
-                                            <select name="sdm_late_meal_cut_mode" class="form-input">
-                                                <option value="none" {{ $lmm === 'none' ? 'selected' : '' }}>Tidak dipotong</option>
-                                                <option value="full" {{ $lmm === 'full' ? 'selected' : '' }}>Potong penuh uang makan harian</option>
-                                                <option value="percent" {{ $lmm === 'percent' ? 'selected' : '' }}>Potong persen (%)</option>
-                                                <option value="fixed" {{ $lmm === 'fixed' ? 'selected' : '' }}>Potong nominal (Rp)</option>
-                                            </select>
-                                            @error('sdm_late_meal_cut_mode') <div class="settings-error">{{ $message }}</div> @enderror
-                                        </div>
-                                        <div>
-                                            <label class="form-label">Nilai Potongan</label>
-                                            <input type="number" min="0" step="0.01" name="sdm_late_meal_cut_value" value="{{ old('sdm_late_meal_cut_value', $setting->sdm_late_meal_cut_value ?? 0) }}" class="form-input">
-                                            <div class="settings-help">Dipakai jika mode Persen atau Nominal.</div>
-                                            @error('sdm_late_meal_cut_value') <div class="settings-error">{{ $message }}</div> @enderror
-                                        </div>
                                     </div>
                                 </div>
                             </div>

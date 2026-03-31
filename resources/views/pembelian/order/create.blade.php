@@ -1,6 +1,33 @@
 <x-app-layout>
     <x-slot name="header">Buat Purchase Order</x-slot>
 
+    <style>
+        .autocomplete-results {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        .autocomplete-results::-webkit-scrollbar {
+            width: 6px;
+        }
+        .autocomplete-results::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .autocomplete-results::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .autocomplete-item:last-child {
+            border-bottom: none !important;
+        }
+        .autocomplete-item.active {
+            background: #f1f5f9 !important;
+        }
+        .product-search-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+
     <div class="page-container" style="max-width:1150px;">
 
         {{-- Header --}}
@@ -232,46 +259,7 @@
         }
     }
 
-    function setSelectOptions(select, products, keepSelectedId = 0) {
-        if (!select) return;
-        const selectedId = keepSelectedId || parseInt(select.value || '0', 10) || 0;
-        select.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = '-- Cari & Pilih Produk --';
-        select.appendChild(placeholder);
 
-        products.forEach((p) => {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.name} (${p.sku || '-'})`;
-            opt.dataset.product = JSON.stringify(p);
-            if (selectedId && parseInt(p.id || '0', 10) === selectedId) {
-                opt.selected = true;
-            }
-            select.appendChild(opt);
-        });
-
-        if (products.length === 1) {
-            select.value = String(products[0].id);
-        }
-    }
-
-    async function ensureSelectedProductData(select) {
-        if (!select) return null;
-        const productId = parseInt(select.value || '0', 10);
-        if (!productId) return null;
-        const opt = select.options[select.selectedIndex];
-        if (opt && opt.dataset.product) {
-            try { return JSON.parse(opt.dataset.product); } catch (_) { /* ignore */ }
-        }
-        const found = await fetchProducts({ id: productId });
-        const product = found && found[0] ? found[0] : null;
-        if (!product) return null;
-
-        setSelectOptions(select, [product], productId);
-        return product;
-    }
 
     function addItem() {
         const container = document.getElementById('items-container');
@@ -284,12 +272,19 @@
         row.onmouseover = function() { this.style.borderColor = '#cbd5e1'; this.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.05)'; };
         row.onmouseout = function() { this.style.borderColor = '#e2e8f0'; this.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)'; };
         row.innerHTML = `
-            <div>
-                <input type="text" class="form-input" placeholder="Ketik nama / SKU..." oninput="onProductSearch(this, ${idx})" onkeydown="onProductSearchKeydown(event, ${idx})" style="font-size:0.85rem;padding:0.5rem;border-radius:6px;margin-bottom:0.4rem;">
-                <div id="search-status-${idx}" style="font-size:0.72rem;color:#94a3b8;margin:-0.25rem 0 0.35rem 0;"></div>
-                <select name="items[${idx}][product_id]" class="form-input" onchange="onProductChange(this, ${idx})" required style="font-size:0.9rem; padding:0.6rem; border-radius:6px; cursor:pointer;">
-                    <option value="">-- Cari & Pilih Produk --</option>
-                </select>
+            <div style="position:relative;">
+                <div class="product-autocomplete" id="product-autocomplete-${idx}" style="position:relative;">
+                    <input type="text" class="form-input product-search-input" placeholder="Ketik nama / SKU produk..." oninput="onProductSearch(this, ${idx})" onkeydown="onProductSearchKeydown(event, ${idx})" onblur="onProductSearchBlur(${idx})" style="font-size:0.9rem;padding:0.6rem;border-radius:6px;" autocomplete="off">
+                    <input type="hidden" name="items[${idx}][product_id]" id="product-id-${idx}">
+                    <div id="search-status-${idx}" style="font-size:0.72rem;color:#94a3b8;margin:0.25rem 0 0 0;"></div>
+                    <div id="search-results-${idx}" class="autocomplete-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1);z-index:100;max-height:250px;overflow-y:auto;margin-top:4px;"></div>
+                </div>
+                <div id="selected-product-${idx}" class="selected-product-display" style="display:none;margin-top:0.5rem;padding:0.5rem;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <span id="selected-product-name-${idx}" style="font-weight:600;color:#166534;font-size:0.85rem;"></span>
+                        <button type="button" onclick="clearProductSelection(${idx})" style="background:none;border:none;color:#22c55e;cursor:pointer;font-size:0.75rem;padding:0.2rem 0.5rem;">✕ Ganti</button>
+                    </div>
+                </div>
             </div>
             <div style="display:flex; flex-direction:column; gap:0.4rem;">
                 <input type="number" name="items[${idx}][qty_ordered]" class="form-input qty-input" min="1" value="1" oninput="calcSubtotal(${idx})" required style="text-align:center; font-size:1rem; font-weight:700; padding:0.5rem; border-radius:6px;">
@@ -313,19 +308,122 @@
     }
 
     function onProductSearchKeydown(e, idx) {
-        if (!e || e.key !== 'Enter') return;
-        e.preventDefault();
-        const select = document.querySelector(`select[name="items[${idx}][product_id]"]`);
-        if (!select) return;
-        if (!select.value) {
-            const first = select.options && select.options.length > 1 ? select.options[1] : null;
-            if (first) {
-                select.value = first.value;
+        if (!e) return;
+        const resultsContainer = document.getElementById(`search-results-${idx}`);
+        if (!resultsContainer) return;
+        const items = resultsContainer.querySelectorAll('.autocomplete-item');
+        let activeIdx = -1;
+        items.forEach((item, i) => { if (item.classList.contains('active')) activeIdx = i; });
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (activeIdx < items.length - 1) {
+                if (activeIdx >= 0) items[activeIdx].classList.remove('active');
+                items[activeIdx + 1].classList.add('active');
             }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (activeIdx > 0) {
+                items[activeIdx].classList.remove('active');
+                items[activeIdx - 1].classList.add('active');
+            }
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIdx >= 0 && items[activeIdx]) {
+                items[activeIdx].click();
+            } else if (items.length === 1) {
+                items[0].click();
+            }
+        } else if (e.key === 'Escape') {
+            hideSearchResults(idx);
         }
-        if (select.value) {
-            onProductChange(select, idx);
+    }
+
+    function onProductSearchBlur(idx) {
+        setTimeout(() => hideSearchResults(idx), 200);
+    }
+
+    function hideSearchResults(idx) {
+        const resultsContainer = document.getElementById(`search-results-${idx}`);
+        if (resultsContainer) resultsContainer.style.display = 'none';
+    }
+
+    function showSearchResults(idx, products) {
+        const resultsContainer = document.getElementById(`search-results-${idx}`);
+        const status = document.getElementById(`search-status-${idx}`);
+        if (!resultsContainer) return;
+
+        resultsContainer.innerHTML = '';
+
+        if (products.length === 0) {
+            resultsContainer.innerHTML = '<div style="padding:1rem;text-align:center;color:#94a3b8;font-size:0.85rem;">Tidak ada hasil</div>';
+            resultsContainer.style.display = 'block';
+            if (status) status.textContent = '';
+            return;
         }
+
+        products.forEach((p, i) => {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.style.cssText = 'padding:0.75rem 1rem;cursor:pointer;border-bottom:1px solid #f1f5f9;transition:all 0.15s;';
+            item.innerHTML = `
+                <div style="font-weight:600;color:#1e293b;font-size:0.9rem;">${p.name}</div>
+                <div style="font-size:0.75rem;color:#64748b;">SKU: ${p.sku || '-'} | Stok: ${p.stock || 0}</div>
+            `;
+            item.onmouseenter = () => {
+                resultsContainer.querySelectorAll('.autocomplete-item').forEach(el => el.classList.remove('active'));
+                item.classList.add('active');
+                item.style.background = '#f8fafc';
+            };
+            item.onmouseleave = () => {
+                item.classList.remove('active');
+                item.style.background = 'transparent';
+            };
+            item.onclick = () => selectProduct(idx, p);
+            resultsContainer.appendChild(item);
+        });
+
+        resultsContainer.style.display = 'block';
+        if (status) status.textContent = `${products.length} hasil ditemukan`;
+    }
+
+    function selectProduct(idx, product) {
+        const productIdInput = document.getElementById(`product-id-${idx}`);
+        const searchInput = document.querySelector(`#product-autocomplete-${idx} .product-search-input`);
+        const selectedDisplay = document.getElementById(`selected-product-${idx}`);
+        const selectedName = document.getElementById(`selected-product-name-${idx}`);
+        const status = document.getElementById(`search-status-${idx}`);
+
+        if (isDuplicateProduct(idx, product.id)) {
+            if (status) status.textContent = 'Produk sudah dipilih di baris lain.';
+            return;
+        }
+
+        productIdInput.value = product.id;
+        if (searchInput) searchInput.value = '';
+        if (selectedName) selectedName.textContent = `${product.name} (${product.sku || '-'})`;
+        if (selectedDisplay) selectedDisplay.style.display = 'block';
+        hideSearchResults(idx);
+        if (status) status.textContent = '';
+
+        onProductChange(product, idx);
+    }
+
+    function clearProductSelection(idx) {
+        const productIdInput = document.getElementById(`product-id-${idx}`);
+        const searchInput = document.querySelector(`#product-autocomplete-${idx} .product-search-input`);
+        const selectedDisplay = document.getElementById(`selected-product-${idx}`);
+        const unitSelect = document.getElementById(`unit-select-${idx}`);
+        const priceInput = document.getElementById(`price-${idx}`);
+        const factorInput = document.getElementById(`conversion-factor-${idx}`);
+
+        productIdInput.value = '';
+        if (searchInput) searchInput.value = '';
+        if (selectedDisplay) selectedDisplay.style.display = 'none';
+        if (unitSelect) { unitSelect.style.display = 'none'; unitSelect.innerHTML = ''; }
+        if (priceInput) priceInput.value = 0;
+        if (factorInput) factorInput.value = 1;
+        calcSubtotal(idx);
     }
 
     function onProductSearch(input, idx) {
@@ -334,39 +432,34 @@
         }
         searchTimers[idx] = setTimeout(async () => {
             const q = (input?.value || '').trim();
-            const select = document.querySelector(`select[name="items[${idx}][product_id]"]`);
             const status = document.getElementById(`search-status-${idx}`);
-            if (!select) return;
+
             if (q.length < 2) {
+                hideSearchResults(idx);
                 if (status) status.textContent = q.length ? 'Minimal 2 karakter.' : '';
                 return;
             }
+
             if (searchControllers[idx]) {
                 try { searchControllers[idx].abort(); } catch (_) { /* ignore */ }
             }
+
             const controller = new AbortController();
             searchControllers[idx] = controller;
-            if (status) status.textContent = 'Memuat...';
-            select.disabled = true;
-            const selectedId = parseInt(select.value || '0', 10) || 0;
+            if (status) status.textContent = 'Mencari...';
+
             try {
                 const results = await fetchProducts({ q }, controller.signal);
-                setSelectOptions(select, results, selectedId);
-                if (results.length === 1) {
-                    onProductChange(select, idx);
-                }
-                if (status) status.textContent = results.length ? `${results.length} hasil.` : 'Tidak ada hasil.';
+                showSearchResults(idx, results);
             } catch (_) {
                 if (status) status.textContent = 'Gagal memuat hasil.';
-            } finally {
-                select.disabled = false;
             }
         }, 250);
     }
 
     function isDuplicateProduct(idx, productId) {
-        const selects = document.querySelectorAll('select[name^="items["][name$="[product_id]"]');
-        for (const el of selects) {
+        const inputs = document.querySelectorAll('input[name^="items["][name$="[product_id]"]');
+        for (const el of inputs) {
             const name = el.getAttribute('name') || '';
             if (name.includes(`items[${idx}]`)) continue;
             if (String(el.value) === String(productId)) return true;
@@ -374,58 +467,36 @@
         return false;
     }
 
-    function onProductChange(select, idx) {
-        const productId = select.value;
+    function onProductChange(product, idx) {
         const unitSelect = document.getElementById(`unit-select-${idx}`);
         const priceInput = document.getElementById(`price-${idx}`);
         const factorInput = document.getElementById(`conversion-factor-${idx}`);
-        const status = document.getElementById(`search-status-${idx}`);
-        
-        if (!productId) {
-            unitSelect.style.display = 'none';
-            unitSelect.innerHTML = '';
-            priceInput.value = 0;
-            factorInput.value = 1;
-            if (status) status.textContent = '';
-            calcSubtotal(idx);
-            return;
-        }
-        if (isDuplicateProduct(idx, productId)) {
-            if (status) status.textContent = 'Produk sudah dipilih di baris lain.';
-            select.value = '';
-            unitSelect.style.display = 'none';
-            unitSelect.innerHTML = '';
-            priceInput.value = 0;
-            factorInput.value = 1;
-            calcSubtotal(idx);
-            return;
-        }
-        ensureSelectedProductData(select).then((product) => {
-            if (!product) return;
-            const conversions = Array.isArray(product.conversions) ? product.conversions : [];
-            unitSelect.style.display = 'block';
-            unitSelect.innerHTML = '';
 
-            if (conversions.length) {
-                conversions.forEach((c) => {
-                    const opt = document.createElement('option');
-                    opt.value = c.unit_id ?? '';
-                    opt.textContent = `${c.name}${c.factor > 1 ? ' (x' + c.factor + ')' : ''}`;
-                    opt.dataset.factor = String(c.factor || 1);
-                    opt.dataset.price = String(c.price || 0);
-                    unitSelect.appendChild(opt);
-                });
-            } else {
+        if (!product) return;
+
+        const conversions = Array.isArray(product.conversions) ? product.conversions : [];
+        unitSelect.style.display = 'block';
+        unitSelect.innerHTML = '';
+
+        if (conversions.length) {
+            conversions.forEach((c) => {
                 const opt = document.createElement('option');
-                opt.value = '';
-                opt.textContent = product.unit_name || 'Pcs';
-                opt.dataset.factor = '1';
-                opt.dataset.price = String(product.purchase_price || 0);
+                opt.value = c.unit_id ?? '';
+                opt.textContent = `${c.name}${c.factor > 1 ? ' (x' + c.factor + ')' : ''}`;
+                opt.dataset.factor = String(c.factor || 1);
+                opt.dataset.price = String(c.price || 0);
                 unitSelect.appendChild(opt);
-            }
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = product.unit_name || 'Pcs';
+            opt.dataset.factor = '1';
+            opt.dataset.price = String(product.purchase_price || 0);
+            unitSelect.appendChild(opt);
+        }
 
-            onUnitChange(unitSelect, idx);
-        });
+        onUnitChange(unitSelect, idx);
     }
 
     function onUnitChange(select, idx) {

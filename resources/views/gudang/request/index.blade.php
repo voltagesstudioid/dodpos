@@ -177,7 +177,7 @@
                                     <td>
                                         @php
                                             $badgeClass = match($req->status) {
-                                                'pending' => 'tr-badge-gray',
+                                                'pending' => 'tr-badge-warning',
                                                 'approved' => 'tr-badge-success',
                                                 'rejected' => 'tr-badge-danger',
                                                 'completed' => 'tr-badge-blue',

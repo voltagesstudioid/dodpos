@@ -10,28 +10,81 @@
                     <p class="ph-subtitle">Kelola semua pesanan pembelian ke supplier</p>
                 </div>
             </div>
-            <div class="ph-actions">
+            <div class="ph-actions" style="display:flex; gap:0.5rem;">
+                @can('view_laporan_pembelian')
+                <a href="{{ route('pembelian.order', array_merge(request()->query(), ['export' => 'excel'])) }}" class="btn-secondary" title="Export Excel">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export
+                </a>
+                @endcan
                 @can('create_purchase_order')
                 <a href="{{ route('pembelian.order.create') }}" class="btn-primary">＋ Buat PO Baru</a>
                 @endcan
             </div>
         </div>
 
+        {{-- Stats Cards --}}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📋</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#4f46e5;">{{ number_format($stats['total']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Total PO</div>
+                </div>
+            </div>
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📦</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#d97706;">{{ number_format($stats['ordered'] + $stats['partial']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Dalam Proses</div>
+                </div>
+            </div>
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">✅</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#16a34a;">{{ number_format($stats['received']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Selesai</div>
+                </div>
+            </div>
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚠️</div>
+                <div>
+                    <div style="font-size:1.75rem;font-weight:800;color:#dc2626;">{{ number_format($stats['late']) }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Terlambat</div>
+                </div>
+            </div>
+            @can('view_laporan_pembelian')
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💰</div>
+                <div>
+                    <div style="font-size:1.25rem;font-weight:800;color:#15803d;">Rp {{ number_format($stats['total_amount'], 0, ',', '.') }}</div>
+                    <div style="font-size:0.8rem;color:#64748b;">Total Nilai</div>
+                </div>
+            </div>
+            @endcan
+        </div>
+
         <div class="panel animate-in animate-in-delay-1">
             <div class="filter-bar">
                 <form method="GET" action="{{ route('pembelian.order') }}" style="display:flex;gap:0.625rem;align-items:center;flex-wrap:wrap;">
                     <input type="text" name="search" value="{{ request('search') }}"
-                        placeholder="🔍  Cari no. PO atau supplier..." class="form-input" style="flex:1;min-width:220px;max-width:340px;">
-                    <select name="status" class="form-input" style="width:175px;">
+                        placeholder="🔍  Cari no. PO atau supplier..." class="form-input" style="flex:1;min-width:200px;max-width:280px;">
+                    <select name="status" class="form-input" style="width:160px;">
                         <option value="">Semua Status</option>
                         <option value="draft" {{ request('status')=='draft' ? 'selected':'' }}>📝 Draft</option>
                         <option value="ordered" {{ request('status')=='ordered' ? 'selected':'' }}>📦 Dipesan</option>
-                        <option value="partial" {{ request('status')=='partial' ? 'selected':'' }}>🔄 Sebagian Diterima</option>
-                        <option value="received" {{ request('status')=='received' ? 'selected':'' }}>✅ Diterima Penuh</option>
-                        <option value="cancelled" {{ request('status')=='cancelled' ? 'selected':'' }}>❌ Dibatalkan</option>
+                        <option value="partial" {{ request('status')=='partial' ? 'selected':'' }}>🔄 Sebagian</option>
+                        <option value="received" {{ request('status')=='received' ? 'selected':'' }}>✅ Diterima</option>
+                        <option value="cancelled" {{ request('status')=='cancelled' ? 'selected':'' }}>❌ Batal</option>
                     </select>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-input" style="width:140px;" title="Dari Tanggal">
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input" style="width:140px;" title="Sampai Tanggal">
                     <button type="submit" class="btn-primary btn-sm">Filter</button>
-                    @if(request('search') || request('status'))
+                    @if(request('search') || request('status') || request('date_from') || request('date_to'))
                         <a href="{{ route('pembelian.order') }}" class="btn-secondary btn-sm">× Reset</a>
                     @endif
                 </form>

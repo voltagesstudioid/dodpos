@@ -33,11 +33,35 @@ class PurchaseReturnController extends Controller
         if ($request->supplier_id) {
             $query->where('supplier_id', $request->supplier_id);
         }
+        // Filter periode
+        if ($request->date_from) {
+            $query->whereDate('return_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('return_date', '<=', $request->date_to);
+        }
 
         $returns = $query->paginate(15)->withQueryString();
         $suppliers = Supplier::orderBy('name')->get();
 
-        return view('pembelian.retur.index', compact('returns', 'suppliers'));
+        // Stats dengan query database (bukan collection) untuk performance
+        $statsQuery = PurchaseReturn::query();
+        if ($request->date_from) {
+            $statsQuery->whereDate('return_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $statsQuery->whereDate('return_date', '<=', $request->date_to);
+        }
+
+        $stats = [
+            'total' => (clone $statsQuery)->count(),
+            'draft' => (clone $statsQuery)->where('status', 'draft')->count(),
+            'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
+            'returned' => (clone $statsQuery)->where('status', 'returned')->count(),
+            'total_amount' => (clone $statsQuery)->sum('total_amount'),
+        ];
+
+        return view('pembelian.retur.index', compact('returns', 'suppliers', 'stats'));
     }
 
     public function create()

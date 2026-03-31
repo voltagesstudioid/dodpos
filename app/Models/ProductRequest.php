@@ -15,6 +15,8 @@ class ProductRequest extends Model
         'from_warehouse_id',
         'to_warehouse_id',
         'quantity',
+        'unit_id',
+        'conversion_factor',
         'type',
         'status',
         'approved_by',
@@ -26,6 +28,7 @@ class ProductRequest extends Model
 
     protected $casts = [
         'approved_at' => 'datetime',
+        'conversion_factor' => 'decimal:4',
     ];
 
     public function user()
@@ -51,5 +54,10 @@ class ProductRequest extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 }

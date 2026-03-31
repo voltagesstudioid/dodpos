@@ -1,149 +1,117 @@
 <x-app-layout>
-<x-slot name="header">Minyak — Setoran & Retur</x-slot>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Verifikasi Setoran') }}
+            </h2>
+            <a href="{{ route('minyak.setoran.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                + Tambah Setoran
+            </a>
+        </div>
+    </x-slot>
 
-<div class="page-container animate-in">
-
-    @if(session('success'))
-        <div class="alert alert-success">✅ {{ session('success') }}</div>
-    @endif
-
-    {{-- Filter + Tombol Tambah --}}
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:1.5rem;">
-        <form method="GET" action="{{ route('minyak.setoran.index') }}" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-            <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Tanggal</label>
-                <input type="date" name="tanggal" value="{{ $tanggal }}"
-                    style="padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;">
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Pending</div>
+                    <div class="text-2xl font-bold text-yellow-600">{{ $stats['total_pending'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Terverifikasi</div>
+                    <div class="text-2xl font-bold text-green-600">{{ $stats['total_terverifikasi'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Setoran Hari Ini</div>
+                    <div class="text-xl font-bold text-blue-600">
+                        Rp {{ number_format($stats['total_setoran_hari_ini'], 0, ',', '.') }}
+                    </div>
+                </div>
             </div>
-            <div>
-                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Sales</label>
-                <select name="sales_id" style="padding:8px 12px;border:1.5px solid #d1d5db;border-radius:8px;font-size:0.9rem;background:#fff;">
-                    <option value="">Semua Sales</option>
-                    @foreach($salesList as $s)
-                        <option value="{{ $s->id }}" {{ $salesId == $s->id ? 'selected' : '' }}>{{ $s->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div style="margin-top:22px;">
-                <button type="submit" style="padding:8px 18px;background:#f97316;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;">
-                    🔍 Filter
-                </button>
-            </div>
-        </form>
 
-        <a href="{{ route('minyak.setoran.create') }}"
-            style="padding:10px 20px;background:#f97316;color:#fff;border-radius:8px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-            ➕ Tambah Setoran
-        </a>
+            <!-- Filters -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
+                <form method="GET" class="flex flex-wrap gap-4">
+                    <input type="date" name="tanggal" value="{{ request('tanggal') }}" 
+                        class="border rounded-lg px-4 py-2">
+                    <select name="sales_id" class="border rounded-lg px-4 py-2">
+                        <option value="">Semua Sales</option>
+                        @foreach($sales as $s)
+                            <option value="{{ $s->id }}" {{ request('sales_id') == $s->id ? 'selected' : '' }}>{{ $s->nama }}</option>
+                        @endforeach
+                    </select>
+                    <select name="status" class="border rounded-lg px-4 py-2">
+                        <option value="">Semua Status</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="terverifikasi" {{ request('status') == 'terverifikasi' ? 'selected' : '' }}>Terverifikasi</option>
+                        <option value="ditolak" {{ request('status') == 'ditolak' ? 'selected' : '' }}>Ditolak</option>
+                    </select>
+                    <button type="submit" class="bg-gray-600 text-white px-4 py-2 rounded-lg">Filter</button>
+                    <a href="{{ route('minyak.setoran.index') }}" class="bg-gray-200 px-4 py-2 rounded-lg">Reset</a>
+                </form>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Tanggal</th>
+                            <th class="px-4 py-3 text-left">Sales</th>
+                            <th class="px-4 py-3 text-right">Total Setor</th>
+                            <th class="px-4 py-3 text-right">Penjualan</th>
+                            <th class="px-4 py-3 text-right">Selisih</th>
+                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($setorans as $s)
+                            <tr class="border-t hover:bg-gray-50">
+                                <td class="px-4 py-3">{{ $s->tanggal->format('d M Y') }}</td>
+                                <td class="px-4 py-3">{{ $s->sales->nama }}</td>
+                                <td class="px-4 py-3 text-right font-medium">
+                                    Rp {{ number_format($s->total_setor, 0, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    Rp {{ number_format($s->total_penjualan, 0, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="{{ $s->selisih != 0 ? 'text-red-600 font-medium' : '' }}">
+                                        Rp {{ number_format($s->selisih, 0, ',', '.') }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-1 rounded text-xs font-medium
+                                        {{ $s->status == 'terverifikasi' ? 'bg-green-100 text-green-800' : '' }}
+                                        {{ $s->status == 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                        {{ $s->status == 'ditolak' ? 'bg-red-100 text-red-800' : '' }}">
+                                        {{ ucfirst($s->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <a href="{{ route('minyak.setoran.show', $s) }}" class="text-blue-600 hover:underline text-sm">Detail</a>
+                                    @if($s->status == 'pending')
+                                        <form action="{{ route('minyak.setoran.verify', $s) }}" method="POST" class="inline">
+                                            @csrf
+                                            <input type="hidden" name="status" value="terverifikasi">
+                                            <button type="submit" class="text-green-600 hover:underline text-sm ml-2">Verifikasi</button>
+                                        </form>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-gray-500">Tidak ada data setoran</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <div class="p-4">
+                    {{ $setorans->links() }}
+                </div>
+            </div>
+        </div>
     </div>
-
-    {{-- Summary Cards --}}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;">
-        <div style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border-radius:12px;padding:1.25rem;">
-            <div style="font-size:1.8rem;font-weight:800;">Rp {{ number_format($totalSetoran, 0, ',', '.') }}</div>
-            <div style="font-size:0.8rem;opacity:.85;margin-top:4px;">💰 Total Setoran</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-radius:12px;padding:1.25rem;">
-            <div style="font-size:1.8rem;font-weight:800;">Rp {{ number_format($totalRetur, 0, ',', '.') }}</div>
-            <div style="font-size:0.8rem;opacity:.85;margin-top:4px;">↩️ Total Retur</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border-radius:12px;padding:1.25rem;">
-            <div style="font-size:1.8rem;font-weight:800;">Rp {{ number_format($totalSetoran - $totalRetur, 0, ',', '.') }}</div>
-            <div style="font-size:0.8rem;opacity:.85;margin-top:4px;">✅ Bersih Diterima</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:12px;padding:1.25rem;">
-            <div style="font-size:1.8rem;font-weight:800;">{{ $setorans->count() }}</div>
-            <div style="font-size:0.8rem;opacity:.85;margin-top:4px;">📋 Jumlah Transaksi</div>
-        </div>
-    </div>
-
-    {{-- Table --}}
-    <div class="form-card" style="padding:0;">
-        <div class="form-card-header" style="border-bottom:1px solid #f1f5f9;">
-            <div class="form-card-icon" style="background:#fff7ed;">💰</div>
-            <div>
-                <div class="form-card-title">Daftar Setoran & Retur</div>
-                <div class="form-card-subtitle">{{ \Carbon\Carbon::parse($tanggal)->translatedFormat('d F Y') }}</div>
-            </div>
-        </div>
-        @if($setorans->isEmpty())
-            <div style="text-align:center;padding:3rem;color:#94a3b8;">
-                <div style="font-size:3rem;">📭</div>
-                <div style="margin-top:12px;font-size:1rem;">Belum ada data setoran untuk tanggal ini</div>
-                <a href="{{ route('minyak.setoran.create') }}"
-                    style="margin-top:16px;display:inline-block;padding:10px 20px;background:#f97316;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;">
-                    ➕ Tambah Setoran
-                </a>
-            </div>
-        @else
-        <div class="table-wrapper">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Sales</th>
-                        <th>Kendaraan</th>
-                        <th style="text-align:right;">Setoran (Rp)</th>
-                        <th style="text-align:right;">Retur (Rp)</th>
-                        <th style="text-align:right;">Bersih (Rp)</th>
-                        <th>Catatan</th>
-                        <th>Dicatat</th>
-                        <th style="text-align:center;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($setorans as $i => $s)
-                    <tr>
-                        <td style="color:#94a3b8;">{{ $i + 1 }}</td>
-                        <td style="font-weight:700;">👤 {{ $s->sales_name }}</td>
-                        <td style="font-size:0.85rem;color:#374151;">{{ $s->kendaraan ?? '-' }}</td>
-                        <td style="text-align:right;font-weight:700;color:#10b981;">
-                            {{ number_format($s->jumlah_setoran, 0, ',', '.') }}
-                        </td>
-                        <td style="text-align:right;color:{{ $s->jumlah_retur > 0 ? '#f59e0b' : '#94a3b8' }};font-weight:{{ $s->jumlah_retur > 0 ? '700' : '400' }};">
-                            {{ number_format($s->jumlah_retur, 0, ',', '.') }}
-                        </td>
-                        <td style="text-align:right;font-weight:700;color:#2563eb;">
-                            {{ number_format($s->jumlah_setoran - $s->jumlah_retur, 0, ',', '.') }}
-                        </td>
-                        <td style="font-size:0.82rem;color:#64748b;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                            {{ $s->catatan ?: '-' }}
-                        </td>
-                        <td style="font-size:0.8rem;color:#94a3b8;">
-                            {{ \Carbon\Carbon::parse($s->created_at)->format('H:i') }}
-                        </td>
-                        <td style="text-align:center;">
-                            <form action="{{ route('minyak.setoran.destroy', $s->id) }}" method="POST"
-                                  onsubmit="return confirm('Hapus data setoran ini?')">
-                                @csrf @method('DELETE')
-                                <button type="submit"
-                                    style="background:#fee2e2;color:#991b1b;border:none;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:0.8rem;font-weight:600;">
-                                    Hapus
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-                <tfoot>
-                    <tr style="background:#f8fafc;">
-                        <td colspan="3" style="font-weight:700;padding:12px 16px;">TOTAL</td>
-                        <td style="text-align:right;font-weight:700;color:#10b981;padding:12px 8px;">
-                            {{ number_format($totalSetoran, 0, ',', '.') }}
-                        </td>
-                        <td style="text-align:right;font-weight:700;color:#f59e0b;padding:12px 8px;">
-                            {{ number_format($totalRetur, 0, ',', '.') }}
-                        </td>
-                        <td style="text-align:right;font-weight:700;color:#2563eb;padding:12px 8px;">
-                            {{ number_format($totalSetoran - $totalRetur, 0, ',', '.') }}
-                        </td>
-                        <td colspan="3"></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-        @endif
-    </div>
-
-</div>
 </x-app-layout>

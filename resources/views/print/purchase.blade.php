@@ -152,7 +152,7 @@
         }
     </style>
 </head>
-<body onload="window.print();">
+<body @if(! request()->boolean('preview')) onload="window.print();" @endif>
     <div class="container">
         <!-- ACTION BUTTONS -->
         <div class="no-print" style="position: absolute; top: -50px; right: 0;">

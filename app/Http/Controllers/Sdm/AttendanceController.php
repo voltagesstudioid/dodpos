@@ -9,6 +9,8 @@ use App\Models\SdmLeaveRequest;
 use App\Models\StockOpnameSession;
 use App\Models\StoreSetting;
 use App\Models\User;
+use App\Services\FileUploadService;
+use App\Support\WarehouseConfig;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,31 +23,41 @@ use Jmrashed\Zkteco\Lib\ZKTeco;
 
 class AttendanceController extends Controller
 {
-    private function tryStoreUploadedSelfie($file, string $date, string $tag, array $context): ?string
+    /**
+     * Securely store uploaded selfie using FileUploadService.
+     * Replaces the old tryStoreUploadedSelfie method.
+     */
+    private function storeSelfieSecurely($file, string $date, string $tag, array $context): ?string
     {
-        $dir = "attendance-selfies/{$date}";
-
         try {
-            $path = $file->store($dir, 'public');
-            Log::info('attendance_selfie_saved', $context + ['path' => $path, 'tag' => $tag, 'attempt' => 1]);
+            $upload = FileUploadService::uploadImage(
+                $file,
+                "attendance-selfies/{$date}",
+                'public',
+                ['max_width' => 1200, 'max_height' => 1200, 'strip_exif' => true]
+            );
 
-            return $path;
+            Log::info('attendance_selfie_saved', $context + [
+                'path' => $upload['path'],
+                'tag' => $tag,
+                'size' => $upload['size'],
+            ]);
+
+            return $upload['path'];
         } catch (\Throwable $e) {
-            Log::warning('attendance_selfie_save_failed', $context + ['tag' => $tag, 'attempt' => 1, 'error' => $e->getMessage()]);
-        }
-
-        try {
-            $ext = strtolower((string) ($file->getClientOriginalExtension() ?: 'jpg'));
-            $filename = $tag.'_'.now()->format('His').'_'.bin2hex(random_bytes(4)).'.'.$ext;
-            $path = $file->storeAs($dir, $filename, 'public');
-            Log::info('attendance_selfie_saved', $context + ['path' => $path, 'tag' => $tag, 'attempt' => 2]);
-
-            return $path;
-        } catch (\Throwable $e) {
-            Log::error('attendance_selfie_save_failed', $context + ['tag' => $tag, 'attempt' => 2, 'error' => $e->getMessage()]);
+            Log::error('attendance_selfie_save_failed', $context + [
+                'tag' => $tag,
+                'error' => $e->getMessage(),
+            ]);
 
             return null;
         }
+    }
+
+    /** @deprecated Use storeSelfieSecurely() */
+    private function tryStoreUploadedSelfie($file, string $date, string $tag, array $context): ?string
+    {
+        return $this->storeSelfieSecurely($file, $date, $tag, $context);
     }
 
     private function tryPutSelfieBytes(string $path, string $bytes, array $context): bool
@@ -714,55 +726,69 @@ class AttendanceController extends Controller
             'date' => $date,
         ];
 
-        if ($attendance) {
-            if ($request->hasFile('selfie_in')) {
-                if ($attendance->check_in_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_in_selfie_path);
+        try {
+            DB::beginTransaction();
+
+            if ($attendance) {
+                if ($request->hasFile('selfie_in')) {
+                    if ($attendance->check_in_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_in_selfie_path);
+                    }
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
+                    }
+                    $attributes['check_in_selfie_path'] = $path;
                 }
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
+                if ($request->hasFile('selfie_out')) {
+                    if ($attendance->check_out_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                    }
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
+                    }
+                    $attributes['check_out_selfie_path'] = $path;
                 }
-                $attributes['check_in_selfie_path'] = $path;
-            }
-            if ($request->hasFile('selfie_out')) {
-                if ($attendance->check_out_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                if (! $attributes['check_out_time']) {
+                    if ($attendance->check_out_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                    }
+                    $attributes['check_out_selfie_path'] = null;
                 }
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
+
+                $attendance->update($attributes);
+            } else {
+                if ($request->hasFile('selfie_in')) {
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
+                    }
+                    $attributes['check_in_selfie_path'] = $path;
                 }
-                $attributes['check_out_selfie_path'] = $path;
-            }
-            if (! $attributes['check_out_time']) {
-                if ($attendance->check_out_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                if ($request->hasFile('selfie_out')) {
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
+                    }
+                    $attributes['check_out_selfie_path'] = $path;
                 }
-                $attributes['check_out_selfie_path'] = null;
+                if (! $attributes['check_out_time']) {
+                    $attributes['check_out_selfie_path'] = null;
+                }
+
+                Attendance::create($attributes);
             }
 
-            $attendance->update($attributes);
-        } else {
-            if ($request->hasFile('selfie_in')) {
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
-                }
-                $attributes['check_in_selfie_path'] = $path;
-            }
-            if ($request->hasFile('selfie_out')) {
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
-                }
-                $attributes['check_out_selfie_path'] = $path;
-            }
-            if (! $attributes['check_out_time']) {
-                $attributes['check_out_selfie_path'] = null;
-            }
-
-            Attendance::create($attributes);
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Attendance storeManual failed', ['error' => $e->getMessage(), 'context' => $context]);
+            return back()->with('error', 'Gagal menyimpan absensi: ' . $e->getMessage());
         }
 
         return redirect()->route('sdm.absensi.index', ['date' => $date])->with('success', 'Absensi manual berhasil disimpan.');
@@ -850,32 +876,48 @@ class AttendanceController extends Controller
                 'date' => $date,
             ];
 
-            if ($request->hasFile('selfie_in')) {
-                if ($attendance->check_in_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_in_selfie_path);
+            try {
+                DB::beginTransaction();
+
+                if ($request->hasFile('selfie_in')) {
+                    if ($attendance->check_in_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_in_selfie_path);
+                    }
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'update_in', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
+                    }
+                    $updates['check_in_selfie_path'] = $path;
                 }
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'update_in', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
+                if ($request->hasFile('selfie_out')) {
+                    if ($attendance->check_out_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                    }
+                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'update_out', $context);
+                    if (! $path) {
+                        DB::rollBack();
+                        return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
+                    }
+                    $updates['check_out_selfie_path'] = $path;
                 }
-                $updates['check_in_selfie_path'] = $path;
+                if (! $updates['check_out_time']) {
+                    if ($attendance->check_out_selfie_path) {
+                        Storage::disk('public')->delete($attendance->check_out_selfie_path);
+                    }
+                    $updates['check_out_selfie_path'] = null;
+                }
+
+                $attendance->update($updates);
+
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Attendance update failed', ['error' => $e->getMessage(), 'context' => $context]);
+                return back()->with('error', 'Gagal memperbarui absensi: ' . $e->getMessage());
             }
-            if ($request->hasFile('selfie_out')) {
-                if ($attendance->check_out_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_out_selfie_path);
-                }
-                $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'update_out', $context);
-                if (! $path) {
-                    return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
-                }
-                $updates['check_out_selfie_path'] = $path;
-            }
-            if (! $updates['check_out_time']) {
-                if ($attendance->check_out_selfie_path) {
-                    Storage::disk('public')->delete($attendance->check_out_selfie_path);
-                }
-                $updates['check_out_selfie_path'] = null;
-            }
+
+            return redirect()->back()->with('success', 'Absensi berhasil diperbarui.');
         }
 
         $attendance->update($updates);
@@ -890,9 +932,33 @@ class AttendanceController extends Controller
             abort(404);
         }
 
-        $isSupervisor = strtolower((string) (Auth::user()?->role ?? '')) === 'supervisor';
-        if (! $isSupervisor && Auth::id() !== $attendance->user_id) {
-            abort(403);
+        $currentUser = Auth::user();
+        if (! $currentUser) {
+            abort(401, 'Authentication required.');
+        }
+
+        $role = strtolower((string) $currentUser->role);
+
+        // Check if user can view this selfie
+        // 1. Supervisor can view all selfies
+        // 2. Admin3/Admin4 can view selfies of users in their warehouse
+        // 3. Users can only view their own selfies
+        $canView = false;
+
+        if ($role === 'supervisor' || $role === 'admin' || $role === 'owner') {
+            $canView = true;
+        } elseif ($attendance->user_id === $currentUser->id) {
+            $canView = true;
+        } elseif (in_array($role, ['admin3', 'admin4'], true) && $attendance->user_id !== null) {
+            // Check if the attendance user belongs to same warehouse
+            $attendanceUser = User::find($attendance->user_id);
+            if ($attendanceUser?->employee?->warehouse_id === $currentUser->employee?->warehouse_id) {
+                $canView = true;
+            }
+        }
+
+        if (! $canView) {
+            abort(403, 'Anda tidak memiliki akses untuk melihat foto ini.');
         }
 
         $path = $type === 'in' ? $attendance->check_in_selfie_path : $attendance->check_out_selfie_path;
@@ -1133,7 +1199,7 @@ class AttendanceController extends Controller
             return true;
         }
 
-        $warehouseId = $role === 'admin4' ? 2 : 1;
+        $warehouseId = WarehouseConfig::getIdByRole($role) ?? ($role === 'admin4' ? WarehouseConfig::getBranchId() : WarehouseConfig::getMainId());
 
         return StockOpnameSession::query()
             ->where('warehouse_id', $warehouseId)

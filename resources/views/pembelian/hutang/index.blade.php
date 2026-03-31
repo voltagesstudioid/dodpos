@@ -10,23 +10,30 @@
         @endif
 
         {{-- Stats Row --}}
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1.5rem;">
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">💳</div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">💳</div>
                 <div>
                     <div style="font-size:1.3rem;font-weight:800;color:#ef4444;">Rp {{ number_format($totalUnpaid, 0, ',', '.') }}</div>
                     <div style="font-size:0.75rem;color:#64748b;">Total Hutang Tersisa</div>
                 </div>
             </div>
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">⚠️</div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#fef3c7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">⚠️</div>
                 <div>
                     <div style="font-size:1.3rem;font-weight:800;color:#f59e0b;">Rp {{ number_format($totalOverdue, 0, ',', '.') }}</div>
-                    <div style="font-size:0.75rem;color:#64748b;">Jatuh Tempo</div>
+                    <div style="font-size:0.75rem;color:#64748b;">Jatuh Tempo ({{ $countOverdue }})</div>
                 </div>
             </div>
             <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
-                <div style="width:44px;height:44px;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;">📋</div>
+                <div style="width:48px;height:48px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">✅</div>
+                <div>
+                    <div style="font-size:1.3rem;font-weight:800;color:#16a34a;">Rp {{ number_format($totalPaid, 0, ',', '.') }}</div>
+                    <div style="font-size:0.75rem;color:#64748b;">Sudah Dibayar</div>
+                </div>
+            </div>
+            <div class="card" style="padding:1.25rem; display:flex; align-items:center; gap:1rem;">
+                <div style="width:48px;height:48px;border-radius:12px;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📋</div>
                 <div>
                     <div style="font-size:1.5rem;font-weight:800;color:#4f46e5;">{{ $countUnpaid }}</div>
                     <div style="font-size:0.75rem;color:#64748b;">Transaksi Belum Lunas</div>
@@ -40,29 +47,43 @@
                     <div style="font-size:1rem;font-weight:700;color:#1e293b;">💳 Daftar Hutang Supplier</div>
                     <div style="font-size:0.75rem;color:#64748b;">Pantau & catat pembayaran hutang ke supplier</div>
                 </div>
-                @can('create_hutang_supplier')
-                <a href="{{ route('pembelian.hutang.create') }}" class="btn-primary">+ Catat Hutang</a>
-                @endcan
+                <div style="display:flex; gap:0.5rem;">
+                    <a href="{{ route('pembelian.hutang.index', array_merge(request()->query(), ['export' => 'excel'])) }}" class="btn-secondary" title="Export Excel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export
+                    </a>
+                    @can('create_hutang_supplier')
+                    <a href="{{ route('pembelian.hutang.create') }}" class="btn-primary">+ Catat Hutang</a>
+                    @endcan
+                </div>
             </div>
 
             {{-- Filters --}}
             <div style="padding:1rem 1.5rem; background:#f8fafc; border-bottom:1px solid #f1f5f9;">
-                <form method="GET" style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no. invoice..." class="form-input" style="max-width:220px;">
-                    <select name="status" class="form-input" style="max-width:160px;">
+                <form method="GET" style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+                    <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no. invoice..." class="form-input" style="max-width:180px;">
+                    <select name="status" class="form-input" style="max-width:140px;">
                         <option value="">Semua Status</option>
                         <option value="unpaid" @selected(request('status')=='unpaid')>Belum Bayar</option>
                         <option value="partial" @selected(request('status')=='partial')>Sebagian</option>
                         <option value="paid" @selected(request('status')=='paid')>Lunas</option>
                     </select>
-                    <select name="supplier_id" class="form-input" style="max-width:200px;">
+                    <select name="supplier_id" class="form-input" style="max-width:180px;">
                         <option value="">Semua Supplier</option>
                         @foreach($suppliers as $s)
                             <option value="{{ $s->id }}" @selected(request('supplier_id')==$s->id)>{{ $s->name }}</option>
                         @endforeach
                     </select>
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="form-input" style="max-width:135px;" title="Dari Tanggal">
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="form-input" style="max-width:135px;" title="Sampai Tanggal">
                     <button type="submit" class="btn-primary btn-sm">Filter</button>
-                    <a href="{{ route('pembelian.hutang.index') }}" class="btn-secondary btn-sm">Reset</a>
+                    @if(request('search') || request('status') || request('supplier_id') || request('date_from') || request('date_to'))
+                        <a href="{{ route('pembelian.hutang.index') }}" class="btn-secondary btn-sm">Reset</a>
+                    @endif
                 </form>
             </div>
 

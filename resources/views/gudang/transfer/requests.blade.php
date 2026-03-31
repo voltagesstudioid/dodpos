@@ -24,6 +24,40 @@
                 </div>
             </div>
 
+            {{-- TABBED NAVIGATION --}}
+            <div class="tr-tabs">
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin3', 'admin1', 'admin2', 'supervisor', 'superadmin']))
+                <a href="{{ route('gudang.transfer.requests') }}" class="tr-tab-item {{ request()->routeIs('gudang.transfer.requests') ? 'active' : '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Permintaan Transfer
+                    @php $pendingReqCount = \App\Models\ProductRequest::where('status','approved')->count(); @endphp
+                    @if($pendingReqCount > 0)
+                        <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingReqCount }}</span>
+                    @endif
+                </a>
+                <a href="{{ route('gudang.transfer') }}" class="tr-tab-item {{ request()->routeIs('gudang.transfer') ? 'active' : '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
+                    Kirim Transfer (Out)
+                </a>
+                @endif
+
+                @if(in_array(strtolower(auth()->user()->role ?? ''), ['admin4', 'admin1', 'admin2', 'supervisor', 'superadmin']))
+                <a href="{{ route('gudang.terima_transfer.index') }}" class="tr-tab-item {{ request()->routeIs('gudang.terima_transfer.index') ? 'active' : '' }}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Terima Transfer (In)
+                    @php 
+                        $whId = auth()->user()->employee?->warehouse_id;
+                        $query = \App\Models\StockMovement::where('type','transfer_in')->where('status','pending');
+                        if($whId) $query->where('warehouse_id', $whId);
+                        $pendingTransferCount = $query->count();
+                    @endphp
+                    @if($pendingTransferCount > 0)
+                        <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingTransferCount }}</span>
+                    @endif
+                </a>
+                @endif
+            </div>
+
             {{-- ALERTS --}}
             @if(session('success'))
                 <div class="tr-alert tr-alert-success">
@@ -65,6 +99,7 @@
                                 <th>Pemohon</th>
                                 <th>Detail Produk</th>
                                 <th class="c">Qty</th>
+                                <th class="c">Satuan</th>
                                 <th>Rute Transfer</th>
                                 <th>Status</th>
                                 <th class="r" style="width: 120px;">Aksi</th>
@@ -87,6 +122,12 @@
                                     </td>
                                     <td class="c">
                                         <span class="tr-qty-badge">{{ $req->quantity }}</span>
+                                    </td>
+                                    <td class="c">
+                                        <span class="tr-unit-badge">{{ $req->unit?->name ?? 'satuan dasar' }}</span>
+                                        @if($req->conversion_factor && $req->conversion_factor != 1)
+                                            <div class="tr-conversion-text">= {{ $req->quantity * $req->conversion_factor }} base</div>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="tr-route-box">
@@ -114,7 +155,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">
                                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -177,6 +218,12 @@
         
         .tr-header-actions { display: flex; gap: 0.5rem; }
 
+        /* ── TABS ── */
+        .tr-tabs { display: flex; gap: 2rem; border-bottom: 1px solid var(--tr-border); margin-bottom: 1.5rem; overflow-x: auto; white-space: nowrap; }
+        .tr-tab-item { display: inline-flex; align-items: center; gap: 8px; padding-bottom: 0.75rem; color: var(--tr-text-muted); font-size: 0.85rem; font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .tr-tab-item:hover { color: var(--tr-text-main); }
+        .tr-tab-item.active { color: var(--tr-primary); border-bottom-color: var(--tr-primary); }
+
         /* ── ALERTS ── */
         .tr-alert { display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; border-radius: var(--tr-radius-md); margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500; border: 1px solid transparent; }
         .tr-alert-success { background: var(--tr-success-bg); color: var(--tr-success-text); border-color: var(--tr-success-border); }
@@ -234,6 +281,10 @@
         .tr-font-mono { font-family: monospace; background: var(--tr-border-light); padding: 1px 4px; border-radius: 4px; color: var(--tr-text-main); }
         
         .tr-qty-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.25rem 0.75rem; border-radius: 999px; background: var(--tr-primary-light); color: var(--tr-primary); font-weight: 800; font-size: 0.85rem; }
+        
+        .tr-unit-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.15rem 0.5rem; border-radius: 6px; background: var(--tr-bg); color: var(--tr-text-muted); font-weight: 600; font-size: 0.75rem; border: 1px solid var(--tr-border); }
+        
+        .tr-conversion-text { font-size: 0.7rem; color: var(--tr-text-light); margin-top: 2px; }
         
         .tr-route-box { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .tr-route-wh { font-weight: 600; color: var(--tr-text-main); font-size: 0.85rem; }

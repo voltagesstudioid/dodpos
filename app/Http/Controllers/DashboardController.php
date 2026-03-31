@@ -3,10 +3,17 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
+    private function getCacheKey(string $type, ?int $userId = null): string
+    {
+        $userId = $userId ?? Auth::id() ?? 0;
+        $date = now()->format('Y-m-d');
+        return "dashboard_{$type}_{$userId}_{$date}";
+    }
     public function index()
     {
         $user = Auth::user();
@@ -16,26 +23,105 @@ class DashboardController extends Controller
 
         switch ($user->role) {
             case 'supervisor':
-                $weeklySales = [];
-                for ($i = 6; $i >= 0; $i--) {
-                    $date = now()->subDays($i)->toDateString();
-                    $label = now()->subDays($i)->locale('id')->isoFormat('ddd');
-                    $amount = \App\Models\Transaction::whereDate('created_at', $date)
-                        ->where('status', 'completed')
-                        ->sum('total_amount');
-                    $weeklySales[] = [
-                        'label' => $label,
-                        'amount' => $amount,
-                        'date' => $date,
-                    ];
-                }
+                $weeklySales = Cache::remember($this->getCacheKey('weekly_sales'), 300, function () {
+                    $sales = [];
+                    for ($i = 6; $i >= 0; $i--) {
+                        $date = now()->subDays($i)->toDateString();
+                        $label = now()->subDays($i)->locale('id')->isoFormat('ddd');
+                        $amount = \App\Models\Transaction::whereDate('created_at', $date)
+                            ->where('status', 'completed')
+                            ->sum('total_amount');
+                        $sales[] = [
+                            'label' => $label,
+                            'amount' => $amount,
+                            'date' => $date,
+                        ];
+                    }
 
-                $maxAmount = collect($weeklySales)->max('amount') ?: 1;
-                foreach ($weeklySales as &$sale) {
-                    $sale['percentage'] = ($sale['amount'] / $maxAmount) * 100;
-                }
+                    $maxAmount = collect($sales)->max('amount') ?: 1;
+                    foreach ($sales as &$sale) {
+                        $sale['percentage'] = ($sale['amount'] / $maxAmount) * 100;
+                    }
 
-                return view('dashboard', compact('weeklySales'));
+                    return $sales;
+                });
+
+                // Notifikasi Penting (cached for 2 minutes)
+                $alerts = Cache::remember($this->getCacheKey('alerts'), 120, function () {
+                    $alertList = [];
+                    
+                    // PO Terlambat
+                    $latePOs = \App\Models\PurchaseOrder::whereIn('status', ['ordered', 'partial'])
+                        ->whereNotNull('expected_date')
+                        ->whereDate('expected_date', '<', now())
+                        ->count();
+                    if ($latePOs > 0) {
+                        $alertList[] = [
+                            'type' => 'danger',
+                            'icon' => '⚠️',
+                            'title' => $latePOs . ' PO Terlambat',
+                            'message' => 'Purchase order melewati estimasi tanggal terima',
+                            'link' => route('pembelian.order', ['status' => 'ordered']),
+                        ];
+                    }
+                    
+                    // Hutang Jatuh Tempo
+                    $overdueDebts = \App\Models\SupplierDebt::where('status', '!=', 'paid')
+                        ->where('due_date', '<', now())
+                        ->count();
+                    if ($overdueDebts > 0) {
+                        $alertList[] = [
+                            'type' => 'warning',
+                            'icon' => '💳',
+                            'title' => $overdueDebts . ' Hutang Jatuh Tempo',
+                            'message' => 'Pembayaran ke supplier sudah lewat tanggal jatuh tempo',
+                            'link' => route('pembelian.hutang.index', ['status' => 'unpaid']),
+                        ];
+                    }
+                    
+                    // Stok Minimum
+                    $lowStock = \App\Models\Product::whereColumn('stock', '<=', 'min_stock')->count();
+                    if ($lowStock > 0) {
+                        $alertList[] = [
+                            'type' => 'info',
+                            'icon' => '📦',
+                            'title' => $lowStock . ' Produk Stok Minimum',
+                            'message' => 'Produk mencapai batas stok minimum',
+                            'link' => route('gudang.minstok'),
+                        ];
+                    }
+
+                    // Barang Expired / Akan Expired
+                    $expiredStock = \App\Models\ProductStock::whereNotNull('expired_date')
+                        ->where('stock', '>', 0)
+                        ->where('expired_date', '<=', now()->addDays(30))
+                        ->count();
+                    if ($expiredStock > 0) {
+                        $alertList[] = [
+                            'type' => 'danger',
+                            'icon' => '⚠️',
+                            'title' => $expiredStock . ' Batch Akan Expired',
+                            'message' => 'Barang akan kadaluarsa dalam 30 hari',
+                            'link' => route('gudang.expired'),
+                        ];
+                    }
+
+                    // Opname Pending Approval
+                    $pendingOpname = \App\Models\StockOpnameSession::where('status', 'submitted')->count();
+                    if ($pendingOpname > 0) {
+                        $alertList[] = [
+                            'type' => 'warning',
+                            'icon' => '📋',
+                            'title' => $pendingOpname . ' Opname Menunggu',
+                            'message' => 'Sesi opname menunggu approval supervisor',
+                            'link' => route('gudang.opname_approval.index'),
+                        ];
+                    }
+
+                    return $alertList;
+                });
+
+                return view('dashboard', compact('weeklySales', 'alerts'));
             case 'admin_sales':
                 return redirect()->route('admin-sales.dashboard');
             case 'admin1':
@@ -48,28 +134,8 @@ class DashboardController extends Controller
                     ->where('status', 'completed')
                     ->sum('total_amount');
 
-                // Setoran Armada Hari Ini (Kanvas, Gula, Mineral, Minyak, Pasgar)
-                // pasgar_deposits.total_amount
-                $setoranPasgar = \App\Models\PasgarDeposit::whereDate('created_at', $today)
-                    ->where('status', 'verified')
-                    ->sum('total_amount');
-                // kanvas_setorans.actual_cash
-                $setoranKanvas = \App\Models\KanvasSetoran::whereDate('created_at', $today)
-                    ->where('status', 'verified')
-                    ->sum('actual_cash');
-                // gula_setorans.total_cash
-                $setoranGula = \App\Models\GulaSetoran::whereDate('created_at', $today)
-                    ->where('status', 'verified')
-                    ->sum('total_cash');
-                // mineral_setorans.actual_cash
-                $setoranMineral = \App\Models\MineralSetoran::whereDate('created_at', $today)
-                    ->where('status', 'verified')
-                    ->sum('actual_cash');
-                // minyak_setorans.jumlah_setoran (no status column)
-                $setoranMinyak = \App\Models\MinyakSetoran::whereDate('created_at', $today)
-                    ->sum('jumlah_setoran');
-
-                $totalSetoranArmada = $setoranPasgar + $setoranKanvas + $setoranGula + $setoranMineral + $setoranMinyak;
+                // Setoran Armada Hari Ini
+                $totalSetoranArmada = 0;
 
                 $totalUangMasuk = $omzetPOS + $totalSetoranArmada;
 
@@ -293,27 +359,8 @@ class DashboardController extends Controller
                     'opnameToday',
                 ));
             default:
-                // Role lain (mis. pasgar, sales, dll.) tetap tampilkan ringkasan mingguan generik
-                $weeklySales = [];
-                for ($i = 6; $i >= 0; $i--) {
-                    $date = now()->subDays($i)->toDateString();
-                    $label = now()->subDays($i)->locale('id')->isoFormat('ddd');
-                    $amount = \App\Models\Transaction::whereDate('created_at', $date)
-                        ->where('status', 'completed')
-                        ->sum('total_amount');
-                    $weeklySales[] = [
-                        'label' => $label,
-                        'amount' => $amount,
-                        'date' => $date,
-                    ];
-                }
-
-                $maxAmount = collect($weeklySales)->max('amount') ?: 1;
-                foreach ($weeklySales as &$sale) {
-                    $sale['percentage'] = ($sale['amount'] / $maxAmount) * 100;
-                }
-
-                return view('dashboard', compact('weeklySales'));
+                // Role tidak dikenali atau tidak memiliki dashboard khusus
+                return redirect()->route('login')->withErrors(['role' => 'Akun Anda tidak memiliki dashboard yang aktif. Hubungi Administrator.']);
         }
     }
 }

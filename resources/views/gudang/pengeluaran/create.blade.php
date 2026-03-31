@@ -70,10 +70,19 @@
                             
                             <div class="tr-col-half">
                                 <label class="tr-label">Barang / Produk <span class="tr-req">*</span></label>
-                                <select name="product_id" class="tr-input @error('product_id') is-invalid @enderror" required>
+                                <select name="product_id" id="product_id" class="tr-input @error('product_id') is-invalid @enderror" required onchange="updateUnitOptions()">
                                     <option value="">-- Pilih Produk --</option>
                                     @foreach($products as $p)
-                                        <option value="{{ $p->id }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
+                                        @php
+                                            $units = $p->unitConversions->map(function($uc) {
+                                                return ['id' => $uc->unit_id, 'name' => $uc->unit ? $uc->unit->name : null, 'factor' => $uc->conversion_factor, 'is_base' => $uc->is_base_unit];
+                                            });
+                                            if ($p->unit) {
+                                                $units->prepend(['id' => $p->unit_id, 'name' => $p->unit->name, 'factor' => 1, 'is_base' => true]);
+                                            }
+                                            $unitsData = $units->filter()->values()->all();
+                                        @endphp
+                                        <option value="{{ $p->id }}" data-units="{{ json_encode($unitsData) }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
                                             {{ $p->name }} (Stok: {{ $p->stock }})
                                         </option>
                                     @endforeach
@@ -82,18 +91,22 @@
                             </div>
 
                             <div class="tr-col-half">
+                                <label class="tr-label">Satuan <span class="tr-req">*</span></label>
+                                <select name="unit_id" id="unit_id" class="tr-input @error('unit_id') is-invalid @enderror" required onchange="updateBaseQtyHint()">
+                                    <option value="">-- Pilih Satuan --</option>
+                                </select>
+                                <input type="hidden" name="conversion_factor" id="conversion_factor" value="1">
+                                @error('unit_id') <div class="tr-error">{{ $message }}</div> @enderror
+                                <div id="base-qty-hint" style="font-size:0.75rem;color:var(--tr-text-muted);margin-top:0.25rem;"></div>
+                            </div>
+
+                            <div class="tr-col-half">
                                 <label class="tr-label">Jumlah Dikeluarkan (Qty) <span class="tr-req">*</span></label>
-                                <input type="number" name="quantity" value="{{ old('quantity') }}" min="1" class="tr-input @error('quantity') is-invalid @enderror" required placeholder="Cth: 10">
+                                <input type="number" name="quantity" id="quantity" value="{{ old('quantity') }}" min="1" class="tr-input @error('quantity') is-invalid @enderror" required placeholder="Cth: 10" oninput="updateBaseQtyHint()">
                                 @error('quantity') <div class="tr-error">{{ $message }}</div> @enderror
                             </div>
-                        </div>
-                    </fieldset>
 
-                    {{-- Section 2 --}}
-                    <fieldset class="tr-fieldset">
-                        <legend class="tr-legend">2. Gudang Asal</legend>
-                        <div class="tr-grid">
-                            <div class="tr-col-full">
+                            <div class="tr-col-half">
                                 <label class="tr-label">Pilih Gudang <span class="tr-req">*</span></label>
                                 <select name="warehouse_id" id="warehouse_id" class="tr-input @error('warehouse_id') is-invalid @enderror" required>
                                     <option value="">-- Pilih Gudang --</option>
@@ -132,6 +145,77 @@
 
     @push('scripts')
     <script>
+        let currentUnits = [];
+
+        function updateUnitOptions() {
+            const productSelect = document.getElementById('product_id');
+            const unitSelect = document.getElementById('unit_id');
+            const selectedOption = productSelect.options[productSelect.selectedIndex];
+
+            unitSelect.innerHTML = '<option value="">-- Pilih Satuan --</option>';
+            currentUnits = [];
+
+            if (!selectedOption.value) {
+                updateBaseQtyHint();
+                return;
+            }
+
+            try {
+                const unitsData = selectedOption.getAttribute('data-units');
+                if (unitsData) {
+                    currentUnits = JSON.parse(unitsData).filter(u => u !== null);
+                }
+            } catch (e) {
+                console.error('Error parsing units:', e);
+            }
+
+            // Add base unit first
+            const baseUnit = currentUnits.find(u => u.is_base) || currentUnits[0];
+            if (baseUnit) {
+                const option = document.createElement('option');
+                option.value = baseUnit.id;
+                option.text = baseUnit.name + ' (base)';
+                option.setAttribute('data-factor', baseUnit.factor);
+                unitSelect.appendChild(option);
+
+                // Add other units
+                currentUnits.filter(u => !u.is_base).forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.text = u.name + ' (x' + u.factor + ')';
+                    opt.setAttribute('data-factor', u.factor);
+                    unitSelect.appendChild(opt);
+                });
+
+                // Select base unit by default
+                unitSelect.value = baseUnit.id;
+                document.getElementById('conversion_factor').value = baseUnit.factor;
+            }
+
+            updateBaseQtyHint();
+        }
+
+        function updateBaseQtyHint() {
+            const unitSelect = document.getElementById('unit_id');
+            const quantityInput = document.getElementById('quantity');
+            const conversionFactorInput = document.getElementById('conversion_factor');
+            const hintDiv = document.getElementById('base-qty-hint');
+
+            const selectedOption = unitSelect.options[unitSelect.selectedIndex];
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const factor = parseFloat(selectedOption?.getAttribute('data-factor')) || 1;
+
+            conversionFactorInput.value = factor;
+
+            if (quantity > 0 && factor > 0) {
+                const baseQty = Math.round(quantity * factor);
+                const unitName = selectedOption?.text?.split(' (')[0] || 'satuan';
+                hintDiv.innerHTML = `<strong>${quantity} ${unitName}</strong> = <strong>${baseQty} satuan dasar</strong> yang akan dipotong dari stok`;
+            } else {
+                hintDiv.textContent = '';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const sp = new URLSearchParams(window.location.search);
             const fields = ['product_id', 'warehouse_id', 'quantity', 'reference_number', 'notes'];
@@ -142,6 +226,9 @@
                     el.value = sp.get(field);
                 }
             });
+
+            // Initialize unit options
+            updateUnitOptions();
         });
     </script>
     @endpush

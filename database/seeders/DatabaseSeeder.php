@@ -19,41 +19,14 @@ class DatabaseSeeder extends Seeder
             ['email' => 'admin@dodpos.com'],
             [
                 'name' => 'Supervisor DODPOS',
-                'password' => bcrypt('D0dP0s@Admin2024!'), // Password lebih kuat
+                'password' => bcrypt('D0dP0s@Admin2024!'),
                 'role' => 'supervisor',
                 'active' => true,
             ]
         );
 
-        $salesMineral = User::firstOrCreate(
-            ['email' => 'sales_mineral@dodpos.com'],
-            [
-                'name' => 'Prajurit Mineral 1',
-                'password' => bcrypt('S@lesMineral2026!'),
-                'role' => 'sales_mineral',
-                'active' => true,
-            ]
-        );
-
-        $salesKanvas = User::firstOrCreate(
-            ['email' => 'sales_kanvas@dodpos.com'],
-            [
-                'name' => 'Kapten Kanvas 1',
-                'password' => bcrypt('S@lesKanvas2026!'),
-                'role' => 'sales_kanvas',
-                'active' => true,
-            ]
-        );
-
-        foreach ([$admin, $salesMineral, $salesKanvas] as $u) {
-            if ($u && ! $u->email_verified_at) {
-                $u->forceFill(['email_verified_at' => now()])->save();
-            }
+        if ($admin && ! $admin->email_verified_at) {
+            $admin->forceFill(['email_verified_at' => now()])->save();
         }
-
-        $this->call([
-            MineralProductSeeder::class,
-            KanvasProductSeeder::class,
-        ]);
     }
 }

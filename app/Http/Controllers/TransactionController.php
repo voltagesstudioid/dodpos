@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Transaction;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,8 +22,9 @@ class TransactionController extends Controller
 
         // Filters
         if ($request->search) {
+            $sanitizedSearch = SearchSanitizer::sanitize($request->search);
             $query->where('id', $request->search)
-                ->orWhereHas('user', fn ($q) => $q->where('name', 'like', '%'.$request->search.'%'));
+                ->orWhereHas('user', fn ($q) => $q->where('name', 'like', "%{$sanitizedSearch}%"));
         }
         if ($request->payment_method) {
             $query->where('payment_method', $request->payment_method);
@@ -92,57 +94,168 @@ class TransactionController extends Controller
 
             $transaksi->load('details');
 
-            // ── 1. Kembalikan stok untuk setiap item ─────────────────
-            foreach ($transaksi->details as $detail) {
-                // Kembalikan stok global
-                Product::where('id', $detail->product_id)
-                    ->increment('stock', $detail->quantity);
+            $details = $transaksi->details;
+            $allDetailsMissingWarehouse = $details->every(fn ($d) => empty($d->warehouse_id));
 
-                $warehouseId = $detail->warehouse_id;
-                if (! $warehouseId) {
-                    $warehouseId = ProductStock::where('product_id', $detail->product_id)
-                        ->orderBy('created_at', 'asc')
-                        ->value('warehouse_id');
-                }
+            if ($allDetailsMissingWarehouse) {
+                $movementRows = StockMovement::query()
+                    ->selectRaw('product_id, warehouse_id, location_id, SUM(quantity) as qty')
+                    ->where('source_type', 'pos_transaction')
+                    ->where('reference_number', 'TRX-'.$transaksi->id)
+                    ->where('type', 'out')
+                    ->groupBy('product_id', 'warehouse_id', 'location_id')
+                    ->get();
 
-                $stock = null;
-                if ($warehouseId) {
-                    $stock = ProductStock::query()
-                        ->where('product_id', $detail->product_id)
-                        ->where('warehouse_id', $warehouseId)
-                        ->whereNull('location_id')
-                        ->whereNull('batch_number')
-                        ->whereNull('expired_date')
-                        ->lockForUpdate()
-                        ->first();
+                if ($movementRows->isNotEmpty()) {
+                    foreach ($movementRows as $row) {
+                        $productId = (int) $row->product_id;
+                        $warehouseId = $row->warehouse_id ? (int) $row->warehouse_id : null;
+                        $locationId = $row->location_id ? (int) $row->location_id : null;
+                        $qty = (int) $row->qty;
 
-                    if (! $stock) {
-                        $stock = ProductStock::create([
-                            'product_id' => $detail->product_id,
+                        if ($qty <= 0) {
+                            continue;
+                        }
+
+                        Product::where('id', $productId)->increment('stock', $qty);
+
+                        $stock = null;
+                        if ($warehouseId) {
+                            $stock = ProductStock::query()
+                                ->where('product_id', $productId)
+                                ->where('warehouse_id', $warehouseId)
+                                ->where('location_id', $locationId)
+                                ->whereNull('batch_number')
+                                ->whereNull('expired_date')
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (! $stock) {
+                                $stock = ProductStock::create([
+                                    'product_id' => $productId,
+                                    'warehouse_id' => $warehouseId,
+                                    'location_id' => $locationId,
+                                    'batch_number' => null,
+                                    'expired_date' => null,
+                                    'stock' => 0,
+                                ]);
+                            }
+
+                            $stock->stock += $qty;
+                            $stock->save();
+                        }
+
+                        StockMovement::create([
+                            'product_id' => $productId,
                             'warehouse_id' => $warehouseId,
-                            'location_id' => null,
-                            'batch_number' => null,
-                            'expired_date' => null,
-                            'stock' => 0,
+                            'location_id' => $locationId,
+                            'type' => 'in',
+                            'source_type' => 'void_transaction',
+                            'reference_number' => 'VOID-TRX-'.$transaksi->id,
+                            'quantity' => $qty,
+                            'balance' => ($stock->stock ?? 0),
+                            'notes' => '[VOID] Pembatalan Transaksi #'.$transaksi->id,
+                            'user_id' => Auth::id(),
                         ]);
                     }
+                } else {
+                    foreach ($details as $detail) {
+                        Product::where('id', $detail->product_id)
+                            ->increment('stock', $detail->quantity);
 
-                    $stock->stock += $detail->quantity;
-                    $stock->save();
+                        $warehouseId = ProductStock::where('product_id', $detail->product_id)
+                            ->orderBy('created_at', 'asc')
+                            ->value('warehouse_id');
+
+                        $stock = null;
+                        if ($warehouseId) {
+                            $stock = ProductStock::query()
+                                ->where('product_id', $detail->product_id)
+                                ->where('warehouse_id', $warehouseId)
+                                ->whereNull('location_id')
+                                ->whereNull('batch_number')
+                                ->whereNull('expired_date')
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (! $stock) {
+                                $stock = ProductStock::create([
+                                    'product_id' => $detail->product_id,
+                                    'warehouse_id' => $warehouseId,
+                                    'location_id' => null,
+                                    'batch_number' => null,
+                                    'expired_date' => null,
+                                    'stock' => 0,
+                                ]);
+                            }
+
+                            $stock->stock += $detail->quantity;
+                            $stock->save();
+                        }
+
+                        StockMovement::create([
+                            'product_id' => $detail->product_id,
+                            'warehouse_id' => $warehouseId,
+                            'type' => 'in',
+                            'source_type' => 'void_transaction',
+                            'reference_number' => 'VOID-TRX-'.$transaksi->id,
+                            'quantity' => $detail->quantity,
+                            'balance' => ($stock->stock ?? 0),
+                            'notes' => '[VOID] Pembatalan Transaksi #'.$transaksi->id,
+                            'user_id' => Auth::id(),
+                        ]);
+                    }
                 }
+            } else {
+                foreach ($details as $detail) {
+                    Product::where('id', $detail->product_id)
+                        ->increment('stock', $detail->quantity);
 
-                // Catat pergerakan stok (void/return)
-                StockMovement::create([
-                    'product_id' => $detail->product_id,
-                    'warehouse_id' => $warehouseId,
-                    'type' => 'in',
-                    'source_type' => 'void_transaction',
-                    'reference_number' => 'VOID-TRX-'.$transaksi->id,
-                    'quantity' => $detail->quantity,
-                    'balance' => ($stock->stock ?? 0),
-                    'notes' => '[VOID] Pembatalan Transaksi #'.$transaksi->id,
-                    'user_id' => Auth::id(),
-                ]);
+                    $warehouseId = $detail->warehouse_id;
+                    if (! $warehouseId) {
+                        $warehouseId = ProductStock::where('product_id', $detail->product_id)
+                            ->orderBy('created_at', 'asc')
+                            ->value('warehouse_id');
+                    }
+
+                    $stock = null;
+                    if ($warehouseId) {
+                        $stock = ProductStock::query()
+                            ->where('product_id', $detail->product_id)
+                            ->where('warehouse_id', $warehouseId)
+                            ->whereNull('location_id')
+                            ->whereNull('batch_number')
+                            ->whereNull('expired_date')
+                            ->lockForUpdate()
+                            ->first();
+
+                        if (! $stock) {
+                            $stock = ProductStock::create([
+                                'product_id' => $detail->product_id,
+                                'warehouse_id' => $warehouseId,
+                                'location_id' => null,
+                                'batch_number' => null,
+                                'expired_date' => null,
+                                'stock' => 0,
+                            ]);
+                        }
+
+                        $stock->stock += $detail->quantity;
+                        $stock->save();
+                    }
+
+                    StockMovement::create([
+                        'product_id' => $detail->product_id,
+                        'warehouse_id' => $warehouseId,
+                        'type' => 'in',
+                        'source_type' => 'void_transaction',
+                        'reference_number' => 'VOID-TRX-'.$transaksi->id,
+                        'quantity' => $detail->quantity,
+                        'balance' => ($stock->stock ?? 0),
+                        'notes' => '[VOID] Pembatalan Transaksi #'.$transaksi->id,
+                        'user_id' => Auth::id(),
+                    ]);
+                }
             }
 
             // ── 2. Batalkan CustomerCredit jika transaksi ini kredit ──

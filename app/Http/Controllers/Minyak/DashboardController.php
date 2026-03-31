@@ -3,90 +3,99 @@
 namespace App\Http\Controllers\Minyak;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use App\Models\ProductStock;
-use App\Models\Vehicle;
-use App\Models\Warehouse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\MinyakSales;
+use App\Models\MinyakPelanggan;
+use App\Models\MinyakProduk;
+use App\Models\MinyakPenjualan;
+use App\Models\MinyakLoading;
+use App\Models\MinyakHutang;
+use App\Models\MinyakSetoran;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    /**
-     * Dashboard Tangki & Penjualan Minyak
-     * Menampilkan ringkasan penjualan harian minyak dari seluruh armada sales.
-     */
-    public function index(Request $request)
+    public function index()
     {
-        $tanggal = $request->get('tanggal', today()->format('Y-m-d'));
+        $today = Carbon::today();
+        $thisMonth = Carbon::now()->startOfMonth();
 
-        // ── Total terjual per produk hari ini dari semua sales ────────────
-        // Menggunakan stock_movements bertipe 'out' dari gudang kendaraan
-        $penjualanHariIni = DB::table('stock_movements as sm')
-            ->join('products as p', 'p.id', '=', 'sm.product_id')
-            ->join('units as u', 'u.id', '=', 'p.unit_id')
-            ->join('warehouses as w', 'w.id', '=', 'sm.warehouse_id')
-            ->where('sm.type', 'out')
-            ->where('sm.source_type', 'sale')
-            ->whereDate('sm.created_at', $tanggal)
-            ->select(
-                'p.id',
-                'p.name',
-                'u.name as unit',
-                DB::raw('SUM(sm.quantity) as total_qty'),
-                DB::raw('COUNT(DISTINCT sm.warehouse_id) as jumlah_armada')
-            )
-            ->groupBy('p.id', 'p.name', 'u.name')
-            ->orderByDesc('total_qty')
+        // Statistik hari ini
+        $stats = [
+            'penjualan_hari_ini' => MinyakPenjualan::whereDate('tanggal_jual', $today)->sum('total'),
+            'transaksi_hari_ini' => MinyakPenjualan::whereDate('tanggal_jual', $today)->count(),
+            'setoran_hari_ini' => MinyakSetoran::whereDate('tanggal', $today)->where('status', 'terverifikasi')->sum('total_setor'),
+            'loading_hari_ini' => MinyakLoading::whereDate('tanggal', $today)->sum('jumlah_loading'),
+        ];
+
+        // Statistik bulan ini
+        $statsBulanIni = [
+            'total_penjualan' => MinyakPenjualan::where('tanggal_jual', '>=', $thisMonth)->sum('total'),
+            'total_transaksi' => MinyakPenjualan::where('tanggal_jual', '>=', $thisMonth)->count(),
+            'total_hutang_baru' => MinyakPenjualan::where('tanggal_jual', '>=', $thisMonth)->where('tipe_bayar', 'hutang')->sum('hutang'),
+        ];
+
+        // Data master
+        $master = [
+            'total_sales' => MinyakSales::where('status', 'aktif')->count(),
+            'total_pelanggan' => MinyakPelanggan::where('status', 'aktif')->count(),
+            'total_produk' => MinyakProduk::where('status', 'aktif')->count(),
+            'stok_rendah' => MinyakProduk::whereColumn('stok_gudang', '<=', 'stok_minimum')->count(),
+        ];
+
+        // Hutang overdue
+        $hutangOverdue = MinyakHutang::overdue()->count();
+        $totalHutang = MinyakHutang::sum('sisa');
+
+        // Top sales bulan ini
+        $topSales = MinyakSales::aktif()
+            ->withSum(['penjualans' => function ($q) use ($thisMonth) {
+                $q->where('tanggal_jual', '>=', $thisMonth);
+            }], 'total')
+            ->orderByDesc('penjualans_sum_total')
+            ->take(5)
             ->get();
 
-        // ── Stok minyak di semua kendaraan (gudang virtual) ──────────────
-        $stokKendaraan = DB::table('product_stocks as ps')
-            ->join('products as p', 'p.id', '=', 'ps.product_id')
-            ->join('units as u', 'u.id', '=', 'p.unit_id')
-            ->join('warehouses as w', 'w.id', '=', 'ps.warehouse_id')
-            ->whereExists(function ($q) {
-                $q->from('vehicles')->whereColumn('vehicles.warehouse_id', 'ps.warehouse_id');
-            })
-            ->where('ps.stock', '>', 0)
-            ->select(
-                'w.name as kendaraan',
-                'p.name as produk',
-                'u.name as satuan',
-                'ps.stock'
-            )
-            ->orderBy('w.name')
-            ->orderByDesc('ps.stock')
+        // Penjualan 7 hari terakhir untuk chart
+        $penjualanChart = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::now()->subDays($i);
+            $penjualanChart[] = [
+                'tanggal' => $date->format('d M'),
+                'total' => MinyakPenjualan::whereDate('tanggal_jual', $date)->sum('total'),
+            ];
+        }
+
+        // Setoran pending
+        $setoranPending = MinyakSetoran::where('status', 'pending')
+            ->with('sales')
+            ->orderBy('tanggal', 'desc')
+            ->take(5)
             ->get();
 
-        // ── Ringkasan per kendaraan ───────────────────────────────────────
-        $armada = DB::table('vehicles as v')
-            ->join('warehouses as w', 'w.id', '=', 'v.warehouse_id')
-            ->leftJoin('product_stocks as ps', 'ps.warehouse_id', '=', 'v.warehouse_id')
-            ->leftJoin('products as p', 'p.id', '=', 'ps.product_id')
-            ->select(
-                'v.id',
-                'v.license_plate as kendaraan',
-                'w.name as gudang_virtual',
-                DB::raw('COUNT(DISTINCT ps.product_id) as jenis_produk'),
-                DB::raw('COALESCE(SUM(ps.stock), 0) as total_stok')
-            )
-            ->groupBy('v.id', 'v.license_plate', 'w.name')
-            ->get();
-
-        // ── Total penjualan hari ini (semua produk) ───────────────────────
-        $totalTerjualHariIni = DB::table('stock_movements')
-            ->where('type', 'out')
-            ->where('source_type', 'sale')
-            ->whereDate('created_at', $tanggal)
-            ->sum('quantity');
-
-        return view('minyak.dashboard', compact(
-            'tanggal',
-            'penjualanHariIni',
-            'stokKendaraan',
-            'armada',
-            'totalTerjualHariIni'
+        return view('minyak.dashboard.index', compact(
+            'stats',
+            'statsBulanIni',
+            'master',
+            'hutangOverdue',
+            'totalHutang',
+            'topSales',
+            'penjualanChart',
+            'setoranPending'
         ));
+    }
+
+    public function kunjungan()
+    {
+        return view('minyak.kunjungan.index');
+    }
+
+    public function laporan()
+    {
+        return view('minyak.laporan.index');
+    }
+
+    public function rekonsiliasi()
+    {
+        return view('minyak.rekonsiliasi.index');
     }
 }

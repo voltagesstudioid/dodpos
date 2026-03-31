@@ -1,88 +1,115 @@
 <x-app-layout>
-    <x-slot name="header">Data Pelanggan Minyak</x-slot>
-    <div class="page-container">
-        <div class="ph animate-in">
-            <div class="ph-left">
-                <div class="ph-icon blue">👥</div>
-                <div>
-                    <h1 class="ph-title">Data Pelanggan Minyak</h1>
-                    <p class="ph-subtitle">{{ $customers->total() }} pelanggan/warung terdaftar</p>
+    <x-slot name="header">
+        <div class="flex justify-between items-center">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Data Pelanggan') }}
+            </h2>
+            <a href="{{ route('minyak.pelanggan.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                + Tambah Pelanggan
+            </a>
+        </div>
+    </x-slot>
+
+    <div class="py-6">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Total</div>
+                    <div class="text-2xl font-bold">{{ $stats['total'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Aktif</div>
+                    <div class="text-2xl font-bold text-green-600">{{ $stats['aktif'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Eceran</div>
+                    <div class="text-2xl font-bold text-blue-600">{{ $stats['eceran'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Grosir</div>
+                    <div class="text-2xl font-bold text-purple-600">{{ $stats['grosir'] }}</div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="text-sm text-gray-500">Total Hutang</div>
+                    <div class="text-2xl font-bold text-red-600">
+                        Rp {{ number_format($stats['total_hutang'], 0, ',', '.') }}
+                    </div>
                 </div>
             </div>
-            <div class="ph-actions">
-                <a href="{{ route('minyak.pelanggan.create') }}" class="btn-primary">＋ Tambah Pelanggan</a>
-            </div>
-        </div>
 
-        <div class="panel animate-in animate-in-delay-1">
-            <div class="filter-bar">
-                <form method="GET" style="display:flex;gap:0.625rem;align-items:center;flex-wrap:wrap;">
-                    <input type="text" name="search" value="{{ request('search') }}"
-                        placeholder="🔍  Cari nama pelanggan atau warung..." class="form-input" style="flex:1;min-width:200px;max-width:300px;">
-                    <button type="submit" class="btn-primary btn-sm">Filter</button>
-                    @if(request('search'))<a href="{{ route('minyak.pelanggan.index') }}" class="btn-secondary btn-sm">× Reset</a>@endif
+            <!-- Filters -->
+            <div class="bg-white p-4 rounded-lg shadow-sm mb-6">
+                <form method="GET" class="flex flex-wrap gap-4">
+                    <input type="text" name="search" value="{{ request('search') }}" 
+                        placeholder="Cari nama toko, pemilik..." 
+                        class="border rounded-lg px-4 py-2 w-64">
+                    <select name="tipe" class="border rounded-lg px-4 py-2">
+                        <option value="">Semua Tipe</option>
+                        <option value="eceran" {{ request('tipe') == 'eceran' ? 'selected' : '' }}>Eceran</option>
+                        <option value="grosir" {{ request('tipe') == 'grosir' ? 'selected' : '' }}>Grosir</option>
+                        <option value="agen" {{ request('tipe') == 'agen' ? 'selected' : '' }}>Agen</option>
+                    </select>
+                    <select name="status" class="border rounded-lg px-4 py-2">
+                        <option value="">Semua Status</option>
+                        <option value="aktif" {{ request('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="nonaktif" {{ request('status') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                        <option value="blacklist" {{ request('status') == 'blacklist' ? 'selected' : '' }}>Blacklist</option>
+                    </select>
+                    <button type="submit" class="bg-gray-600 text-white px-4 py-2 rounded-lg">Filter</button>
+                    <a href="{{ route('minyak.pelanggan.index') }}" class="bg-gray-200 px-4 py-2 rounded-lg">Reset</a>
                 </form>
             </div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
+
+            <!-- Table -->
+            <div class="bg-white overflow-hidden shadow-sm rounded-lg">
+                <table class="min-w-full">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th style="width:44px">#</th>
-                            <th>Pelanggan / Warung</th>
-                            <th>No. Telepon</th>
-                            <th>Alamat</th>
-                            <th>Status Kredit</th>
-                            <th style="text-align:center;width:130px;">Aksi</th>
+                            <th class="px-4 py-3 text-left">Kode</th>
+                            <th class="px-4 py-3 text-left">Nama Toko</th>
+                            <th class="px-4 py-3 text-left">Pemilik</th>
+                            <th class="px-4 py-3 text-left">No HP</th>
+                            <th class="px-4 py-3 text-left">Tipe</th>
+                            <th class="px-4 py-3 text-right">Hutang</th>
+                            <th class="px-4 py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($customers as $i => $c)
-                        <tr>
-                            <td class="text-muted" style="font-size:0.75rem;">{{ $customers->firstItem() + $i }}</td>
-                            <td>
-                                <div style="display:flex;align-items:center;gap:0.625rem;">
-                                    <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;font-weight:700;color:#4f46e5;font-size:0.8125rem;flex-shrink:0;">
-                                        {{ strtoupper(substr($c->name, 0, 1)) }}
-                                    </div>
-                                    <div>
-                                        <div class="td-main">{{ $c->name }}</div>
-                                        @if($c->email)<div class="td-sub">{{ $c->email }}</div>@endif
-                                    </div>
-                                </div>
-                            </td>
-                            <td>{{ $c->phone ?: '—' }}</td>
-                            <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ $c->address }}">{{ $c->address ?: '—' }}</td>
-                            <td>
-                                @if($c->current_debt > 0)
-                                    <span style="font-size:0.75rem; font-weight:600; padding:0.25rem 0.5rem; background:#fee2e2; color:#b91c1c; border-radius:4px;">Ada Hutang Pasgar</span>
-                                @else
-                                    <span style="font-size:0.75rem; font-weight:500; padding:0.25rem 0.5rem; background:#ecfdf5; color:#059669; border-radius:4px;">Lunas</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div style="display:flex;gap:0.25rem;justify-content:center;">
-                                    <a href="{{ route('minyak.pelanggan.edit', $c->id) }}" class="btn-secondary btn-sm" title="Edit Data">✏️</a>
-                                    <form action="{{ route('minyak.pelanggan.destroy', $c->id) }}" method="POST" onsubmit="return confirm('Yakin hapus pelanggan ini?');">
-                                        @csrf @method('DELETE')
-                                        <button class="btn-secondary btn-sm drop-shadow" style="color:#ef4444;" title="Hapus Pelanggan">🗑️</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
+                        @forelse($pelanggans as $p)
+                            <tr class="border-t hover:bg-gray-50">
+                                <td class="px-4 py-3 font-medium">{{ $p->kode_pelanggan }}</td>
+                                <td class="px-4 py-3">{{ $p->nama_toko }}</td>
+                                <td class="px-4 py-3">{{ $p->nama_pemilik }}</td>
+                                <td class="px-4 py-3">{{ $p->no_hp }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded text-xs font-medium
+                                        {{ $p->tipe == 'eceran' ? 'bg-blue-100 text-blue-800' : '' }}
+                                        {{ $p->tipe == 'grosir' ? 'bg-purple-100 text-purple-800' : '' }}
+                                        {{ $p->tipe == 'agen' ? 'bg-orange-100 text-orange-800' : '' }}">
+                                        {{ ucfirst($p->tipe) }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <span class="{{ $p->total_hutang > 0 ? 'text-red-600 font-medium' : '' }}">
+                                        Rp {{ number_format($p->total_hutang, 0, ',', '.') }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <a href="{{ route('minyak.pelanggan.show', $p) }}" class="text-blue-600 hover:underline text-sm">Detail</a>
+                                    <a href="{{ route('minyak.pelanggan.edit', $p) }}" class="text-green-600 hover:underline text-sm ml-2">Edit</a>
+                                </td>
+                            </tr>
                         @empty
-                        <tr>
-                            <td colspan="6" style="text-align:center;padding:3rem 1rem;">
-                                <div style="font-size:3rem;margin-bottom:1rem;opacity:0.5;">📭</div>
-                                <h3 style="margin:0;color:#1e293b;font-weight:600;">Data Kosong</h3>
-                                <p style="color:#64748b;margin-top:0.5rem;font-size:0.875rem;">Belum ada data pelanggan tercatat.</p>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td colspan="7" class="px-4 py-8 text-center text-gray-500">Tidak ada data pelanggan</td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
-            </div>
-            <div style="padding:1rem;">
-                {{ $customers->links() }}
+                <div class="p-4">
+                    {{ $pelanggans->links() }}
+                </div>
             </div>
         </div>
     </div>
