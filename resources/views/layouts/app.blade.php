@@ -743,8 +743,7 @@
                     @php $activeSession = \App\Models\PosSession::where('status','open')->latest()->first(); @endphp
                     @if($activeSession)
                         @can('delete_sesi_kasir')
-                        <a href="#" onclick="event.preventDefault();if(confirm('Yakin tutup sesi kasir?'))document.getElementById('close-kasir-form').submit();" class="nav-item" style="color:#f87171;"><span class="nav-item-icon">🔒</span><span>Tutup Kasir</span></a>
-                        <form id="close-kasir-form" method="POST" action="{{ route('kasir.close_session') }}" style="display:none;">@csrf</form>
+                        <a href="{{ route('kasir.session') }}" class="nav-item" style="color:#f87171;" title="Tutup sesi kasir dengan audit uang fisik"><span class="nav-item-icon">🔒</span><span>Tutup Kasir dengan Audit</span></a>
                         @endcan
                     @endif
                     @endcan

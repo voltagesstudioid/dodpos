@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Models\Product;
+use App\Models\PosPickOrder;
+use App\Models\PosPickOrderItem;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Models\TransactionDetail;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+
 
 class PosTransactionService
 {
@@ -242,4 +246,61 @@ class PosTransactionService
 
         return 'Transaksi gagal diproses. Silakan coba lagi.';
     }
+
+    /**
+     * Buat pick orders otomatis jika ada item dari Gudang Utama.
+     * Dipanggil setelah transaksi berhasil disimpan.
+     *
+     * @param Transaction $trx          Transaksi yang baru selesai
+     * @param array       $resolvedItems Items sudah diresolve (dengan warehouse_id, unit_qty, dll)
+     * @param string      $posType       'eceran' | 'grosir'
+     */
+    public function createPickOrdersIfNeeded(Transaction $trx, array $resolvedItems, string $posType = 'eceran'): void
+    {
+        // Ambil semua gudang utama
+        $mainWarehouseIds = Warehouse::where('type', 'utama')->where('active', true)->pluck('id')->toArray();
+        if (empty($mainWarehouseIds)) {
+            return; // Tidak ada gudang utama yang didefinisikan
+        }
+
+        // Filter items yang berasal dari gudang utama, kelompokkan per warehouse
+        $itemsByWarehouse = [];
+        foreach ($resolvedItems as $item) {
+            if (in_array($item['warehouse_id'], $mainWarehouseIds)) {
+                $itemsByWarehouse[$item['warehouse_id']][] = $item;
+            }
+        }
+
+        if (empty($itemsByWarehouse)) {
+            return; // Tidak ada item dari gudang utama
+        }
+
+        // Buat satu pick order per gudang utama
+        foreach ($itemsByWarehouse as $warehouseId => $items) {
+            $pickOrder = PosPickOrder::create([
+                'pick_number'    => PosPickOrder::generateNumber(),
+                'transaction_id' => $trx->id,
+                'warehouse_id'   => $warehouseId,
+                'status'         => 'pending',
+                'pos_type'       => $posType,
+                'requested_by'   => Auth::id(),
+            ]);
+
+            // Ambil transaction_details yang terkait untuk link
+            $trxDetails = $trx->details()->where('warehouse_id', $warehouseId)->get()->keyBy('product_id');
+
+            foreach ($items as $item) {
+                $trxDetail = $trxDetails->get($item['product_id']);
+                PosPickOrderItem::create([
+                    'pick_order_id'        => $pickOrder->id,
+                    'transaction_detail_id' => $trxDetail?->id,
+                    'product_id'           => $item['product_id'],
+                    'quantity'             => $item['quantity'],   // base unit qty
+                    'unit_qty'             => $item['unit_qty'],
+                    'unit_name'            => $item['unit_name'] ?? null,
+                ]);
+            }
+        }
+    }
 }
+

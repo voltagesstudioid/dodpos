@@ -60,19 +60,52 @@ class ProductSearchService
      */
     public function formatProductEceran(Product $product): array
     {
-        $base = $product->unitConversions->firstWhere('is_base_unit', true)
-              ?? $product->unitConversions->sortBy('conversion_factor')->first();
+        $units = $product->unitConversions
+            ->sortBy('conversion_factor')
+            ->map(fn ($uc) => [
+                'id'      => $uc->id,
+                'name'    => $uc->unit->name,
+                'factor'  => $uc->conversion_factor,
+                'prices'  => [
+                    'eceran' => (float) $uc->sell_price_ecer,
+                    'grosir' => (float) ($uc->sell_price_grosir > 0 ? $uc->sell_price_grosir : $uc->sell_price_ecer),
+                    'jual1'  => (float) (($uc->sell_price_jual1 ?? 0) > 0 ? $uc->sell_price_jual1 : $uc->sell_price_ecer),
+                    'jual2'  => (float) (($uc->sell_price_jual2 ?? 0) > 0 ? $uc->sell_price_jual2 : $uc->sell_price_ecer),
+                    'jual3'  => (float) (($uc->sell_price_jual3 ?? 0) > 0 ? $uc->sell_price_jual3 : $uc->sell_price_ecer),
+                ],
+                'is_base' => $uc->is_base_unit,
+            ])->values()->toArray();
 
-        // Jumlahkan stok per-gudang (multi-batch/lokasi dalam 1 gudang dijumlah)
+        // Jika tidak ada unit konversi, buat virtual unit dari kolom price
+        if (empty($units)) {
+            $basePrice = (float) ($product->price ?? 0);
+            $unitName  = $product->unit?->name ?? 'pcs';
+            $units = [[
+                'id'      => null,
+                'name'    => $unitName,
+                'factor'  => 1,
+                'prices'  => [
+                    'eceran' => $basePrice,
+                    'grosir' => $basePrice,
+                    'jual1'  => $basePrice,
+                    'jual2'  => $basePrice,
+                    'jual3'  => $basePrice,
+                ],
+                'is_base' => true,
+            ]];
+        }
+
+        $base = collect($units)->firstWhere('is_base', true) ?? collect($units)->first();
+
+        // Jumlahkan stok per-gudang
         $stockBreakdown = $product->productStocks
             ->groupBy('warehouse_id')
             ->map(function ($rows) {
                 $first = $rows->first();
-
                 return [
                     'warehouse_id' => $first->warehouse_id,
-                    'warehouse' => $first->warehouse?->name ?? 'Gudang',
-                    'qty' => $rows->sum('stock'),
+                    'warehouse'    => $first->warehouse?->name ?? 'Gudang',
+                    'qty'          => $rows->sum('stock'),
                 ];
             })
             ->filter(fn ($ps) => $ps['qty'] > 0)
@@ -80,20 +113,15 @@ class ProductSearchService
             ->toArray();
 
         return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'sku' => $product->sku,
-            'category' => $product->category?->name ?? '-',
-            'stock' => $product->stock,
+            'id'              => $product->id,
+            'name'            => $product->name,
+            'sku'             => $product->sku,
+            'category'        => $product->category?->name ?? '-',
+            'stock'           => $product->stock,
             'stock_breakdown' => $stockBreakdown,
-            'unit' => $base?->unit->name ?? 'pcs',
-            'prices' => [
-                'eceran' => $base ? (float) $base->sell_price_ecer : (float) $product->price,
-                'grosir' => $base ? (float) ($base->sell_price_grosir > 0 ? $base->sell_price_grosir : $base->sell_price_ecer) : (float) $product->price,
-                'jual1' => $base ? (float) (($base->sell_price_jual1 ?? 0) > 0 ? $base->sell_price_jual1 : $base->sell_price_ecer) : (float) $product->price,
-                'jual2' => $base ? (float) (($base->sell_price_jual2 ?? 0) > 0 ? $base->sell_price_jual2 : $base->sell_price_ecer) : (float) $product->price,
-                'jual3' => $base ? (float) (($base->sell_price_jual3 ?? 0) > 0 ? $base->sell_price_jual3 : $base->sell_price_ecer) : (float) $product->price,
-            ],
+            'unit'            => $base['name'] ?? 'pcs',
+            'units'           => $units,
+            'prices'          => $base['prices'],
         ];
     }
 
@@ -105,31 +133,49 @@ class ProductSearchService
         $units = $product->unitConversions
             ->sortBy('conversion_factor')
             ->map(fn ($uc) => [
-                'id' => $uc->id,
-                'name' => $uc->unit->name,
-                'factor' => $uc->conversion_factor,
-                'prices' => [
+                'id'      => $uc->id,
+                'name'    => $uc->unit->name,
+                'factor'  => $uc->conversion_factor,
+                'prices'  => [
                     'eceran' => (float) $uc->sell_price_ecer,
                     'grosir' => (float) ($uc->sell_price_grosir > 0 ? $uc->sell_price_grosir : $uc->sell_price_ecer),
-                    'jual1' => (float) (($uc->sell_price_jual1 ?? 0) > 0 ? $uc->sell_price_jual1 : $uc->sell_price_ecer),
-                    'jual2' => (float) (($uc->sell_price_jual2 ?? 0) > 0 ? $uc->sell_price_jual2 : $uc->sell_price_ecer),
-                    'jual3' => (float) (($uc->sell_price_jual3 ?? 0) > 0 ? $uc->sell_price_jual3 : $uc->sell_price_ecer),
+                    'jual1'  => (float) (($uc->sell_price_jual1 ?? 0) > 0 ? $uc->sell_price_jual1 : $uc->sell_price_ecer),
+                    'jual2'  => (float) (($uc->sell_price_jual2 ?? 0) > 0 ? $uc->sell_price_jual2 : $uc->sell_price_ecer),
+                    'jual3'  => (float) (($uc->sell_price_jual3 ?? 0) > 0 ? $uc->sell_price_jual3 : $uc->sell_price_ecer),
                 ],
                 'is_base' => $uc->is_base_unit,
             ])->values()->toArray();
 
+        // Jika tidak ada unit konversi, buat virtual unit dari kolom price
+        if (empty($units)) {
+            $basePrice = (float) ($product->price ?? 0);
+            $unitName  = $product->unit?->name ?? 'pcs';
+            $units = [[
+                'id'      => null,
+                'name'    => $unitName,
+                'factor'  => 1,
+                'prices'  => [
+                    'eceran' => $basePrice,
+                    'grosir' => $basePrice,
+                    'jual1'  => $basePrice,
+                    'jual2'  => $basePrice,
+                    'jual3'  => $basePrice,
+                ],
+                'is_base' => true,
+            ]];
+        }
+
         $base = collect($units)->firstWhere('is_base', true) ?? collect($units)->first();
 
-        // Jumlahkan stok per-gudang (multi-batch/lokasi dalam 1 gudang dijumlah)
+        // Jumlahkan stok per-gudang
         $stockBreakdown = $product->productStocks
             ->groupBy('warehouse_id')
             ->map(function ($rows) {
                 $first = $rows->first();
-
                 return [
                     'warehouse_id' => $first->warehouse_id,
-                    'warehouse' => $first->warehouse?->name ?? 'Gudang',
-                    'qty' => $rows->sum('stock'),
+                    'warehouse'    => $first->warehouse?->name ?? 'Gudang',
+                    'qty'          => $rows->sum('stock'),
                 ];
             })
             ->filter(fn ($ps) => $ps['qty'] > 0)
@@ -137,21 +183,16 @@ class ProductSearchService
             ->toArray();
 
         return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'sku' => $product->sku,
-            'category' => $product->category?->name ?? '-',
-            'stock' => $product->stock,
+            'id'              => $product->id,
+            'name'            => $product->name,
+            'sku'             => $product->sku,
+            'category'        => $product->category?->name ?? '-',
+            'stock'           => $product->stock,
             'stock_breakdown' => $stockBreakdown,
-            'unit' => $base['name'] ?? 'pcs',
-            'units' => $units,
-            'prices' => $base['prices'] ?? [
-                'eceran' => (float) $product->price,
-                'grosir' => (float) $product->price,
-                'jual1' => (float) $product->price,
-                'jual2' => (float) $product->price,
-                'jual3' => (float) $product->price,
-            ],
+            'unit'            => $base['name'] ?? 'pcs',
+            'units'           => $units,
+            'prices'          => $base['prices'],
         ];
     }
 }
+

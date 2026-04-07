@@ -77,7 +77,8 @@ class KasirEceranController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.warehouse_id' => 'required|exists:warehouses,id',
-            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_qty' => 'required|integer|min:1',
+            'items.*.unit_conversion_id' => 'nullable|exists:product_unit_conversions,id',
             'paid_amount' => 'required|numeric|min:0',
             'payment_method' => 'required|string',
             'payment_reference' => 'nullable|string|max:100',
@@ -118,12 +119,21 @@ class KasirEceranController extends Controller
                     throw new \Exception("Produk dengan ID {$item['product_id']} tidak ditemukan.");
                 }
 
-                $qty = (int) $item['quantity'];
+                $conversion = null;
+                if (! empty($item['unit_conversion_id'])) {
+                    $conversion = $product->unitConversions->firstWhere('id', $item['unit_conversion_id']);
+                }
+                $conversion ??= $product->unitConversions->firstWhere('is_base_unit', true)
+                    ?? $product->unitConversions->sortBy('conversion_factor')->first();
+
+                $unitQty = (int) $item['unit_qty'];
                 $warehouseId = $item['warehouse_id'];
+                $baseFactor = $conversion ? max(1, (int) $conversion->conversion_factor) : 1;
+                $baseQty = $unitQty * $baseFactor;
 
                 // Check stock availability
                 $key = $product->id . '_' . $warehouseId;
-                $runningStock[$key] = ($runningStock[$key] ?? 0) + $qty;
+                $runningStock[$key] = ($runningStock[$key] ?? 0) + $baseQty;
 
                 $availableStock = $product->productStocks
                     ->where('warehouse_id', $warehouseId)
@@ -132,21 +142,24 @@ class KasirEceranController extends Controller
                 if ($availableStock < $runningStock[$key]) {
                     $whRecord = $product->productStocks->firstWhere('warehouse_id', $warehouseId);
                     $whName = $whRecord?->warehouse?->name ?? 'Gudang Dipilih';
-                    throw new \Exception('Stok produk "' . ($product->name ?? 'ID:' . $item['product_id']) . '" di ' . $whName . ' tidak mencukupi permintaan (' . $runningStock[$key] . ' pcs). Tersedia: ' . $availableStock . ' pcs.');
+                    throw new \Exception('Stok produk "' . ($product->name ?? 'ID:' . $item['product_id']) . '" di ' . $whName . ' tidak mencukupi permintaan total keranjang (' . $runningStock[$key] . ' base unit). Tersedia: ' . $availableStock . ' base item.');
                 }
 
                 // Calculate price
-                $baseConversion = $product->unitConversions->firstWhere('is_base_unit', true)
-                    ?? $product->unitConversions->sortBy('conversion_factor')->first();
-                $serverPrice = $this->transactionService->calculatePrice($baseConversion, $priceTier, $product->price);
+                $unitPrice = $this->transactionService->calculatePrice($conversion, $priceTier, $product->price);
+                $subtotal = round($unitPrice * $unitQty, 2);
 
-                $subtotal = round($serverPrice * $qty, 2);
+                $pricePerBase = $baseFactor > 0 ? ($subtotal / $baseQty) : $unitPrice;
+                $pricePerBase = round($pricePerBase, 4);
 
                 $resolvedItems[] = [
                     'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'],
-                    'quantity' => $qty,
-                    'price' => $serverPrice,
+                    'unit_conversion_id' => $conversion ? $conversion->id : null,
+                    'unit_qty' => $unitQty,
+                    'unit_name' => $conversion ? ($conversion->unit->name ?? null) : null,
+                    'quantity' => $baseQty,
+                    'price' => $pricePerBase,
                     'subtotal' => $subtotal,
                 ];
                 $calculatedTotal += $subtotal;
