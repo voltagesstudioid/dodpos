@@ -31,11 +31,12 @@ class KasirEceranController extends Controller
     public function index()
     {
         $activeSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'eceran')
             ->latest()
             ->first();
 
         if (! $activeSession) {
-            return view('kasir.closed');
+            return view('kasir.closed', ['type' => 'eceran']);
         }
 
         // Load awal: 20 produk pertama
@@ -83,7 +84,7 @@ class KasirEceranController extends Controller
             'payment_method' => 'required|string',
             'payment_reference' => 'nullable|string|max:100',
             'customer_id' => 'nullable|exists:customers,id',
-            'price_tier' => 'nullable|in:eceran,grosir,jual1,jual2,jual3',
+            'price_tier' => 'nullable|in:eceran,grosir,jual1,jual2,jual3,minimal',
         ]);
 
         try {
@@ -187,6 +188,7 @@ class KasirEceranController extends Controller
                     'paid_amount' => $request->paid_amount,
                     'payment_method' => $request->payment_method,
                     'payment_reference' => $request->payment_reference,
+                    'sale_type' => 'eceran',
                 ],
                 $resolvedItems
             );

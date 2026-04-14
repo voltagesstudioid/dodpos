@@ -194,10 +194,10 @@
         <div class="cart-customer">
             <select id="priceTier" class="customer-select" style="margin-bottom: 0.5rem;">
                 <option value="grosir" selected>📦 Harga Grosir</option>
-                <option value="eceran">🏷️ Harga Eceran</option>
                 <option value="jual1">💲 Harga Jual 1</option>
                 <option value="jual2">💲 Harga Jual 2</option>
                 <option value="jual3">💲 Harga Jual 3</option>
+                <option value="minimal">⚠️ Harga Minimal</option>
             </select>
             <select id="customerId" class="customer-select">
                 <option value="">-- Pelanggan Umum --</option>
@@ -258,6 +258,19 @@
             <label class="form-label">ID Transaksi Transfer <span class="required">*</span></label>
             <input type="text" class="form-input" id="transferRefInput" placeholder="Contoh: TRX123456 / No. referensi bank">
         </div>
+
+        {{-- Vehicle & Driver Section --}}
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px dashed var(--border);">
+            <label class="form-label">🚛 Kendaraan Pengiriman</label>
+            <select id="vehicleId" class="customer-select" style="margin-bottom:0.5rem; padding:.55rem .75rem;">
+                <option value="">-- Pilih Kendaraan --</option>
+                @foreach($vehicles as $v)
+                    <option value="{{ $v->id }}">{{ $v->license_plate }} {{ $v->type ? '('.$v->type.')' : '' }}</option>
+                @endforeach
+            </select>
+            <label class="form-label">👤 Nama Supir</label>
+            <input type="text" class="form-input" id="driverName" placeholder="Nama supir pengantar" style="padding:.55rem .75rem; font-size:.9rem;">
+        </div>
         <div class="change-box" id="changeBox" style="display:none">
             <div class="change-label">Kembalian</div>
             <div class="change-amount" id="changeDisplay">Rp 0</div>
@@ -288,9 +301,13 @@
         'bank_account_holder' => $storeSetting->bank_account_holder ?? null,
     ];
 @endphp
+@php
+    $vehiclesData = $vehicles->map(fn($v) => ['id' => $v->id, 'license_plate' => $v->license_plate, 'type' => $v->type]);
+@endphp
 <template id="productsJson">@json($products)</template>
 <template id="customersJson">@json($customers)</template>
 <template id="storeSettingJson">@json($storeSettingData)</template>
+<template id="vehiclesJson">@json($vehiclesData)</template>
 
 <script>
 let lastTransactionId = null;
@@ -321,13 +338,9 @@ productSearchInput.addEventListener('input', function(e) {
 });
 
 function fetchProducts(query = '') {
-    const url = '{{ route("kasir.grosir.search_products") }}' + (query ? '?q=' + encodeURIComponent(query) : '');
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            PRODUCTS = data;
-            render(); // Re-render product grid
-        })
+    const ts = new Date().getTime();
+    const url = '{{ route("kasir.grosir.search_products") }}' + '?_t=' + ts + (query ? '&q=' + encodeURIComponent(query) : '');
+    fetch(url).then(res => res.json()).then(data => { PRODUCTS = data; render(); })
         .catch(err => console.error('Error fetching products:', err));
 }
 
@@ -637,6 +650,9 @@ function doPayment(){
 
     const change=method==='cash' ? Math.max(0,paid-total) : 0;
     
+    const vehicleId = document.getElementById('vehicleId')?.value || null;
+    const driverName = document.getElementById('driverName')?.value?.trim() || null;
+
     const payload={
         price_tier: priceTier,
         items:cart.map(c=>({
@@ -649,7 +665,9 @@ function doPayment(){
         paid_amount:paid,
         payment_method:method,
         payment_reference: paymentRef,
-        customer_id: custId ? custId : null
+        customer_id: custId ? custId : null,
+        vehicle_id: vehicleId,
+        driver_name: driverName
     };
     const btn=document.getElementById('btnConfirm'); btn.disabled=true; btn.textContent='⏳ Memproses...';
     fetch('{{ route("kasir.grosir.store") }}',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify(payload)})

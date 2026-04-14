@@ -35,8 +35,10 @@
                         <div class="tr-form-group select-grp">
                             <div class="tr-select-wrapper">
                                 <select name="category" class="tr-select">
-                                    <option value="all" {{ request('category') == 'all' ? 'selected' : '' }}>Semua Kategori</option>
-                                    <option value="pos" {{ request('category') == 'pos' || request('category') == null ? 'selected' : '' }}>Toko / POS</option>
+                                    <option value="all" {{ request('category') == 'all' || request('category') == null ? 'selected' : '' }}>Semua Kategori</option>
+                                    <option value="eceran" {{ request('category') == 'eceran' ? 'selected' : '' }}>Eceran</option>
+                                    <option value="grosir" {{ request('category') == 'grosir' ? 'selected' : '' }}>Grosir</option>
+                                    <option value="pos" {{ request('category') == 'pos' ? 'selected' : '' }}>Toko / POS</option>
                                 </select>
                             </div>
                         </div>
@@ -83,7 +85,8 @@
                                             <div class="tr-user-details">
                                                 <div class="tr-user-name">
                                                     {{ $c->name }}
-                                                    <span class="tr-cat-badge badge-pos">TOKO / POS</span>
+                                                    @php $catBadge = match($c->category) { 'eceran' => ['cls'=>'badge-eceran','label'=>'Eceran'], 'grosir' => ['cls'=>'badge-grosir','label'=>'Grosir'], default => ['cls'=>'badge-pos','label'=>'Toko/POS'] }; @endphp
+                                                    <span class="tr-cat-badge {{ $catBadge['cls'] }}">{{ $catBadge['label'] }}</span>
                                                 </div>
                                                 @if($c->email)
                                                     <div class="tr-user-email">{{ $c->email }}</div>
@@ -238,6 +241,8 @@
         .tr-cat-badge { font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.02em; }
         
         .badge-pos { background: var(--tr-indigo-light); color: var(--tr-indigo); }
+        .badge-eceran { background: #ccfbf1; color: #0f766e; }
+        .badge-grosir { background: #f3e8ff; color: #7c3aed; }
 
         /* Status Pills */
         .tr-status-pill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }

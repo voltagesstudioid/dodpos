@@ -104,6 +104,7 @@ class RoleAbilities
                 'create_opname_stok',
                 'view_laporan_stok',
                 'view_permintaan_barang',
+                'view_warehouse_orders',
             ], true);
         }
 
@@ -118,6 +119,7 @@ class RoleAbilities
                 'view_permintaan_barang',
                 'view_opname_stok',
                 'create_opname_stok',
+                'view_warehouse_orders',
             ], true);
         }
 

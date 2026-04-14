@@ -16,6 +16,13 @@ use Illuminate\Support\Facades\DB;
 
 class PosTransactionService
 {
+    private PriceService $priceService;
+
+    public function __construct(PriceService $priceService)
+    {
+        $this->priceService = $priceService;
+    }
+
     /**
      * Validate and lock products for transaction.
      * Returns keyed collection of products with pessimistic lock.
@@ -45,6 +52,7 @@ class PosTransactionService
 
     /**
      * Calculate price based on price tier and conversion.
+     * Menggunakan PriceService untuk konsistensi.
      */
     public function calculatePrice($conversion, string $priceTier, float $defaultPrice): float
     {
@@ -52,14 +60,7 @@ class PosTransactionService
             return $defaultPrice;
         }
 
-        return match ($priceTier) {
-            'eceran' => $conversion->sell_price_ecer,
-            'grosir' => ($conversion->sell_price_grosir > 0 ? $conversion->sell_price_grosir : $conversion->sell_price_ecer),
-            'jual1' => (($conversion->sell_price_jual1 ?? 0) > 0 ? $conversion->sell_price_jual1 : $conversion->sell_price_ecer),
-            'jual2' => (($conversion->sell_price_jual2 ?? 0) > 0 ? $conversion->sell_price_jual2 : $conversion->sell_price_ecer),
-            'jual3' => (($conversion->sell_price_jual3 ?? 0) > 0 ? $conversion->sell_price_jual3 : $conversion->sell_price_ecer),
-            default => $conversion->sell_price_ecer,
-        };
+        return $this->priceService->getPrice($conversion, $priceTier, $defaultPrice);
     }
 
     /**
@@ -153,14 +154,20 @@ class PosTransactionService
      */
     public function createTransaction(array $data, array $items): Transaction
     {
+        $sourceWarehouseId = $data['source_warehouse_id'] ?? (count($items) > 0 ? $items[0]['warehouse_id'] : null);
+
         $trx = Transaction::create([
             'user_id' => Auth::id(),
             'customer_id' => $data['customer_id'] ?? null,
+            'source_warehouse_id' => $sourceWarehouseId,
+            'vehicle_id' => $data['vehicle_id'] ?? null,
+            'driver_name' => $data['driver_name'] ?? null,
             'total_amount' => $data['total_amount'],
             'paid_amount' => $data['paid_amount'],
             'change_amount' => max(0, $data['paid_amount'] - $data['total_amount']),
             'payment_method' => $data['payment_method'],
             'payment_reference' => $data['payment_reference'] ?? null,
+            'sale_type' => $data['sale_type'] ?? 'eceran',
             'status' => 'completed',
         ]);
 

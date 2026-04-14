@@ -190,10 +190,10 @@
         <div class="cart-customer">
             <select id="priceTier" class="customer-select" style="margin-bottom: 0.5rem;">
                 <option value="eceran" selected>🏷️ Harga Eceran</option>
-                <option value="grosir">📦 Harga Grosir</option>
                 <option value="jual1">💲 Harga Jual 1</option>
                 <option value="jual2">💲 Harga Jual 2</option>
                 <option value="jual3">💲 Harga Jual 3</option>
+                <option value="minimal">⚠️ Harga Minimal</option>
             </select>
             <select id="customerId" class="customer-select">
                 <option value="">-- Pelanggan Umum --</option>
@@ -311,16 +311,18 @@ productSearchInput.addEventListener('input', function(e) {
     productSearchTimeout = setTimeout(() => { fetchProducts(e.target.value); }, 400);
 });
 function fetchProducts(query = '') {
-    const url = '{{ route("kasir.eceran.search_products") }}' + (query ? '?q=' + encodeURIComponent(query) : '');
+    const ts = new Date().getTime();
+    const url = '{{ route("kasir.eceran.search_products") }}' + '?_t=' + ts + (query ? '&q=' + encodeURIComponent(query) : '');
     fetch(url).then(res => res.json()).then(data => { PRODUCTS = data; render(); })
         .catch(err => console.error('Error fetching products:', err));
 }
 
 function resolveUnitPrice(u){
-    const byTier = u?.prices?.[priceTier];
-    if(typeof byTier === 'number' && byTier > 0) return byTier;
-    const e = u?.prices?.eceran;
-    return (typeof e === 'number' ? e : 0);
+    if(!u || !u.prices) return 0;
+    // Harga bisa jadi number atau string dengan titik desimal Indonesia
+    const rawPrice = u.prices[priceTier] || u.prices.eceran || 0;
+    const priceVal = parseFloat(String(rawPrice).replace(/\./g, '').replace(/,/g, '.')) || 0;
+    return priceVal;
 }
 
 function refreshCartPrices(){

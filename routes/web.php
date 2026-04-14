@@ -14,6 +14,17 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+Route::get('/debug-products', function() {
+    return response()->json(\App\Models\User::all()->map(function($u) {
+        return [
+            'id' => $u->id,
+            'name' => $u->name,
+            'email' => $u->email,
+            'role' => call_user_func_array([$u, 'getRoleNames'], []) ?? $u->role,
+        ];
+    }));
+});
+
 // =========================================================
 // DASHBOARD
 // =========================================================
@@ -65,6 +76,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     require __DIR__ . '/minyak.php';
     require __DIR__ . '/sales.php';
     require __DIR__ . '/pengaturan.php';
+    require __DIR__ . '/warehouse.php';
 });
 
 // =========================================================

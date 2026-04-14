@@ -1,3 +1,11 @@
+@php
+    $kasirType = $type ?? 'eceran';
+    $isEceran = $kasirType === 'eceran';
+    $kasirLabel = $isEceran ? 'Kasir Eceran' : 'Kasir Grosir';
+    $kasirIcon = $isEceran ? '🏷️' : '📦';
+    $routeName = $isEceran ? 'kasir.open_session' : 'kasir.open_session_grosir';
+@endphp
+
 <x-app-layout>
     <x-slot name="header">POS / Kasir</x-slot>
 
@@ -19,16 +27,18 @@
 
         @if(auth()->user()->role === 'supervisor')
             <div class="card" style="padding:1.5rem;margin-top:1rem;">
-                <div style="font-size:0.9rem;font-weight:900;color:#0f172a;margin-bottom:0.25rem;">Buka Kasir Sekarang</div>
+                <div style="font-size:0.9rem;font-weight:900;color:#0f172a;margin-bottom:0.25rem;">Buka {{ $kasirLabel }} Sekarang</div>
                 <div style="font-size:0.85rem;color:#64748b;margin-bottom:1rem;line-height:1.6;">
-                    Isi jumlah modal awal (uang kembalian) yang ada di laci kasir.
+                    Isi jumlah modal awal (uang kembalian) yang ada di laci kasir {{ $isEceran ? 'eceran' : 'grosir' }}.
                 </div>
 
-                <form action="{{ route('kasir.open_session') }}" method="POST" style="display:flex;flex-direction:column;gap:0.75rem;">
+                <form action="{{ route($routeName) }}" method="POST" style="display:flex;flex-direction:column;gap:0.75rem;">
                     @csrf
+                    <input type="hidden" name="type" value="{{ $kasirType }}">
+
                     <div class="form-row">
                         <div class="form-group" style="margin-bottom:0;">
-                            <label class="form-label">Modal Awal (Rp)</label>
+                            <label class="form-label">Modal Awal {{ $kasirLabel }} (Rp)</label>
                             <input type="number" name="opening_amount" value="{{ old('opening_amount') }}" min="0" class="form-input @error('opening_amount') input-error @enderror" placeholder="0" required>
                             @error('opening_amount') <span class="form-error">{{ $message }}</span> @enderror
                         </div>
@@ -44,11 +54,11 @@
 
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="form-label">Catatan (opsional)</label>
-                        <textarea name="notes" rows="2" class="form-input" placeholder="Misal: Modal laci 1">{{ old('notes') }}</textarea>
+                        <textarea name="notes" rows="2" class="form-input" placeholder="Misal: Modal laci {{ $isEceran ? '1' : '2' }}">{{ old('notes') }}</textarea>
                     </div>
 
                     <div style="display:flex;justify-content:flex-end;gap:0.5rem;flex-wrap:wrap;margin-top:0.25rem;">
-                        <button type="submit" class="btn-primary">Simpan & Buka Kasir</button>
+                        <button type="submit" class="btn-primary">Simpan & Buka {{ $kasirLabel }}</button>
                     </div>
                 </form>
             </div>
@@ -56,7 +66,7 @@
             <div class="card" style="padding:1rem;margin-top:1rem;border-left:3px solid #f59e0b;background:#fffbeb;">
                 <div style="font-weight:900;color:#92400e;margin-bottom:0.25rem;">Akses dibatasi</div>
                 <div style="font-size:0.85rem;color:#92400e;line-height:1.6;">
-                    Silakan hubungi Supervisor untuk membuka sesi kasir dan memasukkan modal awal.
+                    Silakan hubungi Supervisor untuk membuka sesi {{ $kasirLabel }}.
                 </div>
             </div>
         @endif

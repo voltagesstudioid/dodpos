@@ -71,14 +71,36 @@
                                 @endif
                             </span>
                         </div>
+                        @php
+                            $totalItems = $transaksi->details->count();
+                            foreach ($transaksi->additionalTransactions as $addTrans) {
+                                $totalItems += $addTrans->details->count();
+                            }
+                        @endphp
                         <div class="meta-item">
                             <span class="meta-label">Jumlah Item</span>
-                            <span class="meta-value">{{ $transaksi->details->count() }} Produk</span>
+                            <span class="meta-value">{{ $totalItems }} Produk @if($transaksi->hasAdditionalItems())<span style="color:#f59e0b;font-size:0.85rem;">(+{{ $transaksi->additionalTransactions->count() }} tambahan)</span>@endif</span>
                         </div>
                         @if($transaksi->payment_method === 'transfer' && $transaksi->payment_reference)
                             <div class="meta-item">
                                 <span class="meta-label">Ref / No. Referensi</span>
                                 <span class="meta-value tr-font-mono">{{ $transaksi->payment_reference }}</span>
+                            </div>
+                        @endif
+                        @if($transaksi->vehicle_id || $transaksi->driver_name)
+                            <div class="meta-item">
+                                <span class="meta-label">🚛 Kendaraan / Supir</span>
+                                <span class="meta-value">
+                                    @if($transaksi->vehicle)
+                                        {{ $transaksi->vehicle->license_plate }}
+                                        @if($transaksi->vehicle->type)
+                                            ({{ $transaksi->vehicle->type }})
+                                        @endif
+                                    @endif
+                                    @if($transaksi->driver_name)
+                                        <br>👤 {{ $transaksi->driver_name }}
+                                    @endif
+                                </span>
                             </div>
                         @endif
                     </div>
@@ -101,21 +123,103 @@
                                 </thead>
                                 <tbody>
                                     @foreach($transaksi->details as $i => $d)
+                                        @php
+                                            $displayQty = ($d->unit_qty !== null && $d->unit_qty > 0) ? $d->unit_qty : $d->quantity;
+                                            $displayUnit = $d->unit_name ?? 'pcs';
+                                            $displayPrice = ($displayQty > 0) ? ($d->subtotal / $displayQty) : $d->price;
+                                        @endphp
                                         <tr class="{{ $transaksi->status === 'voided' ? 'is-voided' : '' }}">
                                             <td class="c text-muted">{{ $i + 1 }}</td>
                                             <td>
                                                 <div class="item-name">{{ $d->product?->name ?? 'Produk Dihapus' }}</div>
                                                 <div class="item-cat">{{ $d->product?->category?->name ?? 'Tanpa Kategori' }} &middot; {{ $d->product?->sku ?? '' }}</div>
                                             </td>
-                                            <td class="r tr-font-mono">Rp {{ number_format($d->price, 0, ',', '.') }}</td>
-                                            <td class="c tr-font-bold">x{{ $d->quantity }}</td>
+                                            <td class="r tr-font-mono">Rp {{ number_format($displayPrice, 0, ',', '.') }}</td>
+                                            <td class="c tr-font-bold">{{ $displayQty }} {{ $displayUnit }}</td>
                                             <td class="r tr-font-mono tr-font-bold text-main">Rp {{ number_format($d->subtotal, 0, ',', '.') }}</td>
                                         </tr>
                                     @endforeach
+                                    
+                                    {{-- Additional Items --}}
+                                    @if($transaksi->hasAdditionalItems())
+                                        <tr style="background:#fef3c7;">
+                                            <td colspan="5" style="padding:8px 1rem;font-size:0.75rem;font-weight:700;color:#92400e;text-transform:uppercase;">
+                                                + Item Tambahan
+                                            </td>
+                                        </tr>
+                                        @php $addIndex = $transaksi->details->count(); @endphp
+                                        @foreach($transaksi->additionalTransactions as $addTrans)
+                                            @foreach($addTrans->details as $d)
+                                                @php
+                                                    $addIndex++;
+                                                    $displayQty = ($d->unit_qty !== null && $d->unit_qty > 0) ? $d->unit_qty : $d->quantity;
+                                                    $displayUnit = $d->unit_name ?? 'pcs';
+                                                    $displayPrice = ($displayQty > 0) ? ($d->subtotal / $displayQty) : $d->price;
+                                                @endphp
+                                                <tr style="background:#fffbeb;">
+                                                    <td class="c text-muted">{{ $addIndex }}</td>
+                                                    <td>
+                                                        <div class="item-name">{{ $d->product?->name ?? 'Produk Dihapus' }}</div>
+                                                        <div class="item-cat">{{ $d->product?->category?->name ?? 'Tanpa Kategori' }} &middot; {{ $d->product?->sku ?? '' }}</div>
+                                                    </td>
+                                                    <td class="r tr-font-mono">Rp {{ number_format($displayPrice, 0, ',', '.') }}</td>
+                                                    <td class="c tr-font-bold">{{ $displayQty }} {{ $displayUnit }}</td>
+                                                    <td class="r tr-font-mono tr-font-bold text-main">Rp {{ number_format($d->subtotal, 0, ',', '.') }}</td>
+                                                </tr>
+                                            @endforeach
+                                        @endforeach
+                                    @endif
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    
+                    {{-- Additional Transactions Info --}}
+                    @if($transaksi->hasAdditionalItems())
+                    <div class="tr-card" style="margin-top:1.5rem;background:#fffbeb;border:1px solid #fcd34d;">
+                        <div class="tr-card-header" style="background:#fef3c7;">
+                            <h2 class="tr-section-title" style="color:#92400e;">Riwayat Tambahan Item</h2>
+                        </div>
+                        <div style="padding:1.25rem 1.5rem;">
+                            @foreach($transaksi->additionalTransactions as $addTrans)
+                                @php
+                                    $addMethodLabel = match($addTrans->payment_method) {
+                                        'cash' => 'Tunai',
+                                        'transfer' => 'Transfer Bank',
+                                        'qris' => 'QRIS',
+                                        default => ucfirst($addTrans->payment_method)
+                                    };
+                                @endphp
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px dashed #fbbf24;">
+                                    <div>
+                                        <div style="font-weight:700;font-size:0.9rem;color:#1f2937;">
+                                            {{ $addTrans->created_at->format('d M Y H:i') }}
+                                        </div>
+                                        <div style="font-size:0.8rem;color:#6b7280;">
+                                            Metode: <span style="color:#4f46e5;font-weight:600;">{{ $addMethodLabel }}</span>
+                                            @if($addTrans->payment_reference)
+                                                <span style="margin-left:0.5rem;">| Ref: {{ $addTrans->payment_reference }}</span>
+                                            @endif
+                                        </div>
+                                        @if($addTrans->additional_notes)
+                                            <div style="font-size:0.75rem;color:#9ca3af;margin-top:0.25rem;">
+                                                {{ $addTrans->additional_notes }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-weight:700;font-size:1rem;color:#1f2937;">
+                                            Rp {{ number_format($addTrans->total_amount, 0, ',', '.') }}
+                                        </div>
+                                        <div style="font-size:0.75rem;color:#10b981;">
+                                            Bayar: Rp {{ number_format($addTrans->paid_amount, 0, ',', '.') }}
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
                 </div>
 
                 {{-- KANAN: Ringkasan Pembayaran & Aksi --}}
@@ -125,10 +229,15 @@
                     <div class="tr-card tr-receipt-card">
                         <div class="receipt-header">Ringkasan Transaksi</div>
                         
+                        @php
+                            $grandTotal = $transaksi->grand_total;
+                            $totalPaid = $transaksi->total_paid;
+                            $changeAmount = $totalPaid - $grandTotal;
+                        @endphp
                         <div class="receipt-body">
                             <div class="receipt-row">
                                 <span class="r-label">Subtotal Item</span>
-                                <span class="r-value tr-font-mono">Rp {{ number_format($transaksi->total_amount, 0, ',', '.') }}</span>
+                                <span class="r-value tr-font-mono">Rp {{ number_format($grandTotal, 0, ',', '.') }}</span>
                             </div>
                             
                             {{-- Jika ada diskon/pajak bisa ditambahkan di sini nanti --}}
@@ -137,17 +246,17 @@
                             
                             <div class="receipt-row total-row">
                                 <span class="r-label">Total Tagihan</span>
-                                <span class="r-value tr-font-mono text-indigo">Rp {{ number_format($transaksi->total_amount, 0, ',', '.') }}</span>
+                                <span class="r-value tr-font-mono text-indigo">Rp {{ number_format($grandTotal, 0, ',', '.') }}</span>
                             </div>
                             
                             <div class="receipt-row mt-2">
                                 <span class="r-label">Jumlah Dibayar</span>
-                                <span class="r-value tr-font-mono text-emerald">Rp {{ number_format($transaksi->paid_amount, 0, ',', '.') }}</span>
+                                <span class="r-value tr-font-mono text-emerald">Rp {{ number_format($totalPaid, 0, ',', '.') }}</span>
                             </div>
                             
                             <div class="receipt-row change-row">
                                 <span class="r-label">Uang Kembali</span>
-                                <span class="r-value tr-font-mono text-amber">Rp {{ number_format($transaksi->change_amount, 0, ',', '.') }}</span>
+                                <span class="r-value tr-font-mono text-amber">Rp {{ number_format(max(0, $changeAmount), 0, ',', '.') }}</span>
                             </div>
                         </div>
                     </div>
@@ -159,6 +268,13 @@
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                                 Cetak Ulang Struk
                             </a>
+
+                            @can('view_pos_kasir')
+                            <a href="{{ route('kasir.transactions.add_items_form', $transaksi) }}" class="tr-btn tr-btn-success tr-btn-block" style="background: linear-gradient(135deg, #10b981, #059669);">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                                Tambah Item
+                            </a>
+                            @endcan
                             
                             <div class="tr-divider-text">Aksi Manajemen</div>
 

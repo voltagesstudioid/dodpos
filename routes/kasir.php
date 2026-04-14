@@ -26,6 +26,10 @@ Route::middleware('can:view_pos_kasir')->group(function () {
     Route::get('/kasir/grosir/search-customers', [KasirGrosirController::class, 'searchCustomers'])->name('kasir.grosir.search_customers');
     Route::post('/kasir/grosir', [KasirGrosirController::class, 'store'])->name('kasir.grosir.store');
     Route::post('/kasir/transaksi', [KasirController::class, 'storeTransaksi'])->name('kasir.transaksi.store');
+
+    // Add items to completed transaction
+    Route::get('/kasir/transactions/{transaction}/add-items', [KasirController::class, 'addItemsForm'])->name('kasir.transactions.add_items_form');
+    Route::post('/kasir/transactions/{transaction}/add-items', [KasirController::class, 'storeAdditionalItems'])->name('kasir.transactions.add_items');
 });
 
 Route::middleware('can:view_sesi_kasir')->group(function () {
@@ -35,7 +39,9 @@ Route::middleware('can:view_sesi_kasir')->group(function () {
 Route::middleware('can:delete_sesi_kasir')->group(function () {
     Route::post('/kasir/cash-movement', [KasirController::class, 'addCashMovement'])->name('kasir.cash_movement');
     Route::post('/kasir/open-session', [KasirController::class, 'openSession'])->name('kasir.open_session');
+    Route::post('/kasir/open-session-grosir', [KasirController::class, 'openSessionGrosir'])->name('kasir.open_session_grosir');
     Route::post('/kasir/close-session', [KasirController::class, 'closeSession'])->name('kasir.close_session');
+    Route::post('/kasir/close-session-grosir', [KasirController::class, 'closeSessionGrosir'])->name('kasir.close_session_grosir');
 });
 
 // =========================================================

@@ -342,6 +342,23 @@
                         <td>{{ $alamat }}</td>
                     </tr>
                     @endif
+                    @if($transaction->vehicle_id || $transaction->driver_name)
+                    <tr>
+                        <td>Kendaraan</td>
+                        <td>:</td>
+                        <td>
+                            @if($transaction->vehicle)
+                                {{ $transaction->vehicle->license_plate }}
+                                @if($transaction->vehicle->type)
+                                    ({{ $transaction->vehicle->type }})
+                                @endif
+                            @endif
+                            @if($transaction->driver_name)
+                                - {{ $transaction->driver_name }}
+                            @endif
+                        </td>
+                    </tr>
+                    @endif
                 </table>
             </div>
 
@@ -359,9 +376,10 @@
                 <tbody>
                     @foreach($transaction->details as $i => $detail)
                     @php
-                        $displayQty  = $detail->unit_qty  ?? $detail->quantity;
+                        // Use unit_qty if available and > 0, otherwise fall back to quantity
+                        $displayQty  = ($detail->unit_qty !== null && $detail->unit_qty > 0) ? $detail->unit_qty : $detail->quantity;
                         $displayUnit = $detail->unit_name ?? 'pcs';
-                        $displayPrice = ($displayQty > 0) ? $detail->subtotal / $displayQty : $detail->price;
+                        $displayPrice = ($displayQty > 0) ? ($detail->subtotal / $displayQty) : $detail->price;
                     @endphp
                     <tr>
                         <td class="center">{{ $i + 1 }}</td>

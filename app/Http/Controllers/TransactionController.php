@@ -18,7 +18,10 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Transaction::with(['user', 'details.product'])->latest();
+        // Only show root transactions (not additional/child transactions)
+        $query = Transaction::with(['user', 'details.product', 'additionalTransactions', 'customer'])
+            ->whereNull('parent_transaction_id')
+            ->latest();
 
         // Filters
         if ($request->search) {
@@ -38,11 +41,20 @@ class TransactionController extends Controller
         if ($request->date_to) {
             $query->whereDate('created_at', '<=', $request->date_to);
         }
+        // Filter by customer type (eceran/grosir)
+        if ($request->customer_type) {
+            $query->whereHas('customer', fn ($q) => $q->where('category', $request->customer_type));
+        }
+        // Filter by sale type (eceran/grosir) - dari kasir
+        if ($request->sale_type) {
+            $query->where('sale_type', $request->sale_type);
+        }
 
         $transactions = $query->paginate(25)->withQueryString();
 
         // Summary cards (for current filter scope)
-        $summaryQuery = Transaction::query();
+        // Summary only counts root transactions
+        $summaryQuery = Transaction::query()->whereNull('parent_transaction_id');
         if ($request->date_from) {
             $summaryQuery->whereDate('created_at', '>=', $request->date_from);
         }
@@ -51,6 +63,9 @@ class TransactionController extends Controller
         }
         if ($request->payment_method) {
             $summaryQuery->where('payment_method', $request->payment_method);
+        }
+        if ($request->sale_type) {
+            $summaryQuery->where('sale_type', $request->sale_type);
         }
 
         $totalRevenue = (clone $summaryQuery)->where('status', 'completed')->sum('total_amount');
@@ -65,7 +80,8 @@ class TransactionController extends Controller
 
     public function show(Transaction $transaksi)
     {
-        $transaksi->load(['user', 'details.product.category', 'details.warehouse', 'customer']);
+        // Load additional transactions relation
+        $transaksi->load(['user', 'details.product.category', 'details.warehouse', 'customer', 'additionalTransactions.details.product.category']);
 
         return view('transaksi.show', compact('transaksi'));
     }
@@ -92,9 +108,10 @@ class TransactionController extends Controller
                 return back()->with('error', 'Tidak bisa void transaksi yang sudah punya retur.');
             }
 
-            $transaksi->load('details');
+            $transaksi->load(['details', 'additionalTransactions.details']);
 
             $details = $transaksi->details;
+            $additionalTransactions = $transaksi->additionalTransactions;
             $allDetailsMissingWarehouse = $details->every(fn ($d) => empty($d->warehouse_id));
 
             if ($allDetailsMissingWarehouse) {
@@ -283,7 +300,66 @@ class TransactionController extends Controller
                 }
             }
 
-            // ── 3. Tandai transaksi sebagai void ─────────────────────
+            // ── 3. Void semua transaksi tambahan dan kembalikan stok ──
+            foreach ($additionalTransactions as $addTrans) {
+                if ($addTrans->status !== 'voided') {
+                    // Kembalikan stok untuk setiap detail transaksi tambahan
+                    foreach ($addTrans->details as $detail) {
+                        Product::where('id', $detail->product_id)
+                            ->increment('stock', $detail->quantity);
+
+                        $warehouseId = $detail->warehouse_id;
+                        if (! $warehouseId) {
+                            $warehouseId = ProductStock::where('product_id', $detail->product_id)
+                                ->orderBy('created_at', 'asc')
+                                ->value('warehouse_id');
+                        }
+
+                        $stock = null;
+                        if ($warehouseId) {
+                            $stock = ProductStock::query()
+                                ->where('product_id', $detail->product_id)
+                                ->where('warehouse_id', $warehouseId)
+                                ->whereNull('location_id')
+                                ->whereNull('batch_number')
+                                ->whereNull('expired_date')
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (! $stock) {
+                                $stock = ProductStock::create([
+                                    'product_id' => $detail->product_id,
+                                    'warehouse_id' => $warehouseId,
+                                    'location_id' => null,
+                                    'batch_number' => null,
+                                    'expired_date' => null,
+                                    'stock' => 0,
+                                ]);
+                            }
+
+                            $stock->stock += $detail->quantity;
+                            $stock->save();
+                        }
+
+                        StockMovement::create([
+                            'product_id' => $detail->product_id,
+                            'warehouse_id' => $warehouseId,
+                            'type' => 'in',
+                            'source_type' => 'void_transaction',
+                            'reference_number' => 'VOID-TRX-'.$addTrans->id,
+                            'quantity' => $detail->quantity,
+                            'balance' => ($stock->stock ?? 0),
+                            'notes' => '[VOID] Pembatalan Transaksi Tambahan #'.$addTrans->id.' (Parent: #'.$transaksi->id.')',
+                            'user_id' => Auth::id(),
+                        ]);
+                    }
+
+                    // Tandai transaksi tambahan sebagai voided
+                    $addTrans->update(['status' => 'voided']);
+                }
+            }
+
+            // ── 4. Tandai transaksi utama sebagai void ────────────────
             $transaksi->update(['status' => 'voided']);
 
             DB::commit();

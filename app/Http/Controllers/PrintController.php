@@ -12,14 +12,30 @@ use App\Models\Transaction;
 class PrintController extends Controller
 {
     /**
-     * Cetak Struk POS Eceran (Thermal 58mm)
+     * Cetak Struk POS Eceran (Thermal 58mm) atau Faktur Grosir (A4)
      */
     public function printReceipt(Transaction $transaction)
     {
-        $transaction->load(['details.product', 'user', 'customer']);
+        // Load main transaction with details
+        $transaction->load(['details.product', 'user', 'customer', 'additionalTransactions.details.product']);
+
+        // Get root transaction (if this is an additional transaction, get the parent)
+        $rootTransaction = $transaction->parent_transaction_id
+            ? Transaction::with(['details.product', 'user', 'customer', 'additionalTransactions.details.product'])->find($transaction->parent_transaction_id)
+            : $transaction;
+
+        // Increment print count
+        $rootTransaction->increment('print_count');
+        $rootTransaction->update(['last_printed_at' => now()]);
+
+        // Jika transaksi grosir, redirect ke faktur grosir 3 rangkap
+        if ($rootTransaction->sale_type === 'grosir') {
+            return $this->printFakturGrosir($rootTransaction);
+        }
+
         $storeSetting = StoreSetting::current();
 
-        return view('print.receipt', compact('transaction', 'storeSetting'));
+        return view('print.receipt', compact('rootTransaction', 'storeSetting'));
     }
 
     /**

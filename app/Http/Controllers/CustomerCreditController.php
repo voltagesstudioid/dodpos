@@ -37,6 +37,105 @@ class CustomerCreditController extends Controller
         return view('pelanggan.kredit.index', compact('credits', 'customers', 'totalDebt', 'totalCredit', 'overdueCount'));
     }
 
+    /**
+     * Tampilkan hutang terkonsolidasi per pelanggan
+     */
+    public function consolidated(Request $request)
+    {
+        $customers = Customer::where('current_debt', '>', 0)
+            ->withCount(['activeDebts'])
+            ->withSum('activeDebts', DB::raw('amount - paid_amount'))
+            ->orderBy('current_debt', 'desc')
+            ->get();
+
+        $totalDebt = Customer::sum('current_debt');
+
+        return view('pelanggan.kredit.consolidated', compact('customers', 'totalDebt'));
+    }
+
+    /**
+     * Tampilkan detail hutang per pelanggan dengan fitur pembayaran
+     */
+    public function customerDebt(Customer $customer)
+    {
+        $debts = $customer->activeDebts()
+            ->with(['payments'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $totalDebt = $customer->current_debt;
+        $totalTransactions = $debts->count();
+
+        return view('pelanggan.kredit.customer_debt', compact('customer', 'debts', 'totalDebt', 'totalTransactions'));
+    }
+
+    /**
+     * Proses pembayaran hutang terkonsolidasi per pelanggan
+     */
+    public function payConsolidated(Request $request, Customer $customer)
+    {
+        if ($customer->current_debt <= 0) {
+            return back()->with('error', 'Pelanggan tidak memiliki hutang.');
+        }
+
+        $request->validate([
+            'payment_date'     => 'required|date',
+            'amount'           => 'required|numeric|min:1|max:' . $customer->current_debt,
+            'payment_method'   => 'required|in:cash,transfer,qris,other',
+            'reference_number' => 'nullable|string',
+            'notes'            => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $paymentAmount = $request->amount;
+            $remainingPayment = $paymentAmount;
+
+            // Ambil semua hutang yang belum lunas, urutkan dari yang paling lama
+            $debts = $customer->activeDebts()->orderBy('created_at', 'asc')->get();
+
+            foreach ($debts as $debt) {
+                if ($remainingPayment <= 0) break;
+
+                $remainingDebt = $debt->amount - $debt->paid_amount;
+                $payForThisDebt = min($remainingPayment, $remainingDebt);
+
+                // Catat pembayaran untuk hutang ini
+                CustomerCreditPayment::create([
+                    'customer_credit_id' => $debt->id,
+                    'payment_date'       => $request->payment_date,
+                    'amount'             => $payForThisDebt,
+                    'payment_method'     => $request->payment_method,
+                    'reference_number' => $request->reference_number,
+                    'notes'              => $request->notes . ' (Pembayaran terkonsolidasi)',
+                    'created_by'         => Auth::id(),
+                ]);
+
+                // Update status hutang
+                $newPaid = $debt->paid_amount + $payForThisDebt;
+                $newStatus = $newPaid >= $debt->amount ? 'paid' : 'partial';
+                $debt->update(['paid_amount' => $newPaid, 'status' => $newStatus]);
+
+                $remainingPayment -= $payForThisDebt;
+            }
+
+            // Update total hutang customer
+            $customer->refreshDebt();
+
+            DB::commit();
+
+            $msg = $customer->current_debt == 0
+                ? '✅ Lunas! Semua hutang pelanggan telah terlunasi.'
+                : '💰 Pembayaran Rp ' . number_format($paymentAmount, 0, ',', '.') . ' berhasil. Sisa hutang: Rp ' . number_format($customer->current_debt, 0, ',', '.');
+
+            return back()->with('success', $msg);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
     public function create(Request $request)
     {
         $customers = Customer::where('is_active', true)->orderBy('name')->get();

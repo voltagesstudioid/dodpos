@@ -30,25 +30,23 @@ class KasirGrosirController extends Controller
 
     public function index()
     {
-        $activeSession = \App\Models\PosSession::where('status', 'open')->latest()->first();
-        if (! $activeSession) {
-            return view('kasir.closed');
-        }
-
-        // Load awal: 20 produk pertama
+        // Kasir Grosir tidak perlu modal awal - langsung bisa digunakan
         $products = $this->searchService->getProductsQuery()
             ->limit(20)
             ->get()
             ->map(fn ($p) => $this->searchService->formatProductGrosir($p));
 
-        // Load awal: 20 pelanggan pertama
         $customers = \App\Models\Customer::orderBy('name')
             ->limit(20)
             ->get(['id', 'name', 'phone', 'credit_limit', 'current_debt']);
 
+        // Load vehicles for dropdown
+        $vehicles = \App\Models\Vehicle::orderBy('license_plate')
+            ->get(['id', 'license_plate', 'type']);
+
         $storeSetting = StoreSetting::current();
 
-        return view('kasir.grosir', compact('products', 'customers', 'storeSetting'));
+        return view('kasir.grosir', compact('products', 'customers', 'vehicles', 'storeSetting'));
     }
 
     public function searchProducts(Request $request)
@@ -80,7 +78,9 @@ class KasirGrosirController extends Controller
             'payment_method' => 'required|string',
             'payment_reference' => 'nullable|string|max:100',
             'customer_id' => 'nullable|exists:customers,id',
-            'price_tier' => 'nullable|in:eceran,grosir,jual1,jual2,jual3',
+            'price_tier' => 'nullable|in:eceran,grosir,jual1,jual2,jual3,minimal',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'driver_name' => 'nullable|string|max:100',
         ]);
 
         try {
@@ -184,6 +184,9 @@ class KasirGrosirController extends Controller
                     'paid_amount' => $request->paid_amount,
                     'payment_method' => $request->payment_method,
                     'payment_reference' => $request->payment_reference,
+                    'sale_type' => 'grosir',
+                    'vehicle_id' => $request->vehicle_id,
+                    'driver_name' => $request->driver_name,
                 ],
                 $resolvedItems
             );

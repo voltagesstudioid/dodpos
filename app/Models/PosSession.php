@@ -8,6 +8,7 @@ class PosSession extends Model
 {
     protected $fillable = [
         'user_id',
+        'type',
         'opening_amount',
         'payment_method',
         'closing_amount',

@@ -65,7 +65,7 @@ class CustomerController extends Controller
             'address'      => $request->address,
             'credit_limit' => $creditLimit,
             'current_debt' => 0,
-            'category'     => 'pos',
+            'category'     => $request->category ?? 'eceran',
             'is_active'    => true,
             'notes'        => $request->notes,
         ]);
@@ -93,6 +93,7 @@ class CustomerController extends Controller
             'phone'        => 'nullable|string|max:30',
             'email'        => 'nullable|email|max:100',
             'address'      => 'nullable|string',
+            'category'     => 'required|in:eceran,grosir,pos',
             'notes'        => 'nullable|string',
         ];
         if (Auth::user() && Auth::user()->role === 'supervisor') {
@@ -100,7 +101,7 @@ class CustomerController extends Controller
         }
         $request->validate($rules);
 
-        $payload = $request->only('name', 'phone', 'email', 'address', 'notes');
+        $payload = $request->only('name', 'phone', 'email', 'address', 'category', 'notes');
         if (Auth::user() && Auth::user()->role === 'supervisor') {
             $payload['credit_limit'] = $request->credit_limit ?? 0;
         }

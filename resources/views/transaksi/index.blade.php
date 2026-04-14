@@ -100,10 +100,20 @@
                             <input type="date" name="date_to" value="{{ request('date_to') }}" class="tr-input">
                         </div>
                         <div class="tr-form-group select-grp">
-                            <label class="tr-label">Metode</label>
+                            <label class="tr-label">Jenis Penjualan</label>
+                            <div class="tr-select-wrapper">
+                                <select name="sale_type" class="tr-select">
+                                    <option value="">Semua Jenis</option>
+                                    <option value="eceran" @selected(request('sale_type')=='eceran')>🏷️ Eceran</option>
+                                    <option value="grosir" @selected(request('sale_type')=='grosir')>📦 Grosir</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="tr-form-group select-grp">
+                            <label class="tr-label">Metode Bayar</label>
                             <div class="tr-select-wrapper">
                                 <select name="payment_method" class="tr-select">
-                                    <option value="">Semua Tipe</option>
+                                    <option value="">Semua Metode</option>
                                     <option value="cash" @selected(request('payment_method')=='cash')>Tunai</option>
                                     <option value="transfer" @selected(request('payment_method')=='transfer')>Transfer Bank</option>
                                     <option value="qris" @selected(request('payment_method')=='qris')>QRIS</option>
@@ -135,12 +145,14 @@
                                 <th>No. Transaksi</th>
                                 <th>Waktu</th>
                                 <th>Kasir</th>
+                                <th class="c">Jenis</th>
                                 <th class="c">Item</th>
                                 <th>Metode Bayar</th>
                                 <th class="r">Total (Rp)</th>
                                 <th class="r">Diterima (Rp)</th>
                                 <th class="r">Kembali (Rp)</th>
                                 <th class="c">Status</th>
+                                <th class="c">Cetak</th>
                                 <th class="c" style="width: 100px;">Aksi</th>
                             </tr>
                         </thead>
@@ -149,14 +161,52 @@
                                 <tr class="{{ $trx->status === 'voided' ? 'is-voided' : '' }}">
                                     <td>
                                         <span class="tr-inv-badge">#{{ str_pad($trx->id, 5, '0', STR_PAD_LEFT) }}</span>
+                                        @if($trx->hasAdditionalItems())
+                                            <span class="tr-badge tr-badge-amber" style="font-size:0.7rem;display:block;margin-top:4px;">+{{ $trx->additionalTransactions->count() }} Tambahan</span>
+                                        @endif
+                                        @if($trx->vehicle_id || $trx->driver_name)
+                                            <div style="font-size:0.7rem;color:#64748b;margin-top:4px;">
+                                                🚛 {{ $trx->vehicle?->license_plate ?? '-' }}
+                                                @if($trx->driver_name)
+                                                    <br>👤 {{ $trx->driver_name }}
+                                                @endif
+                                            </div>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="tr-date-main">{{ $trx->created_at->format('d M Y') }}</div>
                                         <div class="tr-date-sub">{{ $trx->created_at->format('H:i') }} WIB</div>
                                     </td>
-                                    <td class="tr-font-bold">{{ $trx->user?->name ?? '—' }}</td>
+                                    <td class="tr-font-bold">
+                                        {{ $trx->user?->name ?? '—' }}
+                                        @if($trx->customer?->category)
+                                            <span class="tr-badge {{ $trx->customer->category === 'grosir' ? 'tr-badge-purple' : 'tr-badge-teal' }}" style="display:block;margin-top:4px;">
+                                                {{ ucfirst($trx->customer->category) }}
+                                            </span>
+                                        @endif
+                                    </td>
+                                    {{-- Kolom Jenis Penjualan (Eceran/Grosir) --}}
                                     <td class="c">
-                                        <span class="tr-badge tr-badge-blue">{{ $trx->details->count() }} Pcs</span>
+                                        @if($trx->sale_type === 'grosir')
+                                            <span class="tr-badge tr-badge-purple" style="font-size:0.75rem;padding:4px 10px;">
+                                                📦 Grosir
+                                            </span>
+                                        @elseif($trx->sale_type === 'eceran')
+                                            <span class="tr-badge tr-badge-blue" style="font-size:0.75rem;padding:4px 10px;">
+                                                🏷️ Eceran
+                                            </span>
+                                        @else
+                                            <span style="color:#94a3b8;font-size:0.75rem;">-</span>
+                                        @endif
+                                    </td>
+                                    @php
+                                        $totalItems = $trx->details->count();
+                                        foreach ($trx->additionalTransactions as $addTrans) {
+                                            $totalItems += $addTrans->details->count();
+                                        }
+                                    @endphp
+                                    <td class="c">
+                                        <span class="tr-badge tr-badge-blue">{{ $totalItems }} Pcs</span>
                                     </td>
                                     <td>
                                         @php 
@@ -169,14 +219,19 @@
                                         @endphp
                                         <span class="tr-method-text">{{ $methodLabel }}</span>
                                     </td>
+                                    @php
+                                        $grandTotal = $trx->grand_total;
+                                        $totalPaid = $trx->total_paid;
+                                        $changeAmount = $totalPaid - $grandTotal;
+                                    @endphp
                                     <td class="r tr-font-mono tr-font-black text-main">
-                                        {{ number_format($trx->total_amount, 0, ',', '.') }}
+                                        {{ number_format($grandTotal, 0, ',', '.') }}
                                     </td>
                                     <td class="r tr-font-mono text-emerald tr-font-bold">
-                                        {{ number_format($trx->paid_amount, 0, ',', '.') }}
+                                        {{ number_format($totalPaid, 0, ',', '.') }}
                                     </td>
                                     <td class="r tr-font-mono text-amber tr-font-bold">
-                                        {{ number_format($trx->change_amount, 0, ',', '.') }}
+                                        {{ number_format(max(0, $changeAmount), 0, ',', '.') }}
                                     </td>
                                     <td class="c">
                                         @if($trx->status === 'completed')
@@ -185,6 +240,17 @@
                                             <span class="tr-badge tr-badge-danger">Void</span>
                                         @else
                                             <span class="tr-badge tr-badge-gray">{{ $trx->status }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="c">
+                                        @if($trx->print_count > 0)
+                                            <span class="tr-badge tr-badge-success" style="font-size:0.7rem;" title="Dicetak {{ $trx->print_count }} kali, terakhir: {{ $trx->last_printed_at?->format('d/m/Y H:i') }}">
+                                                🖨️ {{ $trx->print_count }}x
+                                            </span>
+                                        @else
+                                            <span class="tr-badge tr-badge-gray" style="font-size:0.7rem;" title="Belum pernah dicetak">
+                                                ⏳ Belum
+                                            </span>
                                         @endif
                                     </td>
                                     <td class="c">
@@ -202,7 +268,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10">
+                                    <td colspan="11">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">
                                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -339,6 +405,8 @@
         .tr-badge-danger { background: var(--tr-danger-light); color: #991b1b; }
         .tr-badge-blue { background: var(--tr-blue-light); color: #1e40af; }
         .tr-badge-gray { background: #f1f5f9; color: var(--tr-text-muted); }
+        .tr-badge-purple { background: #f3e8ff; color: #6b21a8; }
+        .tr-badge-teal { background: #ccfbf1; color: #0f766e; }
 
         .tr-actions-group { display: flex; gap: 6px; justify-content: center; }
         .tr-action-btn { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--tr-border); background: white; color: var(--tr-text-muted); transition: 0.2s; cursor: pointer; text-decoration: none; }

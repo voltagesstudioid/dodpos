@@ -9,6 +9,12 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ProductSearchService
 {
+    private PriceService $priceService;
+
+    public function __construct(PriceService $priceService)
+    {
+        $this->priceService = $priceService;
+    }
     /**
      * Get base product query with eager loaded relations.
      */
@@ -60,25 +66,21 @@ class ProductSearchService
      */
     public function formatProductEceran(Product $product): array
     {
+        $productDefaultPrice = $this->priceService->parseNumber($product->price ?? 0);
+
         $units = $product->unitConversions
             ->sortBy('conversion_factor')
             ->map(fn ($uc) => [
                 'id'      => $uc->id,
                 'name'    => $uc->unit->name,
                 'factor'  => $uc->conversion_factor,
-                'prices'  => [
-                    'eceran' => (float) $uc->sell_price_ecer,
-                    'grosir' => (float) ($uc->sell_price_grosir > 0 ? $uc->sell_price_grosir : $uc->sell_price_ecer),
-                    'jual1'  => (float) (($uc->sell_price_jual1 ?? 0) > 0 ? $uc->sell_price_jual1 : $uc->sell_price_ecer),
-                    'jual2'  => (float) (($uc->sell_price_jual2 ?? 0) > 0 ? $uc->sell_price_jual2 : $uc->sell_price_ecer),
-                    'jual3'  => (float) (($uc->sell_price_jual3 ?? 0) > 0 ? $uc->sell_price_jual3 : $uc->sell_price_ecer),
-                ],
+                'prices'  => $this->priceService->getAllPrices($uc, $productDefaultPrice),
                 'is_base' => $uc->is_base_unit,
             ])->values()->toArray();
 
         // Jika tidak ada unit konversi, buat virtual unit dari kolom price
         if (empty($units)) {
-            $basePrice = (float) ($product->price ?? 0);
+            $basePrice = $productDefaultPrice;
             $unitName  = $product->unit?->name ?? 'pcs';
             $units = [[
                 'id'      => null,
@@ -90,6 +92,7 @@ class ProductSearchService
                     'jual1'  => $basePrice,
                     'jual2'  => $basePrice,
                     'jual3'  => $basePrice,
+                    'minimal'=> $basePrice,
                 ],
                 'is_base' => true,
             ]];
@@ -130,25 +133,21 @@ class ProductSearchService
      */
     public function formatProductGrosir(Product $product): array
     {
+        $productDefaultPrice = $this->priceService->parseNumber($product->price ?? 0);
+
         $units = $product->unitConversions
             ->sortBy('conversion_factor')
             ->map(fn ($uc) => [
                 'id'      => $uc->id,
                 'name'    => $uc->unit->name,
                 'factor'  => $uc->conversion_factor,
-                'prices'  => [
-                    'eceran' => (float) $uc->sell_price_ecer,
-                    'grosir' => (float) ($uc->sell_price_grosir > 0 ? $uc->sell_price_grosir : $uc->sell_price_ecer),
-                    'jual1'  => (float) (($uc->sell_price_jual1 ?? 0) > 0 ? $uc->sell_price_jual1 : $uc->sell_price_ecer),
-                    'jual2'  => (float) (($uc->sell_price_jual2 ?? 0) > 0 ? $uc->sell_price_jual2 : $uc->sell_price_ecer),
-                    'jual3'  => (float) (($uc->sell_price_jual3 ?? 0) > 0 ? $uc->sell_price_jual3 : $uc->sell_price_ecer),
-                ],
+                'prices'  => $this->priceService->getAllPrices($uc, $productDefaultPrice),
                 'is_base' => $uc->is_base_unit,
             ])->values()->toArray();
 
         // Jika tidak ada unit konversi, buat virtual unit dari kolom price
         if (empty($units)) {
-            $basePrice = (float) ($product->price ?? 0);
+            $basePrice = $productDefaultPrice;
             $unitName  = $product->unit?->name ?? 'pcs';
             $units = [[
                 'id'      => null,
@@ -160,6 +159,7 @@ class ProductSearchService
                     'jual1'  => $basePrice,
                     'jual2'  => $basePrice,
                     'jual3'  => $basePrice,
+                    'minimal'=> $basePrice,
                 ],
                 'is_base' => true,
             ]];

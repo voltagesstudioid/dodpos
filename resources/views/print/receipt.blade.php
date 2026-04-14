@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Struk - {{ $transaction->id }}</title>
+    <title>Struk - {{ $rootTransaction->id }}</title>
     <style>
         @page {
             size: 58mm auto;
@@ -103,15 +103,23 @@
         $storePhone = $storeSetting->phone ?? '';
         $storeNote = $storeSetting->receipt_footer_note ?? null;
 
-        $noTrx = 'TRX-'.str_pad($transaction->id, 5, '0', STR_PAD_LEFT);
-        $metodeBayar = match($transaction->payment_method) {
+        $noTrx = 'TRX-'.str_pad($rootTransaction->id, 5, '0', STR_PAD_LEFT);
+        $metodeBayar = match($rootTransaction->payment_method) {
             'cash' => 'TUNAI',
             'tunai' => 'TUNAI',
             'transfer' => 'TRANSFER',
             'qris' => 'QRIS',
             'kredit' => 'KREDIT',
-            default => strtoupper((string) $transaction->payment_method),
+            default => strtoupper((string) $rootTransaction->payment_method),
         };
+
+        // Jenis transaksi: Eceran atau Grosir
+        $jenisTransaksi = $rootTransaction->sale_type === 'grosir' ? 'GROSIR' : 'ECERAN';
+
+        // Calculate totals including additional transactions
+        $grandTotal = $rootTransaction->grand_total ?? $rootTransaction->total_amount;
+        $totalPaid = $rootTransaction->total_paid ?? $rootTransaction->paid_amount;
+        $changeAmount = $totalPaid - $grandTotal;
     @endphp
     <div class="container">
         <!-- HEADER -->
@@ -119,6 +127,7 @@
             <h1>{{ $storeName }}</h1>
             @if($storeAddr)<p>{{ $storeAddr }}</p>@endif
             @if($storePhone)<p>Telp: {{ $storePhone }}</p>@endif
+            <p style="font-weight:bold;margin-top:5px;">*** {{ $jenisTransaksi }} ***</p>
         </div>
 
         <!-- INFO TRANSAKSI -->
@@ -127,48 +136,104 @@
                 <tr>
                     <td>Tgl</td>
                     <td>:</td>
-                    <td>{{ $transaction->created_at->format('d/m/Y H:i') }}</td>
+                    <td>{{ $rootTransaction->created_at->format('d/m/Y H:i') }}</td>
                 </tr>
                 <tr>
                     <td>Kasir</td>
                     <td>:</td>
-                    <td>{{ $transaction->user->name ?? '-' }}</td>
+                    <td>{{ $rootTransaction->user->name ?? '-' }}</td>
                 </tr>
                 <tr>
                     <td>No. Trx</td>
                     <td>:</td>
                     <td>{{ $noTrx }}</td>
                 </tr>
-                @if($transaction->customer)
+                @if($rootTransaction->customer)
                 <tr>
                     <td>Pelanggan</td>
                     <td>:</td>
-                    <td>{{ $transaction->customer->name }}</td>
+                    <td>{{ $rootTransaction->customer->name }}</td>
                 </tr>
                 @endif
-                @if($transaction->payment_reference)
+                @if($rootTransaction->payment_reference)
                 <tr>
                     <td>Ref</td>
                     <td>:</td>
-                    <td>{{ $transaction->payment_reference }}</td>
+                    <td>{{ $rootTransaction->payment_reference }}</td>
+                </tr>
+                @endif
+                @if($rootTransaction->vehicle_id || $rootTransaction->driver_name)
+                <tr>
+                    <td>Kendaraan</td>
+                    <td>:</td>
+                    <td>
+                        @if($rootTransaction->vehicle)
+                            {{ $rootTransaction->vehicle->license_plate }}
+                        @endif
+                        @if($rootTransaction->driver_name)
+                            / {{ $rootTransaction->driver_name }}
+                        @endif
+                    </td>
                 </tr>
                 @endif
             </table>
         </div>
 
+        <!-- DEBUG INFO - Remove after fixing -->
+        @php
+            $hasAdditional = $rootTransaction->hasAdditionalItems();
+            $additionalCount = $rootTransaction->additionalTransactions->count();
+        @endphp
+        @if($hasAdditional)
+        <div style="background:#fef3c7;padding:5px;font-size:10px;text-align:center;border-bottom:1px dashed #000;">
+            Ada {{ $additionalCount }} transaksi tambahan
+        </div>
+        @endif
+
         <!-- ITEMS -->
         <table class="items">
             <tbody>
-                @foreach($transaction->details as $detail)
+                {{-- Main Transaction Items ({{ $rootTransaction->details->count() }} items) --}}
+                @foreach($rootTransaction->details as $detail)
+                @php
+                    $displayQty = ($detail->unit_qty !== null && $detail->unit_qty > 0) ? $detail->unit_qty : $detail->quantity;
+                    $displayUnit = $detail->unit_name ?? 'pcs';
+                    $displayPrice = ($displayQty > 0) ? ($detail->subtotal / $displayQty) : $detail->price;
+                @endphp
                 <tr>
                     <td colspan="2">
                         <span class="item-name">{{ $detail->product->name ?? 'Produk Dihapus' }}</span>
                     </td>
                 </tr>
                 <tr>
-                    <td>{{ $detail->quantity }} x {{ number_format($detail->price, 0, ',', '.') }}</td>
+                    <td>{{ $displayQty }} {{ $displayUnit }} x {{ number_format($displayPrice, 0, ',', '.') }}</td>
                     <td class="right">{{ number_format($detail->subtotal, 0, ',', '.') }}</td>
                 </tr>
+                @endforeach
+                
+                {{-- Additional Transactions Items --}}
+                @foreach($rootTransaction->additionalTransactions as $addTrans)
+                    <tr>
+                        <td colspan="2" style="font-size:10px;color:#666;text-align:center;padding-top:5px;">
+                            --- Tambahan ---
+                        </td>
+                    </tr>
+                    @foreach($addTrans->details as $detail)
+                    @php
+                        $displayQty = ($detail->unit_qty !== null && $detail->unit_qty > 0) ? $detail->unit_qty : $detail->quantity;
+                        $displayUnit = $detail->unit_name ?? 'pcs';
+                        $displayPrice = ($displayQty > 0) ? ($detail->subtotal / $displayQty) : $detail->price;
+                    @endphp
+                    <tr>
+                        <td colspan="2">
+                            <span class="item-name">{{ $detail->product->name ?? 'Produk Dihapus' }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>{{ $displayQty }} {{ $displayUnit }} x {{ number_format($displayPrice, 0, ',', '.') }}</td>
+                        <td class="right">{{ number_format($detail->subtotal, 0, ',', '.') }}</td>
+                    </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
@@ -177,21 +242,47 @@
         <table class="summary">
             <tr>
                 <th>Total</th>
-                <th class="right">{{ number_format($transaction->total_amount, 0, ',', '.') }}</th>
+                <th class="right">{{ number_format($grandTotal, 0, ',', '.') }}</th>
+            </tr>
+            
+            {{-- Show all payment methods --}}
+            <tr>
+                <td colspan="2" style="font-size:9px;color:#666;padding:2px 0;">Pembayaran Utama:</td>
             </tr>
             <tr>
                 <td>Bayar (<span class="payment-method">{{ $metodeBayar }}</span>)</td>
-                <td class="right">{{ number_format($transaction->paid_amount, 0, ',', '.') }}</td>
+                <td class="right">{{ number_format($totalPaid, 0, ',', '.') }}</td>
             </tr>
-            @if($transaction->payment_method === 'kredit')
+            
+            {{-- Additional transactions payments --}}
+            @foreach($rootTransaction->additionalTransactions as $addTrans)
+                @php
+                    $addMetode = match($addTrans->payment_method) {
+                        'cash' => 'TUNAI',
+                        'tunai' => 'TUNAI',
+                        'transfer' => 'TRANSFER',
+                        'qris' => 'QRIS',
+                        default => strtoupper($addTrans->payment_method),
+                    };
+                @endphp
+                <tr>
+                    <td colspan="2" style="font-size:9px;color:#666;padding:2px 0;">Pembayaran Tambahan:</td>
+                </tr>
+                <tr>
+                    <td>Bayar (<span class="payment-method">{{ $addMetode }}</span>)</td>
+                    <td class="right">{{ number_format($addTrans->paid_amount, 0, ',', '.') }}</td>
+                </tr>
+            @endforeach
+            
+            @if($rootTransaction->payment_method === 'kredit')
             <tr>
                 <td>Sisa Hutang</td>
-                <td class="right">{{ number_format($transaction->total_amount - $transaction->paid_amount, 0, ',', '.') }}</td>
+                <td class="right">{{ number_format($grandTotal - $totalPaid, 0, ',', '.') }}</td>
             </tr>
             @else
             <tr>
                 <td>Kembali</td>
-                <td class="right">{{ number_format($transaction->change_amount, 0, ',', '.') }}</td>
+                <td class="right">{{ number_format(max(0, $changeAmount), 0, ',', '.') }}</td>
             </tr>
             @endif
         </table>

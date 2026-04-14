@@ -43,6 +43,41 @@
                         @error('name')<div class="form-error">⚠ {{ $message }}</div>@enderror
                     </div>
 
+                    {{-- Kategori Pelanggan --}}
+                    <div class="form-group">
+                        <label class="form-label">Kategori Pelanggan <span class="required">*</span></label>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;">
+                            <label style="cursor:pointer;position:relative;">
+                                <input type="radio" name="category" value="eceran" {{ old('category', $pelanggan->category) === 'eceran' ? 'checked' : '' }} required style="position:absolute;opacity:0;">
+                                <div style="padding:1rem;border:2px solid #e2e8f0;border-radius:8px;text-align:center;transition:all 0.2s;" class="radio-box">
+                                    <div style="width:40px;height:40px;border-radius:8px;background:#ccfbf1;display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin:0 auto 0.5rem;">🛒</div>
+                                    <div style="font-weight:700;font-size:0.9rem;">Eceran</div>
+                                    <div style="font-size:0.7rem;color:#64748b;">Pelanggan umum</div>
+                                </div>
+                            </label>
+                            <label style="cursor:pointer;position:relative;">
+                                <input type="radio" name="category" value="grosir" {{ old('category', $pelanggan->category) === 'grosir' ? 'checked' : '' }} required style="position:absolute;opacity:0;">
+                                <div style="padding:1rem;border:2px solid #e2e8f0;border-radius:8px;text-align:center;transition:all 0.2s;" class="radio-box">
+                                    <div style="width:40px;height:40px;border-radius:8px;background:#f3e8ff;display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin:0 auto 0.5rem;">🏪</div>
+                                    <div style="font-weight:700;font-size:0.9rem;">Grosir</div>
+                                    <div style="font-size:0.7rem;color:#64748b;">Toko/distributor</div>
+                                </div>
+                            </label>
+                            <label style="cursor:pointer;position:relative;">
+                                <input type="radio" name="category" value="pos" {{ old('category', $pelanggan->category) === 'pos' ? 'checked' : '' }} required style="position:absolute;opacity:0;">
+                                <div style="padding:1rem;border:2px solid #e2e8f0;border-radius:8px;text-align:center;transition:all 0.2s;" class="radio-box">
+                                    <div style="width:40px;height:40px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:1.25rem;margin:0 auto 0.5rem;">🅿️</div>
+                                    <div style="font-weight:700;font-size:0.9rem;">Toko/POS</div>
+                                    <div style="font-size:0.7rem;color:#64748b;">Dengan sistem POS</div>
+                                </div>
+                            </label>
+                        </div>
+                        <style>
+                            input:checked + .radio-box { border-color:#3b82f6 !important; background:#eff6ff; }
+                            label:hover .radio-box { border-color:#cbd5e1; }
+                        </style>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">No. Telepon</label>

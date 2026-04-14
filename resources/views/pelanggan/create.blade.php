@@ -54,7 +54,6 @@
                             <h2 class="tr-section-title">Identitas Pelanggan</h2>
                             <p class="tr-section-desc">Informasi kontak utama dan alamat pengiriman.</p>
                         </div>
-                        <span class="tr-badge badge-blue">Kategori Default: Toko/POS</span>
                     </div>
                     <div class="tr-card-body">
                         
@@ -65,6 +64,38 @@
                                 class="tr-input @error('name') is-invalid @enderror" 
                                 value="{{ old('name') }}" placeholder="Masukkan nama lengkap..." required autofocus>
                             @error('name')<div class="tr-error-msg">{{ $message }}</div>@enderror
+                        </div>
+
+                        {{-- Kategori --}}
+                        <div class="tr-form-group">
+                            <label class="tr-label">Kategori Pelanggan <span class="tr-req">*</span></label>
+                            <div class="tr-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;">
+                                <label class="tr-radio-card">
+                                    <input type="radio" name="category" value="eceran" {{ old('category', 'eceran') === 'eceran' ? 'checked' : '' }} required>
+                                    <div class="radio-content">
+                                        <div class="radio-icon bg-teal">🛒</div>
+                                        <div class="radio-label">Eceran</div>
+                                        <div class="radio-desc">Pelanggan umum/retail</div>
+                                    </div>
+                                </label>
+                                <label class="tr-radio-card">
+                                    <input type="radio" name="category" value="grosir" {{ old('category') === 'grosir' ? 'checked' : '' }} required>
+                                    <div class="radio-content">
+                                        <div class="radio-icon bg-purple">🏪</div>
+                                        <div class="radio-label">Grosir</div>
+                                        <div class="radio-desc">Toko/distributor besar</div>
+                                    </div>
+                                </label>
+                                <label class="tr-radio-card">
+                                    <input type="radio" name="category" value="pos" {{ old('category') === 'pos' ? 'checked' : '' }} required>
+                                    <div class="radio-content">
+                                        <div class="radio-icon bg-blue">🏷️</div>
+                                        <div class="radio-label">Toko/POS</div>
+                                        <div class="radio-desc">Pelanggan dengan sistem POS</div>
+                                    </div>
+                                </label>
+                            </div>
+                            @error('category')<div class="tr-error-msg">{{ $message }}</div>@enderror
                         </div>
 
                         {{-- Kontak Grid --}}
@@ -214,6 +245,18 @@
 
         .tr-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; height: fit-content; }
         .badge-blue { background: var(--tr-blue-light); color: var(--tr-blue); }
+
+        /* ── RADIO CARDS ── */
+        .tr-radio-card { cursor: pointer; position: relative; }
+        .tr-radio-card input { position: absolute; opacity: 0; }
+        .tr-radio-card .radio-content { padding: 1.25rem; border: 2px solid var(--tr-border); border-radius: 12px; text-align: center; transition: all 0.2s; background: #fff; }
+        .tr-radio-card input:checked + .radio-content { border-color: var(--tr-blue); background: var(--tr-blue-light); }
+        .tr-radio-card:hover .radio-content { border-color: #cbd5e1; }
+        .radio-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 0.75rem; }
+        .bg-teal { background: #ccfbf1; }
+        .bg-purple { background: #f3e8ff; }
+        .radio-label { font-weight: 700; font-size: 0.95rem; color: var(--tr-text-main); }
+        .radio-desc { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 4px; }
 
         /* ── FORM ELEMENTS ── */
         .tr-form-group { margin-bottom: 1.25rem; }

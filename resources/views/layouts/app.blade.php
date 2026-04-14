@@ -812,6 +812,16 @@
             <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Hitung Fisik</span></a>
             @endcan
 
+            {{-- PESANAN DARI GUDANG --}}
+            @php 
+                $whq1 = \App\Models\Transaction::where('delivery_status', 'pending')->where('status', 'completed')->whereNotNull('source_warehouse_id');
+                $whId1 = auth()->user()->warehouse_id ?? auth()->user()->employee?->warehouse_id;
+                if ($whId1) { $whq1->where('source_warehouse_id', $whId1); }
+                $pendingOrdersCount = $whq1->count(); 
+            @endphp
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">🛒 PESANAN GUDANG</span></div>
+            <a href="{{ route('warehouse.orders.index') }}" class="nav-item {{ request()->routeIs('warehouse.orders*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Pesanan Perlu Kemas</span>@if((int)$pendingOrdersCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca;">{{ $pendingOrdersCount }}</span> @endif</a>
+
             @else
             <div class="nav-group {{ $gudangActive ? 'open' : '' }}" id="grp-gudang">
                 <button class="nav-group-header" onclick="toggleGroup('grp-gudang')" type="button">
@@ -837,6 +847,13 @@
                     @can('view_opname_stok')
                     <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Stok Fisik</span></a>
                     @endcan
+                    @php 
+                        $whq2 = \App\Models\Transaction::where('delivery_status', 'pending')->where('status', 'completed')->whereNotNull('source_warehouse_id');
+                        $whId2 = auth()->user()->warehouse_id ?? auth()->user()->employee?->warehouse_id;
+                        if ($whId2) { $whq2->where('source_warehouse_id', $whId2); }
+                        $pendingOrdersCount2 = $whq2->count(); 
+                    @endphp
+                    <a href="{{ route('warehouse.orders.index') }}" class="nav-item {{ request()->routeIs('warehouse.orders*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Pesanan Gudang</span>@if((int)$pendingOrdersCount2 > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca;">{{ $pendingOrdersCount2 }}</span> @endif</a>
                 </div>
             </div>
             @endif
