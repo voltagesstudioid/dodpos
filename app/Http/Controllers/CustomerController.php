@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\CustomerCredit;
 use App\Models\CustomerCreditPayment;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,24 +15,39 @@ class CustomerController extends Controller
     public function index(Request $request)
     {
         $query = Customer::query();
-        
+
         if ($request->filled('category') && $request->category !== 'all') {
             $query->where('category', $request->category);
         }
 
         if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('phone', 'like', '%' . $request->search . '%');
+            $sanitized = SearchSanitizer::sanitize($request->search);
+            $query->where(function ($q) use ($sanitized) {
+                $q->where('name', 'like', "%{$sanitized}%")
+                  ->orWhere('phone', 'like', "%{$sanitized}%")
+                  ->orWhere('email', 'like', "%{$sanitized}%");
             });
         }
-        
+
         if ($request->has('active') && $request->active !== '') {
             $query->where('is_active', $request->active);
         }
-        
+
         $customers = $query->orderBy('name')->paginate(20)->withQueryString();
-        return view('pelanggan.index', compact('customers'));
+
+        // Stat cards (for the current filter scope)
+        $statQuery = Customer::query();
+        if ($request->filled('category') && $request->category !== 'all') {
+            $statQuery->where('category', $request->category);
+        }
+        $totalCustomers = (clone $statQuery)->count();
+        $activeCustomers = (clone $statQuery)->where('is_active', true)->count();
+        $totalDebt = (clone $statQuery)->where('current_debt', '>', 0)->sum('current_debt');
+        $withCredit = (clone $statQuery)->where('credit_limit', '>', 0)->count();
+
+        return view('pelanggan.index', compact(
+            'customers', 'totalCustomers', 'activeCustomers', 'totalDebt', 'withCredit'
+        ));
     }
 
     public function create()

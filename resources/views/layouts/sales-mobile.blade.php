@@ -7,6 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="user-division" content="{{ auth()->user()->division ?? 'minyak' }}">
     
     <title>@yield('title', 'DODPOS Sales')</title>
     

@@ -30,7 +30,16 @@ class KasirGrosirController extends Controller
 
     public function index()
     {
-        // Kasir Grosir tidak perlu modal awal - langsung bisa digunakan
+        $activeSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'grosir')
+            ->latest()
+            ->first();
+
+        if (! $activeSession) {
+            return view('kasir.closed', ['type' => 'grosir']);
+        }
+
+        // Load products for grosir POS
         $products = $this->searchService->getProductsQuery()
             ->limit(20)
             ->get()
@@ -87,7 +96,7 @@ class KasirGrosirController extends Controller
             DB::beginTransaction();
 
             // Validate POS session
-            $this->transactionService->validatePosSession();
+            $this->transactionService->validatePosSession('grosir');
 
             // Lock and load products
             $productIds = collect($request->items)->pluck('product_id')->unique()->values()->toArray();
@@ -125,8 +134,8 @@ class KasirGrosirController extends Controller
 
                 $unitQty = (int) $item['unit_qty'];
                 $warehouseId = $item['warehouse_id'];
-                $baseFactor = $conversion ? max(1, (int) $conversion->conversion_factor) : 1;
-                $baseQty = $unitQty * $baseFactor;
+                $baseFactor = $conversion ? max(0.0001, (float) $conversion->conversion_factor) : 1;
+                $baseQty = (int) round($unitQty * $baseFactor);
 
                 // Check stock availability
                 $key = $product->id . '_' . $warehouseId;
@@ -206,6 +215,9 @@ class KasirGrosirController extends Controller
                     'grosir'
                 );
             }
+
+            // Create pick orders for main warehouse items
+            $this->transactionService->createPickOrdersIfNeeded($trx, $resolvedItems, 'grosir');
 
             // Create customer credit if needed
             if ($request->payment_method === 'kredit') {

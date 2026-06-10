@@ -26,8 +26,12 @@ class TransactionController extends Controller
         // Filters
         if ($request->search) {
             $sanitizedSearch = SearchSanitizer::sanitize($request->search);
-            $query->where('id', $request->search)
-                ->orWhereHas('user', fn ($q) => $q->where('name', 'like', "%{$sanitizedSearch}%"));
+            $query->where(function ($q) use ($request, $sanitizedSearch) {
+                $q->where('id', $request->search)
+                    ->orWhereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"))
+                    ->orWhereHas('customer', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"))
+                    ->orWhere('invoice_number', 'like', "%{$sanitizedSearch}%");
+            });
         }
         if ($request->payment_method) {
             $query->where('payment_method', $request->payment_method);
@@ -53,7 +57,7 @@ class TransactionController extends Controller
         $transactions = $query->paginate(25)->withQueryString();
 
         // Summary cards (for current filter scope)
-        // Summary only counts root transactions
+        // Summary only counts root transactions (same scope as main query)
         $summaryQuery = Transaction::query()->whereNull('parent_transaction_id');
         if ($request->date_from) {
             $summaryQuery->whereDate('created_at', '>=', $request->date_from);
@@ -67,11 +71,25 @@ class TransactionController extends Controller
         if ($request->sale_type) {
             $summaryQuery->where('sale_type', $request->sale_type);
         }
+        if ($request->status) {
+            $summaryQuery->where('status', $request->status);
+        }
+        if ($request->customer_type) {
+            $summaryQuery->whereHas('customer', fn ($q) => $q->where('category', $request->customer_type));
+        }
 
         $totalRevenue = (clone $summaryQuery)->where('status', 'completed')->sum('total_amount');
         $totalCount = (clone $summaryQuery)->where('status', 'completed')->count();
-        $todayRevenue = Transaction::whereDate('created_at', today())->where('status', 'completed')->sum('total_amount');
-        $todayCount = Transaction::whereDate('created_at', today())->where('status', 'completed')->count();
+
+        // Today stats: only root transactions, completed only
+        $todayRevenue = Transaction::whereNull('parent_transaction_id')
+            ->whereDate('created_at', today())
+            ->where('status', 'completed')
+            ->sum('total_amount');
+        $todayCount = Transaction::whereNull('parent_transaction_id')
+            ->whereDate('created_at', today())
+            ->where('status', 'completed')
+            ->count();
 
         return view('transaksi.index', compact(
             'transactions', 'totalRevenue', 'totalCount', 'todayRevenue', 'todayCount'
@@ -80,10 +98,29 @@ class TransactionController extends Controller
 
     public function show(Transaction $transaksi)
     {
-        // Load additional transactions relation
-        $transaksi->load(['user', 'details.product.category', 'details.warehouse', 'customer', 'additionalTransactions.details.product.category']);
+        // Load all required relations including return history
+        $transaksi->load([
+            'user',
+            'customer',
+            'vehicle',
+            'details.product.category',
+            'details.warehouse',
+            'additionalTransactions.details.product.category',
+            'returns.items.product',
+            'returns.user',
+        ]);
 
-        return view('transaksi.show', compact('transaksi'));
+        // Collect IDs of detail rows that have been returned (for UI indicators)
+        $returnedDetailIds = $transaksi->returns
+            ->filter(fn ($r) => $r->status === 'completed')
+            ->flatMap(fn ($r) => $r->items->pluck('transaction_detail_id'))
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $hasReturns = count($returnedDetailIds) > 0;
+
+        return view('transaksi.show', compact('transaksi', 'returnedDetailIds', 'hasReturns'));
     }
 
     /**
@@ -118,7 +155,11 @@ class TransactionController extends Controller
                 $movementRows = StockMovement::query()
                     ->selectRaw('product_id, warehouse_id, location_id, SUM(quantity) as qty')
                     ->where('source_type', 'pos_transaction')
-                    ->where('reference_number', 'TRX-'.$transaksi->id)
+                    ->where(function ($q) use ($transaksi) {
+                        $q->where('reference_number', 'TRX-'.$transaksi->id)
+                          ->orWhere('reference_number', 'POS-GROSIR-'.$transaksi->id)
+                          ->orWhere('reference_number', 'POS-ECERAN-'.$transaksi->id);
+                    })
                     ->where('type', 'out')
                     ->groupBy('product_id', 'warehouse_id', 'location_id')
                     ->get();
@@ -189,9 +230,7 @@ class TransactionController extends Controller
                             $stock = ProductStock::query()
                                 ->where('product_id', $detail->product_id)
                                 ->where('warehouse_id', $warehouseId)
-                                ->whereNull('location_id')
-                                ->whereNull('batch_number')
-                                ->whereNull('expired_date')
+                                ->orderBy('stock', 'desc')
                                 ->lockForUpdate()
                                 ->first();
 
@@ -240,9 +279,7 @@ class TransactionController extends Controller
                         $stock = ProductStock::query()
                             ->where('product_id', $detail->product_id)
                             ->where('warehouse_id', $warehouseId)
-                            ->whereNull('location_id')
-                            ->whereNull('batch_number')
-                            ->whereNull('expired_date')
+                            ->orderBy('stock', 'desc')
                             ->lockForUpdate()
                             ->first();
 
@@ -320,9 +357,7 @@ class TransactionController extends Controller
                             $stock = ProductStock::query()
                                 ->where('product_id', $detail->product_id)
                                 ->where('warehouse_id', $warehouseId)
-                                ->whereNull('location_id')
-                                ->whereNull('batch_number')
-                                ->whereNull('expired_date')
+                                ->orderBy('stock', 'desc')
                                 ->lockForUpdate()
                                 ->first();
 

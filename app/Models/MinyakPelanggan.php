@@ -12,9 +12,10 @@ class MinyakPelanggan extends Model
     protected $table = 'minyak_pelanggan';
 
     protected $fillable = [
+        'regional_id',
         'kode_pelanggan', 'nama_toko', 'nama_pemilik', 'no_hp', 'email',
         'alamat', 'kecamatan', 'kota', 'latitude', 'longitude',
-        'tipe', 'limit_hutang', 'total_hutang', 'status',
+        'tipe', 'limit_hutang', 'total_hutang', 'status', 'foto_toko',
     ];
 
     protected $casts = [
@@ -23,6 +24,11 @@ class MinyakPelanggan extends Model
         'limit_hutang' => 'decimal:2',
         'total_hutang' => 'decimal:2',
     ];
+
+    public function regional()
+    {
+        return $this->belongsTo(MinyakRegional::class, 'regional_id');
+    }
 
     public function penjualans()
     {

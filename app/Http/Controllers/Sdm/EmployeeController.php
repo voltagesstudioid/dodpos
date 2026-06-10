@@ -56,7 +56,30 @@ class EmployeeController extends Controller
             ->pluck('role')
             ->values();
 
-        return view('sdm.karyawan.index', compact('karyawan', 'roles'));
+        // Compute stats from the FULL dataset (not paginated)
+        $baseQuery = SdmEmployee::query();
+        if ($request->filled('q')) {
+            $q2 = trim((string) $request->q);
+            $baseQuery->where(function ($sub) use ($q2) {
+                $sub->where('name', 'like', '%'.$q2.'%')
+                    ->orWhere('phone', 'like', '%'.$q2.'%')
+                    ->orWhere('position', 'like', '%'.$q2.'%')
+                    ->orWhereHas('user', function ($u) use ($q2) {
+                        $u->where('email', 'like', '%'.$q2.'%')
+                            ->orWhere('name', 'like', '%'.$q2.'%')
+                            ->orWhere('role', 'like', '%'.$q2.'%');
+                    });
+            });
+        }
+        if ($request->filled('role')) {
+            $baseQuery->whereHas('user', fn ($u) => $u->where('role', $request->role));
+        }
+        $totalFiltered = $baseQuery->count();
+        $withAccount = (clone $baseQuery)->whereNotNull('user_id')->count();
+        $withoutAccount = $totalFiltered - $withAccount;
+        $stats = compact('totalFiltered', 'withAccount', 'withoutAccount');
+
+        return view('sdm.karyawan.index', compact('karyawan', 'roles', 'stats'));
     }
 
     public function export(Request $request)

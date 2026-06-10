@@ -91,7 +91,7 @@ class KasirEceranController extends Controller
             DB::beginTransaction();
 
             // Validate POS session
-            $this->transactionService->validatePosSession();
+            $this->transactionService->validatePosSession('eceran');
 
             // Lock and load products
             $productIds = collect($request->items)->pluck('product_id')->unique()->values()->toArray();
@@ -129,8 +129,8 @@ class KasirEceranController extends Controller
 
                 $unitQty = (int) $item['unit_qty'];
                 $warehouseId = $item['warehouse_id'];
-                $baseFactor = $conversion ? max(1, (int) $conversion->conversion_factor) : 1;
-                $baseQty = $unitQty * $baseFactor;
+                $baseFactor = $conversion ? max(0.0001, (float) $conversion->conversion_factor) : 1;
+                $baseQty = (int) round($unitQty * $baseFactor);
 
                 // Check stock availability
                 $key = $product->id . '_' . $warehouseId;
@@ -208,6 +208,9 @@ class KasirEceranController extends Controller
                     'eceran'
                 );
             }
+
+            // Create pick orders for main warehouse items
+            $this->transactionService->createPickOrdersIfNeeded($trx, $resolvedItems, 'eceran');
 
             // Create customer credit if needed
             if ($request->payment_method === 'kredit') {

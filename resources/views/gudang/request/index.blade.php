@@ -1,538 +1,485 @@
 <x-app-layout>
     <x-slot name="header">Permintaan Barang (PO / Transfer)</x-slot>
 
-    <div class="tr-page-wrapper">
-        <div class="tr-page">
+    <div class="pr-page">
 
-            {{-- HEADER --}}
-            <div class="tr-header">
-                <div class="tr-header-text">
-                    <div class="tr-eyebrow">Approval Workflow</div>
-                    <h1 class="tr-title">
-                        <div class="tr-title-icon-box bg-indigo">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        </div>
-                        Permintaan Barang Masuk
-                    </h1>
-                    <p class="tr-subtitle">Pantau pengajuan Purchase Order baru dan Transfer Cabang dari tim Gudang.</p>
+        {{-- ══════════ HEADER ══════════ --}}
+        <div class="pr-header">
+            <div class="pr-header-left">
+                <div class="pr-icon-box">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </div>
-                
-                <div class="tr-header-actions">
-                    <a href="{{ route('gudang.request.create') }}" class="tr-btn tr-btn-primary">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        Buat Permintaan Baru
-                    </a>
+                <div>
+                    <div class="pr-eyebrow">Approval Workflow</div>
+                    <h1 class="pr-title">Permintaan Barang Masuk</h1>
+                    <p class="pr-subtitle">Pantau pengajuan Purchase Order baru dan Transfer Cabang dari tim Gudang.</p>
                 </div>
             </div>
+            <a href="{{ route('gudang.request.create') }}" class="pr-btn pr-btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Buat Permintaan Baru
+            </a>
+        </div>
 
-            {{-- ALERTS --}}
-            @if(session('success'))
-                <div class="tr-alert tr-alert-success">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    {{ session('success') }}
-                </div>
-            @endif
-            @if(session('error')) 
-                <div class="tr-alert tr-alert-danger">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                    {{ session('error') }}
-                </div> 
-            @endif
+        {{-- ══════════ ALERTS ══════════ --}}
+        @if(session('success'))
+        <div class="pr-alert pr-alert-success">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            {{ session('success') }}
+        </div>
+        @endif
+        @if(session('error'))
+        <div class="pr-alert pr-alert-danger">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            {{ session('error') }}
+        </div>
+        @endif
 
-            {{-- KPI GRID --}}
-            <div class="tr-kpi-grid">
-                <div class="tr-kpi-card border-blue">
-                    <div class="tr-kpi-label">Total Permintaan</div>
-                    <div class="tr-kpi-value text-blue">{{ $totalCount }}</div>
+        {{-- ══════════ KPI CARDS ══════════ --}}
+        <div class="pr-kpi">
+            <div class="pr-kpi-card pr-kpi-total">
+                <div class="pr-kpi-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
-                <div class="tr-kpi-card border-warning">
-                    <div class="tr-kpi-label">Menunggu (Pending)</div>
-                    <div class="tr-kpi-value text-warning">{{ $pendingCount }}</div>
-                </div>
-                <div class="tr-kpi-card border-success">
-                    <div class="tr-kpi-label">Disetujui</div>
-                    <div class="tr-kpi-value text-success">{{ $approvedCount }}</div>
-                </div>
-                <div class="tr-kpi-card border-danger">
-                    <div class="tr-kpi-label">Ditolak</div>
-                    <div class="tr-kpi-value text-danger">{{ $rejectedCount }}</div>
-                </div>
-                <div class="tr-kpi-card border-slate">
-                    <div class="tr-kpi-label">Selesai (Completed)</div>
-                    <div class="tr-kpi-value text-slate">{{ $completedCount }}</div>
+                <div class="pr-kpi-info">
+                    <span class="pr-kpi-label">Total Permintaan</span>
+                    <span class="pr-kpi-value">{{ $totalCount }}</span>
                 </div>
             </div>
-
-            {{-- MAIN CARD --}}
-            <div class="tr-card">
-                
-                {{-- Filter Bar --}}
-                <div class="tr-card-header tr-filter-bar">
-                    <form method="GET" action="{{ route('gudang.request.index') }}" class="tr-filter-grid">
-                        <div class="tr-form-group">
-                            <label class="tr-label">Pencarian</label>
-                            <div class="tr-search">
-                                <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                <input type="text" name="q" value="{{ request('q') }}" placeholder="Cari pemohon, SKU, produk...">
-                            </div>
-                        </div>
-
-                        <div class="tr-form-group">
-                            <label class="tr-label">Status</label>
-                            <div class="tr-select-wrapper">
-                                <select name="status" class="tr-select">
-                                    <option value="">Semua Status</option>
-                                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                                    <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                                    <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
-                                    <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="tr-form-group">
-                            <label class="tr-label">Tipe Request</label>
-                            <div class="tr-select-wrapper">
-                                <select name="type" class="tr-select">
-                                    <option value="">Semua Tipe</option>
-                                    <option value="po" {{ request('type') === 'po' ? 'selected' : '' }}>PO Baru</option>
-                                    <option value="transfer" {{ request('type') === 'transfer' ? 'selected' : '' }}>Transfer Cabang</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="tr-filter-actions">
-                            <button type="submit" class="tr-btn tr-btn-dark">Filter Data</button>
-                            @if(request()->filled('q') || request()->filled('status') || request()->filled('type'))
-                                <a href="{{ route('gudang.request.index') }}" class="tr-btn tr-btn-danger-outline">Reset</a>
-                            @endif
-                        </div>
-                    </form>
+            <div class="pr-kpi-card pr-kpi-pending">
+                <div class="pr-kpi-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-
-                {{-- Table --}}
-                <div class="table-responsive">
-                    <table class="tr-table">
-                        <thead>
-                            <tr>
-                                <th>Tanggal Submit</th>
-                                <th>Pemohon (Role)</th>
-                                <th>Produk Terkait</th>
-                                <th class="c">Jumlah</th>
-                                <th>Tipe / Rute</th>
-                                <th>Catatan Tambahan</th>
-                                <th>Status</th>
-                                @if($role === 'supervisor')
-                                    <th class="r" style="width: 180px;">Aksi Cepat</th>
-                                @endif
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($requests as $req)
-                                <tr>
-                                    <td>
-                                        <div class="tr-date-main">{{ $req->created_at->format('d M Y') }}</div>
-                                        <div class="tr-date-sub">{{ $req->created_at->format('H:i') }} WIB</div>
-                                    </td>
-                                    <td>
-                                        <div class="tr-user-name">{{ $req->user->name ?? '-' }}</div>
-                                        <div class="tr-user-role">{{ strtoupper((string) ($req->user->role ?? '-')) }}</div>
-                                    </td>
-                                    <td>
-                                        <div class="tr-prod-name">{{ $req->product->name ?? '-' }}</div>
-                                        <div class="tr-prod-sku">SKU: <span class="tr-font-mono">{{ $req->product->sku ?? '-' }}</span></div>
-                                    </td>
-                                    <td class="c">
-                                        <span class="tr-qty-badge">{{ $req->quantity }}</span>
-                                    </td>
-                                    <td>
-                                        @if($req->type === 'po')
-                                            <span class="tr-badge tr-badge-blue">PURCHASE ORDER</span>
-                                        @else
-                                            <span class="tr-badge tr-badge-warning">TRANSFER CABANG</span>
-                                            <div class="tr-route-box">
-                                                <span class="tr-route-wh">{{ $req->fromWarehouse?->name ?? 'Gudang Utama' }}</span>
-                                                <svg class="tr-route-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                <span class="tr-route-wh">{{ $req->toWarehouse?->name ?? 'Gudang Cabang' }}</span>
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($req->notes)
-                                            <div class="tr-notes-text">"{{ $req->notes }}"</div>
-                                        @else
-                                            <span class="tr-text-muted">-</span>
-                                        @endif
-
-                                        @if($req->transfer_reference)
-                                            <div class="tr-doc-ref">Ref: <span class="tr-font-mono">{{ $req->transfer_reference }}</span></div>
-                                        @endif
-
-                                        @if($req->supervisor_notes)
-                                            <div class="tr-spv-note">
-                                                <strong>Balasan SPV:</strong> {{ $req->supervisor_notes }}
-                                            </div>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @php
-                                            $badgeClass = match($req->status) {
-                                                'pending' => 'tr-badge-warning',
-                                                'approved' => 'tr-badge-success',
-                                                'rejected' => 'tr-badge-danger',
-                                                'completed' => 'tr-badge-blue',
-                                                default => 'tr-badge-gray',
-                                            };
-                                            $badgeLabel = match($req->status) {
-                                                'pending' => 'MENUNGGU',
-                                                'approved' => 'DISETUJUI',
-                                                'rejected' => 'DITOLAK',
-                                                'completed' => 'SELESAI',
-                                                default => strtoupper($req->status),
-                                            };
-                                        @endphp
-                                        <span class="tr-badge {{ $badgeClass }}">{{ $badgeLabel }}</span>
-                                    </td>
-                                    
-                                    @if($role === 'supervisor')
-                                    <td class="r">
-                                        <div class="tr-actions-group">
-                                            @if($req->status === 'pending')
-                                                <button type="button" class="tr-action-btn-text tr-acc" onclick="openModal({{ $req->id }}, 'approved')">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                                    Setuju
-                                                </button>
-                                                <button type="button" class="tr-action-btn-text tr-rej" onclick="openModal({{ $req->id }}, 'rejected')">
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    Tolak
-                                                </button>
-                                            @else
-                                                <span class="tr-status-locked">Sudah Diproses</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                    @endif
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="{{ $role === 'supervisor' ? 8 : 7 }}">
-                                        <div class="tr-empty-state">
-                                            <div class="tr-empty-icon">
-                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                            </div>
-                                            <h6>Tidak ada permintaan barang</h6>
-                                            <p>Saat ini tidak ada pengajuan Purchase Order baru atau transfer cabang sesuai filter.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                <div class="pr-kpi-info">
+                    <span class="pr-kpi-label">Menunggu</span>
+                    <span class="pr-kpi-value">{{ $pendingCount }}</span>
                 </div>
+            </div>
+            <div class="pr-kpi-card pr-kpi-approved">
+                <div class="pr-kpi-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="pr-kpi-info">
+                    <span class="pr-kpi-label">Disetujui</span>
+                    <span class="pr-kpi-value">{{ $approvedCount }}</span>
+                </div>
+            </div>
+            <div class="pr-kpi-card pr-kpi-rejected">
+                <div class="pr-kpi-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                </div>
+                <div class="pr-kpi-info">
+                    <span class="pr-kpi-label">Ditolak</span>
+                    <span class="pr-kpi-value">{{ $rejectedCount }}</span>
+                </div>
+            </div>
+            <div class="pr-kpi-card pr-kpi-completed">
+                <div class="pr-kpi-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div class="pr-kpi-info">
+                    <span class="pr-kpi-label">Selesai</span>
+                    <span class="pr-kpi-value">{{ $completedCount }}</span>
+                </div>
+            </div>
+        </div>
 
-                @if($requests->hasPages())
-                    <div class="tr-pagination">
-                        {{ $requests->links() }}
+        {{-- ══════════ MAIN CARD ══════════ --}}
+        <div class="pr-card">
+
+            {{-- FILTER --}}
+            <div class="pr-filter">
+                <form method="GET" action="{{ route('gudang.request.index') }}" class="pr-filter-form">
+                    <div class="pr-search-box">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" name="q" value="{{ request('q') }}" placeholder="Cari pemohon, SKU, produk..." class="pr-search-input">
                     </div>
-                @endif
+                    <select name="status" class="pr-select">
+                        <option value="">Semua Status</option>
+                        <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
+                        <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
+                        <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
+                    </select>
+                    <select name="type" class="pr-select">
+                        <option value="">Semua Tipe</option>
+                        <option value="po" {{ request('type') === 'po' ? 'selected' : '' }}>PO Baru</option>
+                        <option value="transfer" {{ request('type') === 'transfer' ? 'selected' : '' }}>Transfer Cabang</option>
+                    </select>
+                    <button type="submit" class="pr-btn pr-btn-dark">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Filter
+                    </button>
+                    @if(request()->filled('q') || request()->filled('status') || request()->filled('type'))
+                    <a href="{{ route('gudang.request.index') }}" class="pr-btn pr-btn-ghost">Reset</a>
+                    @endif
+                </form>
             </div>
 
+            {{-- TABLE --}}
+            <div class="pr-table-wrap">
+                <table class="pr-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Pemohon</th>
+                            <th>Produk</th>
+                            <th class="c">Jumlah</th>
+                            <th>Tipe / Rute</th>
+                            <th>Catatan</th>
+                            <th>Status</th>
+                            @if($role === 'supervisor')<th class="c" style="width:150px;">Aksi</th>@endif
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($requests as $req)
+                        <tr>
+                            <td>
+                                <div class="pr-date">{{ $req->created_at->format('d M Y') }}</div>
+                                <div class="pr-date-sub">{{ $req->created_at->format('H:i') }} WIB</div>
+                            </td>
+                            <td>
+                                <div class="pr-user">
+                                    <span class="pr-avatar">{{ strtoupper(substr($req->user->name ?? '?', 0, 1)) }}</span>
+                                    <div>
+                                        <div class="pr-user-name">{{ $req->user->name ?? '-' }}</div>
+                                        <div class="pr-user-role">{{ strtoupper((string) ($req->user->role ?? '-')) }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="pr-prod-name">{{ $req->product->name ?? '-' }}</div>
+                                <div class="pr-prod-sku">{{ $req->product->sku ?? '-' }}</div>
+                            </td>
+                            <td class="c">
+                                @php
+                                    $unitName = $req->unit?->abbreviation ?? $req->unit?->name ?? $req->product?->unit?->abbreviation ?? $req->product?->unit?->name ?? '';
+                                @endphp
+                                <span class="pr-qty">
+                                    {{ number_format((float)$req->quantity, 0) }}
+                                    <span class="pr-qty-unit">{{ $unitName }}</span>
+                                </span>
+                            </td>
+                            <td>
+                                @if($req->type === 'po')
+                                <span class="pr-type-badge pr-type-po">PO BARU</span>
+                                @else
+                                <span class="pr-type-badge pr-type-transfer">TRANSFER</span>
+                                <div class="pr-route">
+                                    <span>{{ $req->fromWarehouse?->name ?? 'Gudang Utama' }}</span>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                                    <span>{{ $req->toWarehouse?->name ?? 'Gudang Cabang' }}</span>
+                                </div>
+                                @endif
+                            </td>
+                            <td>
+                                @if($req->notes)
+                                <div class="pr-notes-text" title="{{ $req->notes }}">{{ $req->notes }}</div>
+                                @else
+                                <span class="pr-muted">—</span>
+                                @endif
+                                @if($req->transfer_reference)
+                                <div class="pr-ref">Ref: {{ $req->transfer_reference }}</div>
+                                @endif
+                                @if($req->supervisor_notes)
+                                <div class="pr-spv-note">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                    {{ $req->supervisor_notes }}
+                                </div>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $statusMap = [
+                                        'pending' => ['label' => 'MENUNGGU', 'class' => 'pr-st-pending'],
+                                        'approved' => ['label' => 'DISETUJUI', 'class' => 'pr-st-approved'],
+                                        'rejected' => ['label' => 'DITOLAK', 'class' => 'pr-st-rejected'],
+                                        'completed' => ['label' => 'SELESAI', 'class' => 'pr-st-completed'],
+                                    ];
+                                    $st = $statusMap[$req->status] ?? ['label' => strtoupper($req->status), 'class' => 'pr-st-pending'];
+                                @endphp
+                                <span class="pr-status {{ $st['class'] }}">{{ $st['label'] }}</span>
+                            </td>
+                            @if($role === 'supervisor')
+                            <td class="c">
+                                @if($req->status === 'pending')
+                                <div class="pr-actions">
+                                    <button type="button" class="pr-act-btn pr-act-approve" onclick="openModal({{ $req->id }}, 'approved')" title="Setujui">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </button>
+                                    <button type="button" class="pr-act-btn pr-act-reject" onclick="openModal({{ $req->id }}, 'rejected')" title="Tolak">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                    </button>
+                                </div>
+                                @else
+                                <span class="pr-done">Diproses</span>
+                                @endif
+                            </td>
+                            @endif
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="{{ $role === 'supervisor' ? 8 : 7 }}">
+                                <div class="pr-empty">
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <h3>Tidak ada permintaan</h3>
+                                    <p>Tidak ada pengajuan Purchase Order atau transfer cabang sesuai filter yang dipilih.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            @if($requests->hasPages())
+            <div class="pr-pagination">
+                <div class="pr-pagination-info">Halaman {{ $requests->currentPage() }} dari {{ $requests->lastPage() }}</div>
+                <div class="pr-pagination-links">{{ $requests->withQueryString()->links() }}</div>
+            </div>
+            @endif
+        </div>
+
+    </div>
+
+    {{-- ══════════ APPROVAL MODAL ══════════ --}}
+    @if($role === 'supervisor')
+    <form id="statusForm" method="POST" style="display:none;" data-action="{{ route('gudang.request.update_status', ['productRequest' => '__ID__']) }}">
+        @csrf @method('PUT')
+        <input type="hidden" name="status" id="statusInput">
+        <input type="hidden" name="supervisor_notes" id="notesInput">
+    </form>
+
+    <div class="pr-modal" id="actionModal">
+        <div class="pr-modal-backdrop" onclick="closeModal()"></div>
+        <div class="pr-modal-box">
+            <div class="pr-modal-head">
+                <h3 id="modalTitle">Tindak Lanjut</h3>
+            </div>
+            <div class="pr-modal-body">
+                <p id="modalDesc" class="pr-modal-desc"></p>
+                <label class="pr-modal-label">Catatan Opsional (Alasan / Info)</label>
+                <textarea id="modalNotes" class="pr-textarea" placeholder="Tuliskan pesan untuk pemohon..."></textarea>
+            </div>
+            <div class="pr-modal-foot">
+                <button type="button" class="pr-btn pr-btn-ghost" onclick="closeModal()">Batalkan</button>
+                <button type="button" class="pr-btn pr-btn-primary" id="modalConfirmBtn">Simpan</button>
+            </div>
         </div>
     </div>
 
-    {{-- MODAL APPROVAL --}}
-    @if($role === 'supervisor')
-        <form id="statusForm" method="POST" style="display:none;">
-            @csrf
-            @method('PUT')
-            <input type="hidden" name="status" id="statusInput">
-            <input type="hidden" name="supervisor_notes" id="notesInput">
-        </form>
+    <script>
+    let currentReq = null;
+    function openModal(id, status) {
+        currentReq = { id, status };
+        const titleEl = document.getElementById('modalTitle');
+        const descEl = document.getElementById('modalDesc');
+        const confirmBtn = document.getElementById('modalConfirmBtn');
+        document.getElementById('modalNotes').value = '';
 
-        <div class="tr-modal" id="actionModal">
-            <div class="tr-modal-backdrop" onclick="closeModal()"></div>
-            <div class="tr-modal-card">
-                <div class="tr-modal-header">
-                    <h3 class="tr-modal-title" id="modalTitle">Tindak Lanjut</h3>
-                </div>
-                <div class="tr-modal-body">
-                    <p id="modalDesc" class="tr-modal-desc"></p>
-                    <label class="tr-label">Catatan Opsional (Alasan / Info Tambahan)</label>
-                    <textarea id="modalNotes" class="tr-textarea" placeholder="Tuliskan pesan untuk admin yang merequest..."></textarea>
-                </div>
-                <div class="tr-modal-footer">
-                    <button type="button" class="tr-btn tr-btn-outline" onclick="closeModal()">Batalkan</button>
-                    <button type="button" class="tr-btn tr-btn-primary" id="modalConfirmBtn">Simpan Keputusan</button>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            let currentReq = null;
-
-            function openModal(id, status) {
-                currentReq = { id, status };
-                const titleEl = document.getElementById('modalTitle');
-                const descEl = document.getElementById('modalDesc');
-                const confirmBtn = document.getElementById('modalConfirmBtn');
-                const notesEl = document.getElementById('modalNotes');
-
-                notesEl.value = '';
-
-                if (status === 'approved') {
-                    titleEl.textContent = 'Setujui Permintaan';
-                    descEl.innerHTML = 'Permintaan akan ditandai sebagai <strong>disetujui</strong>, dan dapat dilanjutkan ke tahap distribusi/PO.';
-                    confirmBtn.className = 'tr-btn tr-btn-success';
-                    confirmBtn.textContent = 'Ya, Setujui Permintaan';
-                } else {
-                    titleEl.textContent = 'Tolak Permintaan';
-                    descEl.innerHTML = 'Permintaan akan <strong>ditolak</strong>. Sangat disarankan untuk menuliskan alasan pada kolom catatan agar pemohon tahu.';
-                    confirmBtn.className = 'tr-btn tr-btn-danger';
-                    confirmBtn.textContent = 'Ya, Tolak Permintaan';
-                }
-
-                document.getElementById('actionModal').classList.add('active');
-                setTimeout(() => notesEl.focus(), 100);
-            }
-
-            function closeModal() {
-                document.getElementById('actionModal').classList.remove('active');
-                currentReq = null;
-            }
-
-            document.getElementById('modalConfirmBtn').addEventListener('click', function() {
-                if (!currentReq) return;
-                
-                const notesValue = document.getElementById('modalNotes').value.trim();
-
-                // Validasi jika ditolak
-                if (currentReq.status === 'rejected' && !notesValue) {
-                    alert('Catatan/Alasan wajib diisi jika Anda menolak permintaan ini.');
-                    document.getElementById('modalNotes').focus();
-                    return;
-                }
-
-                // Loading state
-                this.disabled = true;
-                this.style.opacity = '0.7';
-                this.textContent = 'Memproses...';
-
-                // Submit Form
-                const form = document.getElementById('statusForm');
-                document.getElementById('statusInput').value = currentReq.status;
-                document.getElementById('notesInput').value = notesValue;
-                form.action = '/gudang/request/' + currentReq.id + '/status';
-                form.submit();
-            });
-        </script>
+        if (status === 'approved') {
+            titleEl.textContent = 'Setujui Permintaan';
+            descEl.innerHTML = 'Permintaan akan ditandai sebagai <strong>disetujui</strong> dan dapat dilanjutkan ke tahap distribusi/PO.';
+            confirmBtn.className = 'pr-btn pr-btn-success';
+            confirmBtn.textContent = 'Ya, Setujui';
+        } else {
+            titleEl.textContent = 'Tolak Permintaan';
+            descEl.innerHTML = 'Permintaan akan <strong>ditolak</strong>. Disarankan untuk menuliskan alasan.';
+            confirmBtn.className = 'pr-btn pr-btn-danger';
+            confirmBtn.textContent = 'Ya, Tolak';
+        }
+        document.getElementById('actionModal').classList.add('active');
+        setTimeout(() => document.getElementById('modalNotes').focus(), 100);
+    }
+    function closeModal() {
+        document.getElementById('actionModal').classList.remove('active');
+        currentReq = null;
+    }
+    document.getElementById('modalConfirmBtn').addEventListener('click', function() {
+        if (!currentReq) return;
+        const notes = document.getElementById('modalNotes').value.trim();
+        if (currentReq.status === 'rejected' && !notes) {
+            alert('Catatan/Alasan wajib diisi jika menolak.');
+            document.getElementById('modalNotes').focus();
+            return;
+        }
+        this.disabled = true; this.style.opacity = '.6'; this.textContent = 'Memproses...';
+        const form = document.getElementById('statusForm');
+        document.getElementById('statusInput').value = currentReq.status;
+        document.getElementById('notesInput').value = notes;
+        form.action = form.dataset.action.replace('__ID__', currentReq.id);
+        form.submit();
+    });
+    </script>
     @endif
 
     @push('styles')
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    :root {
+        --pr-bg: #f1f5f9; --pr-surface: #fff; --pr-border: #e2e8f0; --pr-border-light: #f1f5f9;
+        --pr-text: #0f172a; --pr-text2: #475569; --pr-muted: #94a3b8;
+        --pr-indigo: #4f46e5; --pr-indigo-hover: #4338ca; --pr-indigo-bg: #eef2ff; --pr-indigo-border: #c7d2fe;
+        --pr-green: #10b981; --pr-green-bg: #ecfdf5; --pr-green-text: #065f46; --pr-green-border: #a7f3d0;
+        --pr-red: #ef4444; --pr-red-bg: #fef2f2; --pr-red-text: #991b1b; --pr-red-border: #fecaca;
+        --pr-amber: #f59e0b; --pr-amber-bg: #fffbeb; --pr-amber-text: #92400e; --pr-amber-border: #fde68a;
+        --pr-blue: #0ea5e9; --pr-blue-bg: #e0f2fe; --pr-blue-text: #0369a1; --pr-blue-border: #bae6fd;
+        --pr-slate: #64748b; --pr-slate-bg: #f1f5f9;
+        --pr-r: 12px; --pr-r-sm: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    .pr-page { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--pr-text); max-width: 1360px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; background: var(--pr-bg); min-height: 100vh; }
 
-        :root {
-            --tr-bg: #f8fafc;
-            --tr-surface: #ffffff;
-            --tr-border: #e2e8f0;
-            --tr-border-light: #f1f5f9;
-            --tr-text-main: #0f172a;
-            --tr-text-muted: #64748b;
-            --tr-text-light: #94a3b8;
-            
-            --tr-primary: #4f46e5; /* Indigo */
-            --tr-primary-hover: #4338ca;
-            --tr-primary-light: #e0e7ff;
-            
-            --tr-info: #0ea5e9;
-            --tr-info-bg: #e0f2fe;
-            --tr-success: #10b981;
-            --tr-success-bg: #dcfce7;
-            --tr-success-text: #166534;
-            --tr-danger: #ef4444;
-            --tr-danger-bg: #fef2f2;
-            --tr-danger-text: #b91c1c;
-            --tr-warning: #f59e0b;
-            --tr-warning-bg: #fffbeb;
-            --tr-warning-text: #b45309;
-            
-            --tr-slate: #64748b;
-            --tr-slate-bg: #f1f5f9;
-            
-            --tr-radius-lg: 12px;
-            --tr-radius-md: 8px;
-            --tr-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-            --tr-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-            --tr-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
+    /* ── HEADER ── */
+    .pr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; }
+    .pr-header-left { display: flex; gap: 0.875rem; align-items: flex-start; }
+    .pr-icon-box { width: 48px; height: 48px; border-radius: 12px; background: var(--pr-indigo-bg); color: var(--pr-indigo); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pr-eyebrow { font-size: 0.63rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pr-indigo); margin-bottom: 0.15rem; }
+    .pr-title { font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .pr-subtitle { font-size: 0.82rem; color: var(--pr-text2); margin: 0.2rem 0 0; line-height: 1.5; }
 
-        .tr-page-wrapper { background-color: var(--tr-bg); min-height: 100vh; padding-bottom: 3rem; }
-        .tr-page { padding: 1.5rem; max-width: 1360px; margin: 0 auto; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--tr-text-main); }
+    /* ── BUTTONS ── */
+    .pr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.55rem 1.15rem; border-radius: var(--pr-r-sm); font-size: 0.82rem; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all .15s; white-space: nowrap; height: 40px; }
+    .pr-btn-primary { background: var(--pr-indigo); color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.2); }
+    .pr-btn-primary:hover { background: var(--pr-indigo-hover); transform: translateY(-1px); }
+    .pr-btn-success { background: var(--pr-green); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,.2); }
+    .pr-btn-success:hover { background: #059669; }
+    .pr-btn-danger { background: var(--pr-red); color: #fff; box-shadow: 0 2px 6px rgba(239,68,68,.2); }
+    .pr-btn-danger:hover { background: #dc2626; }
+    .pr-btn-dark { background: var(--pr-text); color: #fff; }
+    .pr-btn-dark:hover { background: #000; transform: translateY(-1px); }
+    .pr-btn-ghost { background: transparent; border-color: var(--pr-border); color: var(--pr-text2); }
+    .pr-btn-ghost:hover { border-color: var(--pr-muted); color: var(--pr-text); }
 
-        /* ── HEADER ── */
-        .tr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-        .tr-eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tr-primary); margin-bottom: 0.35rem; }
-        .tr-title { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em; }
-        .tr-title-icon-box { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; }
-        .tr-title-icon-box.bg-indigo { background: var(--tr-primary-light); color: var(--tr-primary); }
-        .tr-subtitle { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0; line-height: 1.4; }
-        
-        .tr-header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    /* ── ALERTS ── */
+    .pr-alert { display: flex; align-items: center; gap: 10px; padding: 0.85rem 1.125rem; border-radius: var(--pr-r-sm); margin-bottom: 1rem; font-size: 0.84rem; font-weight: 500; border: 1px solid; }
+    .pr-alert-success { background: var(--pr-green-bg); color: var(--pr-green-text); border-color: var(--pr-green-border); }
+    .pr-alert-danger { background: var(--pr-red-bg); color: var(--pr-red-text); border-color: var(--pr-red-border); }
 
-        /* ── ALERTS ── */
-        .tr-alert { display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; border-radius: var(--tr-radius-md); margin-bottom: 1.5rem; font-size: 0.85rem; font-weight: 500; border: 1px solid transparent; }
-        .tr-alert-success { background: var(--tr-success-bg); color: var(--tr-success-text); border-color: #a7f3d0; }
-        .tr-alert-danger { background: var(--tr-danger-bg); color: var(--tr-danger-text); border-color: #fecaca; }
+    /* ── KPI CARDS ── */
+    .pr-kpi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .pr-kpi-card { background: var(--pr-surface); border: 1px solid var(--pr-border); border-radius: var(--pr-r); padding: 1rem 1.15rem; display: flex; align-items: center; gap: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: box-shadow .15s; }
+    .pr-kpi-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.06); }
+    .pr-kpi-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pr-kpi-info { display: flex; flex-direction: column; gap: 2px; }
+    .pr-kpi-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--pr-muted); }
+    .pr-kpi-value { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .pr-kpi-total .pr-kpi-icon { background: var(--pr-indigo-bg); color: var(--pr-indigo); }
+    .pr-kpi-total .pr-kpi-value { color: var(--pr-indigo); }
+    .pr-kpi-pending .pr-kpi-icon { background: var(--pr-amber-bg); color: var(--pr-amber); }
+    .pr-kpi-pending .pr-kpi-value { color: var(--pr-amber); }
+    .pr-kpi-approved .pr-kpi-icon { background: var(--pr-green-bg); color: var(--pr-green); }
+    .pr-kpi-approved .pr-kpi-value { color: var(--pr-green); }
+    .pr-kpi-rejected .pr-kpi-icon { background: var(--pr-red-bg); color: var(--pr-red); }
+    .pr-kpi-rejected .pr-kpi-value { color: var(--pr-red); }
+    .pr-kpi-completed .pr-kpi-icon { background: var(--pr-slate-bg); color: var(--pr-slate); }
+    .pr-kpi-completed .pr-kpi-value { color: var(--pr-slate); }
 
-        /* ── KPI GRID ── */
-        .tr-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .tr-kpi-card { background: var(--tr-surface); border-radius: var(--tr-radius-md); border: 1px solid var(--tr-border); padding: 1.25rem; display: flex; flex-direction: column; gap: 4px; box-shadow: var(--tr-shadow-sm); border-top-width: 3px; }
-        .tr-kpi-card.border-blue { border-top-color: var(--tr-primary); }
-        .tr-kpi-card.border-warning { border-top-color: var(--tr-warning); }
-        .tr-kpi-card.border-success { border-top-color: var(--tr-success); }
-        .tr-kpi-card.border-danger { border-top-color: var(--tr-danger); }
-        .tr-kpi-card.border-slate { border-top-color: var(--tr-slate); }
-        
-        .tr-kpi-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--tr-text-muted); letter-spacing: 0.05em; }
-        .tr-kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
-        .text-blue { color: var(--tr-primary); }
-        .text-warning { color: var(--tr-warning); }
-        .text-success { color: var(--tr-success); }
-        .text-danger { color: var(--tr-danger); }
-        .text-slate { color: var(--tr-slate); }
+    /* ── CARD ── */
+    .pr-card { background: var(--pr-surface); border: 1px solid var(--pr-border); border-radius: var(--pr-r); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 
-        /* ── CARD & FILTER ── */
-        .tr-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); overflow: hidden; }
-        .tr-filter-bar { padding: 1rem 1.25rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
-        
-        .tr-filter-grid { display: grid; grid-template-columns: 1fr 180px 180px auto; gap: 1rem; align-items: flex-end; }
-        .tr-form-group { display: flex; flex-direction: column; gap: 6px; }
-        .tr-label { font-size: 0.75rem; font-weight: 700; color: var(--tr-text-main); text-transform: uppercase; letter-spacing: 0.05em; }
-        
-        .tr-search { display: flex; align-items: center; gap: 8px; background: var(--tr-bg); border-radius: 6px; padding: 0.5rem 0.85rem; border: 1px solid var(--tr-border); transition: border-color 0.2s; }
-        .tr-search:focus-within { border-color: var(--tr-primary); background: #ffffff; }
-        .tr-search-icon { color: var(--tr-text-light); flex-shrink: 0; }
-        .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
-        
-        .tr-select-wrapper { position: relative; }
-        .tr-select { width: 100%; padding: 0.5rem 0.85rem; padding-right: 2rem; border: 1px solid var(--tr-border); border-radius: 6px; font-family: inherit; font-size: 0.85rem; color: var(--tr-text-main); background: var(--tr-bg); appearance: none; outline: none; transition: border-color 0.2s; cursor: pointer; height: 38px; }
-        .tr-select:focus { border-color: var(--tr-primary); background: #ffffff; }
-        .tr-select-wrapper::after { content: ''; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; pointer-events: none; }
+    /* ── FILTER ── */
+    .pr-filter { padding: 1rem 1.25rem; border-bottom: 1px solid var(--pr-border-light); }
+    .pr-filter-form { display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap; }
+    .pr-search-box { display: flex; align-items: center; gap: 8px; background: #f8fafc; border-radius: var(--pr-r-sm); padding: 0 0.85rem; border: 1.5px solid var(--pr-border); flex: 1; min-width: 220px; height: 40px; transition: all .15s; }
+    .pr-search-box:focus-within { border-color: var(--pr-indigo); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,.08); }
+    .pr-search-box svg { color: var(--pr-muted); flex-shrink: 0; }
+    .pr-search-input { border: none; background: transparent; font-size: 0.84rem; font-family: inherit; color: var(--pr-text); outline: none; width: 100%; }
+    .pr-search-input::placeholder { color: var(--pr-muted); }
+    .pr-select { padding: 0 0.75rem; padding-right: 1.8rem; border: 1.5px solid var(--pr-border); border-radius: var(--pr-r-sm); font-family: inherit; font-size: 0.82rem; color: var(--pr-text); background: #f8fafc; appearance: none; outline: none; cursor: pointer; height: 40px; min-width: 140px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-size: 14px; transition: all .15s; }
+    .pr-select:focus { border-color: var(--pr-indigo); background-color: #fff; }
 
-        .tr-filter-actions { display: flex; gap: 6px; }
+    /* ── TABLE ── */
+    .pr-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .pr-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 950px; }
+    .pr-table thead th { font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--pr-muted); padding: 0.75rem 1.125rem; border-bottom: 1.5px solid var(--pr-border); background: #fafbfc; white-space: nowrap; text-align: left; user-select: none; }
+    .pr-table tbody tr { transition: background .1s; }
+    .pr-table tbody tr:hover { background: #f8fafc; }
+    .pr-table tbody td { padding: 0.85rem 1.125rem; font-size: 0.84rem; vertical-align: middle; border-bottom: 1px solid var(--pr-border-light); }
+    .pr-table tbody tr:last-child td { border-bottom: none; }
+    .pr-table th.c, .pr-table td.c { text-align: center; }
 
-        /* ── BUTTONS ── */
-        .tr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-family: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; height: 38px; }
-        
-        .tr-btn-primary { background: var(--tr-primary); color: #ffffff; border-color: var(--tr-primary); box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2); }
-        .tr-btn-primary:hover { background: var(--tr-primary-hover); transform: translateY(-1px); }
-        
-        .tr-btn-success { background: var(--tr-success); color: #ffffff; border-color: var(--tr-success); box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2); }
-        .tr-btn-success:hover { background: var(--tr-success-hover); transform: translateY(-1px); }
-        
-        .tr-btn-danger { background: var(--tr-danger); color: #ffffff; border-color: var(--tr-danger); box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); }
-        .tr-btn-danger:hover { background: var(--tr-danger-hover); transform: translateY(-1px); }
-        
-        .tr-btn-dark { background: var(--tr-text-main); color: #ffffff; border-color: var(--tr-text-main); }
-        .tr-btn-dark:hover { background: #000000; transform: translateY(-1px); }
-        
-        .tr-btn-outline { border-color: var(--tr-border); color: var(--tr-text-muted); background: var(--tr-surface); }
-        .tr-btn-outline:hover { border-color: var(--tr-text-light); color: var(--tr-text-main); background: #f8fafc; }
-        
-        .tr-btn-danger-outline { border-color: var(--tr-danger-border); color: var(--tr-danger-text); background: transparent; }
-        .tr-btn-danger-outline:hover { background: var(--tr-danger-bg); }
+    /* ── CELLS ── */
+    .pr-date { font-weight: 700; color: var(--pr-text); font-size: 0.84rem; white-space: nowrap; }
+    .pr-date-sub { font-size: 0.7rem; color: var(--pr-muted); margin-top: 2px; font-family: monospace; }
+    .pr-user { display: flex; align-items: center; gap: 8px; }
+    .pr-avatar { width: 30px; height: 30px; border-radius: 8px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; }
+    .pr-user-name { font-weight: 700; font-size: 0.82rem; color: var(--pr-text); }
+    .pr-user-role { font-size: 0.65rem; color: var(--pr-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+    .pr-prod-name { font-weight: 700; font-size: 0.84rem; color: var(--pr-text); line-height: 1.35; }
+    .pr-prod-sku { font-size: 0.7rem; color: var(--pr-muted); font-family: monospace; font-weight: 600; margin-top: 2px; }
 
-        /* Action Text Buttons */
-        .tr-actions-group { display: flex; gap: 8px; justify-content: flex-end; }
-        .tr-action-btn-text { display: inline-flex; align-items: center; gap: 4px; padding: 0.35rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; font-family: inherit; border: 1px solid transparent; cursor: pointer; background: transparent; transition: all 0.2s; }
-        .tr-action-btn-text.tr-acc { color: var(--tr-success); border-color: var(--tr-success-border); }
-        .tr-action-btn-text.tr-acc:hover { background: var(--tr-success-bg); }
-        .tr-action-btn-text.tr-rej { color: var(--tr-danger); border-color: var(--tr-danger-border); }
-        .tr-action-btn-text.tr-rej:hover { background: var(--tr-danger-bg); }
-        .tr-status-locked { font-size: 0.75rem; font-weight: 600; color: var(--tr-text-light); font-style: italic; }
+    /* ── QTY WITH UNIT ── */
+    .pr-qty { display: inline-flex; align-items: baseline; gap: 3px; font-weight: 800; font-size: 0.95rem; color: var(--pr-text); }
+    .pr-qty-unit { font-size: 0.7rem; font-weight: 600; color: var(--pr-text2); }
+    .pr-qty-base { font-size: 0.65rem; color: var(--pr-muted); margin-top: 2px; font-weight: 600; font-family: monospace; }
 
-        /* ── TABLE RESPONSIVE ── */
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .tr-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1000px; }
-        .tr-table thead th { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tr-text-muted); padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--tr-border); background: var(--tr-bg); white-space: nowrap; text-align: left; }
-        .tr-table tbody tr { transition: background 0.15s ease; }
-        .tr-table tbody tr:hover { background: #f8fafc; }
-        .tr-table tbody td { padding: 1rem 1.25rem; font-size: 0.85rem; vertical-align: middle; border-bottom: 1px solid var(--tr-border-light); }
-        .tr-table tbody tr:last-child td { border-bottom: none; }
-        .tr-table th.c, .tr-table td.c { text-align: center; }
-        .tr-table th.r, .tr-table td.r { text-align: right; }
+    /* ── TYPE BADGE ── */
+    .pr-type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.6rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .pr-type-po { background: var(--pr-blue-bg); color: var(--pr-blue-text); border: 1px solid var(--pr-blue-border); }
+    .pr-type-transfer { background: var(--pr-amber-bg); color: var(--pr-amber-text); border: 1px solid var(--pr-amber-border); }
+    .pr-route { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 0.7rem; color: var(--pr-muted); font-weight: 600; }
+    .pr-route svg { color: var(--pr-muted); }
 
-        /* ── CELL FORMATTING ── */
-        .tr-date-main { font-weight: 600; color: var(--tr-text-main); font-size: 0.85rem; white-space: nowrap; }
-        .tr-date-sub { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 2px; }
-        
-        .tr-user-name { font-weight: 700; color: var(--tr-text-main); font-size: 0.85rem; }
-        .tr-user-role { font-size: 0.7rem; color: var(--tr-text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
-        
-        .tr-prod-name { font-weight: 700; color: var(--tr-text-main); font-size: 0.85rem; line-height: 1.3; }
-        .tr-prod-sku { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 4px; }
-        .tr-font-mono { font-family: monospace; background: var(--tr-border-light); padding: 1px 4px; border-radius: 4px; color: var(--tr-text-main); font-weight: 600; }
-        
-        .tr-qty-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--tr-bg); border: 1px solid var(--tr-border); color: var(--tr-text-main); font-weight: 800; font-size: 0.85rem; min-width: 44px; }
-        
-        .tr-route-box { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-        .tr-route-wh { font-size: 0.75rem; color: var(--tr-text-muted); font-weight: 600; }
-        .tr-route-arrow { color: var(--tr-text-light); }
-        
-        .tr-notes-text { font-size: 0.8rem; color: var(--tr-text-main); font-style: italic; margin-bottom: 4px; }
-        .tr-doc-ref { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 4px; }
-        .tr-spv-note { font-size: 0.75rem; color: var(--tr-danger-text); background: var(--tr-danger-bg); border-left: 2px solid var(--tr-danger); padding: 0.35rem 0.5rem; border-radius: 4px; margin-top: 6px; }
+    /* ── NOTES ── */
+    .pr-notes-text { font-size: 0.8rem; color: var(--pr-text2); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
+    .pr-muted { color: var(--pr-muted); font-size: 0.8rem; }
+    .pr-ref { font-size: 0.7rem; color: var(--pr-muted); font-family: monospace; margin-top: 3px; }
+    .pr-spv-note { display: flex; align-items: flex-start; gap: 5px; font-size: 0.72rem; color: var(--pr-indigo); background: var(--pr-indigo-bg); border-left: 2px solid var(--pr-indigo); padding: 0.3rem 0.5rem; border-radius: 4px; margin-top: 6px; font-weight: 500; }
+    .pr-spv-note svg { flex-shrink: 0; margin-top: 2px; }
 
-        /* Status Badges */
-        .tr-badge { display: inline-flex; align-items: center; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-        .tr-badge-gray { background: var(--tr-slate-bg); color: var(--tr-slate); }
-        .tr-badge-blue { background: var(--tr-info-bg); color: var(--tr-info); }
-        .tr-badge-success { background: var(--tr-success-bg); color: var(--tr-success-text); }
-        .tr-badge-danger { background: var(--tr-danger-bg); color: var(--tr-danger-text); }
-        .tr-badge-warning { background: var(--tr-warning-bg); color: var(--tr-warning-text); }
+    /* ── STATUS ── */
+    .pr-status { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .pr-st-pending { background: var(--pr-amber-bg); color: var(--pr-amber-text); border: 1px solid var(--pr-amber-border); }
+    .pr-st-approved { background: var(--pr-green-bg); color: var(--pr-green-text); border: 1px solid var(--pr-green-border); }
+    .pr-st-rejected { background: var(--pr-red-bg); color: var(--pr-red-text); border: 1px solid var(--pr-red-border); }
+    .pr-st-completed { background: var(--pr-slate-bg); color: var(--pr-slate); border: 1px solid var(--pr-border); }
 
-        /* ── MODAL ── */
-        .tr-modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; }
-        .tr-modal.active { display: flex; }
-        .tr-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); }
-        .tr-modal-card { position: relative; z-index: 101; width: 100%; max-width: 480px; background: var(--tr-surface); border-radius: var(--tr-radius-lg); box-shadow: var(--tr-shadow-lg); overflow: hidden; animation: tr-modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes tr-modal-pop { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-        
-        .tr-modal-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
-        .tr-modal-title { font-size: 1.15rem; font-weight: 800; color: var(--tr-text-main); margin: 0; }
-        
-        .tr-modal-body { padding: 1.5rem; background: #ffffff; }
-        .tr-modal-desc { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0 0 1rem 0; line-height: 1.5; }
-        .tr-modal-desc strong { color: var(--tr-text-main); }
-        
-        .tr-textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--tr-border); border-radius: 6px; font-family: inherit; font-size: 0.85rem; color: var(--tr-text-main); background: var(--tr-bg); outline: none; transition: border-color 0.2s; resize: vertical; min-height: 100px; margin-top: 0.5rem; }
-        .tr-textarea:focus { border-color: var(--tr-primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-        
-        .tr-modal-footer { padding: 1.25rem 1.5rem; border-top: 1px solid var(--tr-border-light); background: var(--tr-bg); display: flex; justify-content: flex-end; gap: 0.75rem; }
+    /* ── ACTIONS ── */
+    .pr-actions { display: flex; gap: 6px; justify-content: center; }
+    .pr-act-btn { width: 32px; height: 32px; border-radius: var(--pr-r-sm); border: 1px solid var(--pr-border); background: var(--pr-surface); color: var(--pr-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all .15s; }
+    .pr-act-approve:hover { background: var(--pr-green-bg); color: var(--pr-green); border-color: var(--pr-green-border); }
+    .pr-act-reject:hover { background: var(--pr-red-bg); color: var(--pr-red); border-color: var(--pr-red-border); }
+    .pr-done { font-size: 0.72rem; color: var(--pr-muted); font-style: italic; }
 
-        /* ── EMPTY STATE ── */
-        .tr-empty-state { text-align: center; padding: 4rem 1.5rem; }
-        .tr-empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--tr-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; color: var(--tr-text-light); }
-        .tr-empty-state h6 { font-size: 1.05rem; font-weight: 700; color: var(--tr-text-main); margin-bottom: 0.35rem; }
-        .tr-empty-state p { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0 auto; max-width: 400px; line-height: 1.5; }
+    /* ── EMPTY ── */
+    .pr-empty { text-align: center; padding: 4rem 1.5rem; color: var(--pr-muted); }
+    .pr-empty svg { opacity: .25; margin-bottom: 0.75rem; }
+    .pr-empty h3 { font-size: 1rem; font-weight: 800; color: var(--pr-text); margin: 0 0 0.3rem; }
+    .pr-empty p { font-size: 0.84rem; max-width: 380px; margin: 0 auto; line-height: 1.5; }
 
-        /* ── PAGINATION ── */
-        .tr-pagination { padding: 1rem 1.25rem; border-top: 1px solid var(--tr-border-light); background: #ffffff; }
+    /* ── PAGINATION ── */
+    .pr-pagination { padding: 0.85rem 1.25rem; border-top: 1px solid var(--pr-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .pr-pagination-info { font-size: 0.78rem; color: var(--pr-muted); font-weight: 500; }
 
-        /* ── RESPONSIVE ── */
-        @media (max-width: 992px) {
-            .tr-filter-grid { grid-template-columns: 1fr 1fr; }
-        }
-        @media (max-width: 640px) {
-            .tr-header { flex-direction: column; align-items: flex-start; }
-            .tr-header-actions { width: 100%; }
-            .tr-header-actions .tr-btn { width: 100%; justify-content: center; }
-            .tr-kpi-grid { grid-template-columns: 1fr 1fr; }
-            .tr-filter-grid { grid-template-columns: 1fr; gap: 1rem; align-items: stretch; }
-            .tr-filter-actions { display: grid; grid-template-columns: 1fr 1fr; }
-            .tr-modal-footer { flex-direction: column-reverse; }
-            .tr-modal-footer .tr-btn { width: 100%; }
-        }
+    /* ── MODAL ── */
+    .pr-modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .pr-modal.active { display: flex; }
+    .pr-modal-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(2px); }
+    .pr-modal-box { position: relative; z-index: 101; width: 100%; max-width: 460px; background: var(--pr-surface); border-radius: var(--pr-r); box-shadow: 0 20px 60px rgba(0,0,0,.15); overflow: hidden; animation: pr-pop .2s cubic-bezier(.16,1,.3,1); }
+    @keyframes pr-pop { 0% { opacity: 0; transform: scale(.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+    .pr-modal-head { padding: 1.15rem 1.5rem; border-bottom: 1px solid var(--pr-border-light); }
+    .pr-modal-head h3 { font-size: 1.1rem; font-weight: 800; margin: 0; }
+    .pr-modal-body { padding: 1.5rem; }
+    .pr-modal-desc { font-size: 0.84rem; color: var(--pr-text2); margin: 0 0 1rem; line-height: 1.5; }
+    .pr-modal-desc strong { color: var(--pr-text); }
+    .pr-modal-label { font-size: 0.75rem; font-weight: 700; color: var(--pr-text); display: block; margin-bottom: 0.35rem; }
+    .pr-textarea { width: 100%; padding: 0.75rem; border: 1.5px solid var(--pr-border); border-radius: var(--pr-r-sm); font-family: inherit; font-size: 0.84rem; color: var(--pr-text); background: #f8fafc; outline: none; resize: vertical; min-height: 90px; transition: all .15s; }
+    .pr-textarea:focus { border-color: var(--pr-indigo); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,.08); }
+    .pr-modal-foot { padding: 1.15rem 1.5rem; border-top: 1px solid var(--pr-border-light); display: flex; justify-content: flex-end; gap: 0.65rem; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 1100px) { .pr-kpi { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px) {
+        .pr-header { flex-direction: column; align-items: stretch; }
+        .pr-btn-primary { width: 100%; justify-content: center; }
+        .pr-kpi { grid-template-columns: repeat(2, 1fr); }
+        .pr-filter-form { flex-direction: column; align-items: stretch; }
+        .pr-search-box, .pr-select { width: 100%; min-width: auto; }
+        .pr-modal-foot { flex-direction: column-reverse; }
+        .pr-modal-foot .pr-btn { width: 100%; }
+    }
+    @media (max-width: 480px) { .pr-kpi { grid-template-columns: 1fr; } }
     </style>
     @endpush
 </x-app-layout>

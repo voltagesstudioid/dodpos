@@ -37,15 +37,34 @@ class MinyakHutang extends Model
 
     public function scopeBelumLunas($query)
     {
-        return $query->where('status', 'belum_lunas');
+        return $query->whereIn('status', ['belum_lunas', 'overdue']);
     }
 
     public function scopeOverdue($query)
     {
-        return $query->where('status', 'overdue')
-                     ->orWhere(function($q) {
-                         $q->where('status', 'belum_lunas')
-                           ->where('jatuh_tempo', '<', now());
-                     });
+        return $query->whereIn('status', ['belum_lunas', 'overdue'])
+                     ->where('jatuh_tempo', '<', now());
+    }
+
+    public static function markAllOverdue(): int
+    {
+        return self::where('status', 'belum_lunas')
+            ->where('jatuh_tempo', '<', now())
+            ->update(['status' => 'overdue']);
+    }
+
+    public function recalculate(): void
+    {
+        $totalDibayar = $this->pembayarans()->where('status', 'confirmed')->sum('jumlah');
+        $this->dibayar = $totalDibayar;
+        $this->sisa    = max(0, (float) $this->total_hutang - (float) $totalDibayar);
+
+        if ($this->sisa <= 0) {
+            $this->status = 'lunas';
+        } elseif ($this->jatuh_tempo && $this->jatuh_tempo->isPast()) {
+            $this->status = 'overdue';
+        }
+
+        $this->save();
     }
 }

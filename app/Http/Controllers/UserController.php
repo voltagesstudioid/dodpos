@@ -66,7 +66,16 @@ class UserController extends Controller
                 ->all();
         }
 
-        return view('pengaturan.pengguna.index', compact('users', 'search', 'role', 'status', 'allRoles', 'roleLabels'));
+        // Compute stats from the full dataset
+        $totalUsers = User::count();
+        $activeUsers = User::where('active', true)->count();
+        $inactiveUsers = User::where('active', false)->where(function ($q) {
+            $q->whereNotNull('approved_at')->orWhereNotNull('rejected_at');
+        })->count();
+        $pendingUsers = User::where('active', false)->whereNull('approved_at')->whereNull('rejected_at')->count();
+        $stats = compact('totalUsers', 'activeUsers', 'inactiveUsers', 'pendingUsers');
+
+        return view('pengaturan.pengguna.index', compact('users', 'search', 'role', 'status', 'allRoles', 'roleLabels', 'stats'));
     }
 
     public function create()
@@ -119,6 +128,8 @@ class UserController extends Controller
             'email_verified_at' => now(),
             'fingerprint_id' => $request->fingerprint_id,
         ]);
+
+        $this->syncProfiles($user);
 
         return redirect()->route('pengguna.index')->with('success', 'Pengguna berhasil ditambahkan.');
     }
@@ -181,6 +192,8 @@ class UserController extends Controller
 
         $pengguna->update($data);
 
+        $this->syncProfiles($pengguna);
+
         return redirect()->route('pengguna.index')->with('success', 'Data pengguna berhasil diperbarui.');
     }
 
@@ -201,10 +214,6 @@ class UserController extends Controller
             return back()->with('error', 'Akun ini sudah aktif.');
         }
 
-        if ($pengguna->rejected_at) {
-            return back()->with('error', 'Akun ini sudah ditolak.');
-        }
-
         $requested = $pengguna->requested_role ?: null;
         $defaultRole = 'kasir';
         if (! User::isValidRole($defaultRole)) {
@@ -222,6 +231,8 @@ class UserController extends Controller
             'rejected_at' => null,
             'rejected_by' => null,
         ]);
+
+        $this->syncProfiles($pengguna);
 
         return back()->with('success', 'Akun berhasil di-ACC dan diaktifkan.');
     }
@@ -245,5 +256,66 @@ class UserController extends Controller
         ]);
 
         return back()->with('success', 'Akun berhasil ditolak.');
+    }
+
+    private function syncProfiles(User $user): void
+    {
+        if (!$user->active) {
+            return;
+        }
+
+        // Sync SDM Employee Profile
+        if (!\App\Models\SdmEmployee::where('user_id', $user->id)->exists()) {
+            $roleLabel = \App\Models\AppRole::where('key', $user->role)->value('label');
+            if (!$roleLabel) {
+                $roleLabel = strtoupper(str_replace('_', ' ', (string) $user->role));
+            }
+
+            \App\Models\SdmEmployee::create([
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'position' => $roleLabel,
+                'join_date' => now(),
+                'active' => true,
+                'basic_salary' => 0,
+                'daily_allowance' => 0,
+            ]);
+        }
+
+        // Sync Sales Profile
+        $role = strtolower(trim((string) $user->role));
+        if (!str_starts_with($role, 'sales_') && $role !== 'sales') {
+            return;
+        }
+
+        $division = $user->division;
+        $data = [
+            'user_id' => $user->id,
+            'nama' => $user->name,
+            'email' => $user->email,
+            'status' => 'aktif',
+        ];
+
+        if ($division === 'minyak') {
+            if (!\App\Models\MinyakSales::where('user_id', $user->id)->exists()) {
+                $data['kode_sales'] = \App\Models\MinyakSales::generateKode();
+                \App\Models\MinyakSales::create($data);
+            }
+        } elseif ($division === 'gula') {
+            if (!\App\Models\GulaSales::where('user_id', $user->id)->exists()) {
+                $data['kode_sales'] = \App\Models\GulaSales::generateKode();
+                \App\Models\GulaSales::create($data);
+            }
+        } elseif ($division === 'mineral') {
+            if (!\App\Models\MineralSales::where('user_id', $user->id)->exists()) {
+                $data['kode_sales'] = \App\Models\MineralSales::generateKode();
+                \App\Models\MineralSales::create($data);
+            }
+        } elseif ($division === 'pasgar') {
+            if (!\App\Models\PasgarSales::where('user_id', $user->id)->exists()) {
+                $data['kode_sales'] = \App\Models\PasgarSales::generateKode();
+                \App\Models\PasgarSales::create($data);
+            }
+        }
     }
 }

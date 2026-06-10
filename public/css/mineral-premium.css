@@ -1,0 +1,203 @@
+/*
+ * DODPOS Mineral Division — Premium UI Theme Extensions
+ * Modern glassmorphic and elegant visual style additions.
+ */
+
+:root {
+    --mineral-primary: #0ea5e9;
+    --mineral-primary-grad: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    --mineral-accent: #14b8a6;
+    --mineral-accent-grad: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+    --mineral-glow: rgba(14, 165, 233, 0.15);
+    --mineral-card-bg: #ffffff;
+    --mineral-border-radius: 20px;
+    --mineral-card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+    --mineral-card-shadow-hover: 0 20px 40px -15px rgba(14, 165, 233, 0.12), 0 1px 5px rgba(0, 0, 0, 0.03);
+}
+
+/* Animations */
+@keyframes mineralFadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes mineralPulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(14, 165, 233, 0.45);
+    }
+}
+
+/* General Layout Anims */
+.mineral-animate {
+    animation: mineralFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mineral-card-glow-pulse {
+    animation: mineralPulseGlow 3s ease-in-out infinite;
+}
+
+/* Custom Statistics Cards */
+.mineral-stat-card {
+    background: var(--mineral-card-bg);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: var(--mineral-border-radius);
+    padding: 24px;
+    box-shadow: var(--mineral-card-shadow);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.mineral-stat-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: var(--mineral-primary);
+    filter: blur(80px);
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+.mineral-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--mineral-card-shadow-hover);
+    border-color: rgba(14, 165, 233, 0.3);
+}
+
+/* Custom Table Layout */
+.mineral-table-container {
+    background: #ffffff;
+    border-radius: var(--mineral-border-radius);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: var(--mineral-card-shadow);
+    overflow: hidden;
+}
+
+.mineral-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.mineral-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 16px 20px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.mineral-table td {
+    padding: 18px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13.5px;
+    color: #334155;
+    transition: background-color 0.15s;
+}
+
+.mineral-table tr:last-child td {
+    border-bottom: none;
+}
+
+.mineral-table tr:hover td {
+    background: rgba(14, 165, 233, 0.02);
+}
+
+/* Custom Form Styles */
+.mineral-form-card {
+    background: #ffffff;
+    border-radius: var(--mineral-border-radius);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: var(--mineral-card-shadow);
+    overflow: hidden;
+}
+
+.mineral-input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1.5px solid #e2e8f0;
+    background: #fff;
+    color: #1e293b;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.mineral-input:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+/* Beautiful Custom Badges */
+.mineral-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border: 1px solid transparent;
+}
+
+.mineral-badge-cyan {
+    background: rgba(20, 184, 166, 0.08);
+    color: #0d9488;
+    border-color: rgba(20, 184, 166, 0.15);
+}
+
+.mineral-badge-blue {
+    background: rgba(14, 165, 233, 0.08);
+    color: #0284c7;
+    border-color: rgba(14, 165, 233, 0.15);
+}
+
+.mineral-badge-purple {
+    background: rgba(124, 58, 237, 0.08);
+    color: #7c3aed;
+    border-color: rgba(124, 58, 237, 0.15);
+}
+
+.mineral-badge-emerald {
+    background: rgba(16, 185, 129, 0.08);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.15);
+}
+
+.mineral-badge-rose {
+    background: rgba(244, 63, 94, 0.08);
+    color: #e11d48;
+    border-color: rgba(244, 63, 94, 0.15);
+}
+
+.mineral-badge-amber {
+    background: rgba(245, 158, 11, 0.08);
+    color: #d97706;
+    border-color: rgba(245, 158, 11, 0.15);
+}
+
+/* Map frame details styling */
+.mineral-map-container {
+    border-radius: var(--mineral-border-radius);
+    overflow: hidden;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: var(--mineral-card-shadow);
+}

@@ -33,11 +33,19 @@ class AuthenticatedSessionController extends Controller
         $user = Auth::user();
         $userRole = strtolower(trim((string) $user->role));
         
-        // Check if user has sales role (support: 'sales', 'sales_minyak', 'sales minyak', etc)
-        $isSales = $userRole === 'sales' || str_starts_with($userRole, 'sales_') || str_starts_with($userRole, 'sales ');
+        // Check if user has sales role (support: 'sales_minyak', 'sales_mineral', 'sales_gula', etc)
+        $isSales = str_starts_with($userRole, 'sales_') || $userRole === 'sales';
         
         if ($isSales) {
-            return redirect()->route('sales.dashboard');
+            $division = $user->division; // minyak, mineral, or pasgar
+            $routeMap = [
+                'minyak' => 'minyak.dashboard',
+                'mineral' => 'mineral.dashboard',
+                'gula' => 'gula.dashboard',
+                'pasgar' => 'pasgar.dashboard',
+            ];
+            $redirectRoute = $routeMap[$division] ?? 'dashboard';
+            return redirect()->route($redirectRoute);
         }
 
         return redirect()->route('dashboard');

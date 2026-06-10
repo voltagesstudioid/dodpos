@@ -124,7 +124,7 @@
                                 <div class="tr-placeholder-icon">
                                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                 </div>
-                                <p>Kamera belum aktif.<br>Ketuk <strong>Buka Kamera</strong> di bawah.</p>
+                                <p>Tekan <strong>Buka Kamera</strong> untuk mulai.</p>
                             </div>
                         </div>
 
@@ -142,7 +142,7 @@
                         
                         <p class="tr-file-hint">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                            Diperlukan akses kamera langsung untuk validasi lokasi.
+                            Foto selfie wajib diambil langsung dari kamera, tidak bisa dari galeri.
                         </p>
 
                         @if(($isWorking ?? true) === false)
@@ -234,17 +234,20 @@
             const btnTake      = document.getElementById('btnTakePhoto');
             const placeholder  = document.getElementById('previewPlaceholder');
 
-            if (!selfieData || !imgPreview || !video || !canvas || !btnOpen || !btnTake) return;
+            if (!captureInput || !selfieData || !imgPreview || !video || !canvas || !btnOpen || !btnTake) return;
 
             let stream = null;
+            let photoTaken = false;
 
-            // Cek apakah getUserMedia tersedia dan konteks aman
+            // Detect mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/i.test(navigator.platform) === false);
+
             const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
+            // ── Helpers ──
             function stopStream() {
-                if (!stream) return;
-                stream.getTracks().forEach(t => t.stop());
-                stream = null;
+                if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
             }
 
             function showPreview(src) {
@@ -254,41 +257,26 @@
                 if (placeholder) placeholder.style.display = 'none';
             }
 
-            function hideCamera() {
+            function hideWebcam() {
                 stopStream();
                 video.style.display = 'none';
                 video.srcObject = null;
                 btnTake.disabled = true;
-                btnOpen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> <span>Buka Kamera</span>';
+                updateBtnOpenLabel('open');
             }
 
-            // Fallback: gunakan input capture="user" (kamera saja, bukan galeri)
-            function useCaptureInput() {
-                if (!captureInput) return;
-                captureInput.value = '';
-                captureInput.click();
-            }
-
-            // Capture input change handler
-            if (captureInput) {
-                captureInput.addEventListener('change', function () {
-                    const file = captureInput.files && captureInput.files[0];
-                    if (!file) return;
-                    selfieData.value = '';
-                    showPreview(URL.createObjectURL(file));
-                });
-            }
-
-            // Tombol Buka Kamera
-            btnOpen.addEventListener('click', async function () {
-                // Kalau sedang streaming, tutup
-                if (stream) { hideCamera(); return; }
-
-                if (!hasGetUserMedia) {
-                    useCaptureInput();
-                    return;
+            function updateBtnOpenLabel(mode) {
+                if (mode === 'close') {
+                    btnOpen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Tutup Kamera</span>';
+                } else if (mode === 'retake') {
+                    btnOpen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4v6h6"></path><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg> <span>Ulangi Foto</span>';
+                } else {
+                    btnOpen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg> <span>Buka Kamera</span>';
                 }
+            }
 
+            // ── DESKTOP: getUserMedia webcam ──
+            async function startWebcam() {
                 try {
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -299,32 +287,30 @@
                     imgPreview.style.display = 'none';
                     if (placeholder) placeholder.style.display = 'none';
                     btnTake.disabled = false;
-                    btnOpen.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <span>Tutup Kamera</span>';
+                    updateBtnOpenLabel('close');
                 } catch (err) {
-                    // getUserMedia gagal (permission denied, no camera, non-HTTPS)
-                    useCaptureInput();
+                    console.log('Webcam failed:', err.message);
+                    // Fallback to file input
+                    openFileCapture();
                 }
-            });
+            }
 
-            // Tombol Ambil Foto
-            btnTake.addEventListener('click', function () {
+            function captureFromWebcam() {
                 if (!stream) return;
                 const w = video.videoWidth || 640;
                 const h = video.videoHeight || 480;
                 canvas.width = w;
                 canvas.height = h;
-                
-                // Flip camera if front facing (mirror effect)
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return;
                 ctx.translate(w, 0);
                 ctx.scale(-1, 1);
                 ctx.drawImage(video, 0, 0, w, h);
-                
+
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
                 selfieData.value = dataUrl;
 
-                // Isi file input jika DataTransfer tersedia
+                // Also set as file input for form submission
                 canvas.toBlob(blob => {
                     if (!blob || !captureInput) return;
                     try {
@@ -337,9 +323,66 @@
                     } catch {}
                 }, 'image/jpeg', 0.9);
 
+                photoTaken = true;
                 showPreview(dataUrl);
-                hideCamera();
+                hideWebcam();
+                updateBtnOpenLabel('retake');
+            }
+
+            // ── MOBILE: Native camera via capture="user" ──
+            function openFileCapture() {
+                captureInput.value = '';
+                captureInput.click();
+            }
+
+            // Mobile: file input change handler
+            captureInput.addEventListener('change', function () {
+                const file = captureInput.files && captureInput.files[0];
+                if (!file) return;
+                selfieData.value = '';
+                photoTaken = true;
+                showPreview(URL.createObjectURL(file));
+                updateBtnOpenLabel('retake');
             });
+
+            // ── Button handlers ──
+            // On mobile, enable "Ambil Foto" since it directly opens native camera
+            if (isMobile || !hasGetUserMedia) {
+                btnTake.disabled = false;
+            }
+
+            btnOpen.addEventListener('click', function () {
+                // If webcam is streaming → close it
+                if (stream) { hideWebcam(); return; }
+
+                if (isMobile || !hasGetUserMedia) {
+                    // Mobile or no getUserMedia → open native camera
+                    openFileCapture();
+                } else {
+                    // Desktop → start webcam
+                    startWebcam();
+                }
+            });
+
+            btnTake.addEventListener('click', function () {
+                if (stream) {
+                    // Desktop: capture from webcam
+                    captureFromWebcam();
+                } else if (isMobile || !hasGetUserMedia) {
+                    // Mobile: open native camera
+                    openFileCapture();
+                }
+            });
+
+            // Auto-start: desktop → webcam, mobile → native camera
+            setTimeout(function() {
+                if (photoTaken) return;
+                if (isMobile || !hasGetUserMedia) {
+                    openFileCapture();
+                } else {
+                    startWebcam();
+                }
+            }, 800);
 
             // Prevent double submit on Action Buttons
             const absenForm = document.getElementById('absen-form');
@@ -353,7 +396,7 @@
                         if (existing) existing.remove();
                         const msg = document.createElement('div');
                         msg.className = 'tr-error-msg tr-client';
-                        msg.textContent = 'Selfie wajib diunggah atau diambil dari kamera.';
+                        msg.textContent = 'Selfie wajib diambil dari kamera langsung.';
                         this.appendChild(msg);
                         try {
                             msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -463,7 +506,7 @@
 
         /* Preview Box */
         .tr-preview-box { position: relative; width: 100%; aspect-ratio: 4/3; background: #f1f5f9; border: 2px dashed #cbd5e1; border-radius: 16px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; }
-        .tr-preview-box video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); /* Mirror effect for natural selfie */ }
+        .tr-preview-box video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .tr-preview-box img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
         
         .tr-preview-placeholder { text-align: center; color: var(--tr-text-light); display: flex; flex-direction: column; align-items: center; gap: 10px; }

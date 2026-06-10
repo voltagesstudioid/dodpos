@@ -1,207 +1,253 @@
 <x-app-layout>
     <x-slot name="header">Kasir / POS</x-slot>
 
-    <div class="tr-page-wrapper">
-        <div class="tr-page">
+    <div class="k-page">
 
-            {{-- ─── HEADER & SESSION INFO ─── --}}
-            <div class="tr-hero-section">
-                <div class="tr-hero-text">
-                    <h1 class="tr-title">Pilih Mode Kasir</h1>
-                    <p class="tr-subtitle">Tentukan mode transaksi operasional yang akan Anda gunakan saat ini.</p>
-                </div>
+        {{-- ─── HEADER ─── --}}
+        <div class="k-header">
+            <div>
+                <h1 class="k-title">Mode Kasir</h1>
+                <p class="k-subtitle">Pilih mode transaksi untuk memulai operasional kasir hari ini.</p>
+            </div>
+            <a href="{{ route('transaksi.index') }}" class="k-btn-history">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                Riwayat Transaksi
+            </a>
+        </div>
 
-                {{-- Status Sesi Aktif --}}
-                <div class="tr-session-strip">
-                    <div class="tr-session-badge">
-                        <span class="tr-pulse-dot"></span> Sesi Aktif
+        {{-- ─── MODE CARDS ─── --}}
+        <div class="k-grid">
+
+            {{-- ═══ ECERAN CARD ═══ --}}
+            <div class="k-card k-card-eceran">
+                <div class="k-card-top">
+                    <div class="k-card-icon-wrap k-icon-eceran">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
                     </div>
-                    @if(isset($activeSession))
-                        <div class="tr-session-details">
-                            <div class="tr-s-item">
-                                <span class="s-lbl">Modal Awal</span>
-                                <span class="s-val">Rp {{ number_format($activeSession->opening_amount ?? 0, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="tr-s-item">
-                                <span class="s-lbl">Total Kas</span>
-                                <span class="s-val text-indigo">Rp {{ number_format($expectedCash ?? 0, 0, ',', '.') }}</span>
-                            </div>
-                            <div class="tr-s-item">
-                                <span class="s-lbl">Waktu Mulai</span>
-                                <span class="s-val">{{ optional($activeSession->created_at)->format('H:i') }}</span>
-                            </div>
-                        </div>
+                    <div>
+                        <div class="k-card-label">ECERAN</div>
+                        <div class="k-card-name">Kasir Retail</div>
+                    </div>
+                    @if($eceranSession)
+                        <span class="k-status k-status-active"><span class="k-dot"></span> Aktif</span>
+                    @else
+                        <span class="k-status k-status-inactive">Nonaktif</span>
                     @endif
                 </div>
-            </div>
 
-            {{-- ─── POS MODE CARDS ─── --}}
-            <div class="tr-pos-grid">
-                
-                {{-- KARTU ECERAN --}}
-                <a href="{{ route('kasir.eceran') }}" class="tr-pos-card tr-card-retail">
-                    <div class="tr-pos-card-inner">
-                        <div class="tr-pos-header">
-                            <div class="tr-pos-icon">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-                            </div>
-                            <span class="tr-badge-mode">ECERAN</span>
+                <p class="k-card-desc">Transaksi pelanggan umum dengan harga satuan terkecil. Cocok untuk penjualan harian.</p>
+
+                @if($eceranSession)
+                    <div class="k-stats">
+                        <div class="k-stat">
+                            <span class="k-stat-label">Modal Awal</span>
+                            <span class="k-stat-value">Rp {{ number_format($eceranSession->opening_amount, 0, ',', '.') }}</span>
                         </div>
-                        <div class="tr-pos-content">
-                            <h3 class="tr-pos-name">Kasir Eceran (Retail)</h3>
-                            <p class="tr-pos-desc">Gunakan mode ini untuk pelanggan umum dengan harga per satuan terkecil. Proses checkout lebih cepat.</p>
-                            <div class="tr-pos-pills">
-                                <span>⚡ Transaksi Cepat</span>
-                                <span>🛒 Harga Satuan</span>
-                            </div>
+                        <div class="k-stat">
+                            <span class="k-stat-label">Pendapatan Kas</span>
+                            <span class="k-stat-value k-highlight">Rp {{ number_format($eceranRevenue, 0, ',', '.') }}</span>
                         </div>
-                        <div class="tr-pos-action">
-                            Buka Kasir Eceran 
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        <div class="k-stat">
+                            <span class="k-stat-label">Total Kas</span>
+                            <span class="k-stat-value">Rp {{ number_format($eceranExpected, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="k-stat">
+                            <span class="k-stat-label">Dibuka</span>
+                            <span class="k-stat-value">{{ $eceranSession->created_at->format('H:i') }}</span>
                         </div>
                     </div>
-                </a>
-
-                {{-- KARTU GROSIR --}}
-                <a href="{{ route('kasir.grosir') }}" class="tr-pos-card tr-card-wholesale">
-                    <div class="tr-pos-card-inner">
-                        <div class="tr-pos-header">
-                            <div class="tr-pos-icon">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                            </div>
-                            <span class="tr-badge-mode">GROSIR</span>
-                        </div>
-                        <div class="tr-pos-content">
-                            <h3 class="tr-pos-name">Kasir Grosir (Wholesale)</h3>
-                            <p class="tr-pos-desc">Gunakan mode ini untuk reseller atau pembelian dalam jumlah besar. Mendukung harga bertingkat dan multi-satuan.</p>
-                            <div class="tr-pos-pills">
-                                <span>📦 Multi Satuan</span>
-                                <span>💰 Harga Bertingkat</span>
-                            </div>
-                        </div>
-                        <div class="tr-pos-action">
-                            Buka Kasir Grosir 
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                        </div>
+                    <a href="{{ route('kasir.eceran') }}" class="k-card-action k-action-eceran">
+                        Buka Kasir Eceran
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </a>
+                @else
+                    <div class="k-card-empty">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <span>Sesi belum dibuka</span>
+                        @if(auth()->user()->role === 'supervisor')
+                            <button type="button" class="k-open-btn" onclick="document.getElementById('modal-eceran').style.display='flex'">Buka Sesi Eceran</button>
+                        @else
+                            <span class="k-need-super">Hubungi Supervisor untuk membuka sesi</span>
+                        @endif
                     </div>
-                </a>
-
+                @endif
             </div>
 
-            {{-- ─── BOTTOM TIPS & LINKS ─── --}}
-            <div class="tr-info-banner">
-                <div class="tr-info-content">
-                    <div class="tr-info-icon">💡</div>
+            {{-- ═══ GROSIR CARD ═══ --}}
+            <div class="k-card k-card-grosir">
+                <div class="k-card-top">
+                    <div class="k-card-icon-wrap k-icon-grosir">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                    </div>
                     <div>
-                        <h4 class="tr-info-title">Tips Penggunaan</h4>
-                        <p class="tr-info-desc">Gunakan alat pemindai (<i>Barcode Scanner</i>) pada kolom pencarian di halaman kasir untuk mempercepat proses input barang ke keranjang.</p>
+                        <div class="k-card-label">GROSIR</div>
+                        <div class="k-card-name">Kasir Wholesale</div>
                     </div>
+                    @if($grosirSession)
+                        <span class="k-status k-status-active"><span class="k-dot"></span> Aktif</span>
+                    @else
+                        <span class="k-status k-status-inactive">Nonaktif</span>
+                    @endif
                 </div>
-                <a href="{{ route('transaksi.index') }}" class="tr-btn tr-btn-dark">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    Lihat Riwayat Transaksi
-                </a>
+
+                <p class="k-card-desc">Transaksi reseller &amp; pembelian besar. Mendukung harga bertingkat dan multi-satuan.</p>
+
+                @if($grosirSession)
+                    <div class="k-stats">
+                        <div class="k-stat">
+                            <span class="k-stat-label">Pendapatan Kas</span>
+                            <span class="k-stat-value k-highlight">Rp {{ number_format($grosirRevenue, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="k-stat">
+                            <span class="k-stat-label">Total Kas</span>
+                            <span class="k-stat-value">Rp {{ number_format($grosirExpected, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="k-stat">
+                            <span class="k-stat-label">Dibuka</span>
+                            <span class="k-stat-value">{{ $grosirSession->created_at->format('H:i') }}</span>
+                        </div>
+                    </div>
+                    <a href="{{ route('kasir.grosir') }}" class="k-card-action k-action-grosir">
+                        Buka Kasir Grosir
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                    </a>
+                @else
+                    <div class="k-card-empty">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        <span>Sesi belum dibuka</span>
+                        @if(auth()->user()->role === 'supervisor')
+                            <form action="{{ route('kasir.open_session_grosir') }}" method="POST" style="margin:0;">
+                                @csrf
+                                <button type="submit" class="k-open-btn">Buka Sesi Grosir</button>
+                            </form>
+                        @else
+                            <span class="k-need-super">Hubungi Supervisor untuk membuka sesi</span>
+                        @endif
+                    </div>
+                @endif
             </div>
 
         </div>
+
+        {{-- ─── TIP ─── --}}
+        <div class="k-tip">
+            <span class="k-tip-icon">💡</span>
+            <p>Gunakan <strong>barcode scanner</strong> pada kolom pencarian di halaman kasir untuk mempercepat proses input barang.</p>
+        </div>
+
     </div>
+
+    {{-- ═══ MODAL: BUKA SESI ECERAN ═══ --}}
+    @if(auth()->user()->role === 'supervisor' && !$eceranSession)
+    <div id="modal-eceran" class="k-modal-overlay" style="display:none;">
+        <div class="k-modal">
+            <div class="k-modal-header">
+                <h3>Buka Sesi Kasir Eceran</h3>
+                <button type="button" class="k-modal-close" onclick="document.getElementById('modal-eceran').style.display='none'">&times;</button>
+            </div>
+            <form action="{{ route('kasir.open_session') }}" method="POST">
+                @csrf
+                <input type="hidden" name="type" value="eceran">
+                <div class="k-form-group">
+                    <label>Modal Awal (Rp)</label>
+                    <input type="number" name="opening_amount" min="0" value="{{ old('opening_amount') }}" placeholder="0" required autofocus>
+                </div>
+                <div class="k-form-group">
+                    <label>Catatan (opsional)</label>
+                    <textarea name="notes" rows="2" placeholder="Misal: Modal laci 1">{{ old('notes') }}</textarea>
+                </div>
+                <div class="k-modal-footer">
+                    <button type="button" class="k-btn-cancel" onclick="document.getElementById('modal-eceran').style.display='none'">Batal</button>
+                    <button type="submit" class="btn-primary">Buka Sesi Eceran</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
 
     @push('styles')
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+        .k-page { max-width: 920px; margin: 0 auto; padding: 1.5rem; }
 
-        :root {
-            --tr-bg: #f8fafc;
-            --tr-text-main: #0f172a;
-            --tr-text-muted: #64748b;
-            --tr-indigo: #4f46e5;
-            --tr-indigo-light: #e0e7ff;
-            --tr-emerald: #10b981;
-            --tr-emerald-light: #dcfce7;
-            --tr-blue: #3b82f6;
-            --tr-blue-light: #dbeafe;
-            --tr-border: #e2e8f0;
-        }
+        /* ── HEADER ── */
+        .k-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.75rem; }
+        .k-title { font-size: 1.5rem; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }
+        .k-subtitle { font-size: 0.875rem; color: #64748b; margin: 0; }
+        .k-btn-history { display: inline-flex; align-items: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; color: #4f46e5; background: #eef2ff; text-decoration: none; transition: 0.2s; border: 1px solid #e0e7ff; }
+        .k-btn-history:hover { background: #e0e7ff; transform: translateY(-1px); }
 
-        .tr-page-wrapper { background-color: var(--tr-bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; padding-bottom: 4rem; }
-        .tr-page { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+        /* ── GRID ── */
+        .k-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
 
-        /* ── HERO & SESSION ── */
-        .tr-hero-section { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2rem; }
-        .tr-hero-text { flex: 1; min-width: 250px; }
-        .tr-title { font-size: 1.75rem; font-weight: 900; color: var(--tr-text-main); margin: 0 0 6px 0; letter-spacing: -0.02em; }
-        .tr-subtitle { font-size: 0.95rem; color: var(--tr-text-muted); margin: 0; line-height: 1.5; }
+        /* ── CARD ── */
+        .k-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1.5rem; display: flex; flex-direction: column; transition: border-color 0.2s, box-shadow 0.2s; }
+        .k-card-eceran:hover { border-color: #10b981; box-shadow: 0 8px 24px -4px rgba(16,185,129,0.12); }
+        .k-card-grosir:hover { border-color: #3b82f6; box-shadow: 0 8px 24px -4px rgba(59,130,246,0.12); }
 
-        .tr-session-strip { background: #ffffff; border: 1px solid var(--tr-border); border-radius: 12px; display: flex; align-items: center; padding: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex-wrap: wrap; gap: 0.5rem; }
-        .tr-session-badge { display: flex; align-items: center; gap: 8px; background: var(--tr-emerald-light); color: #065f46; font-size: 0.8rem; font-weight: 800; padding: 0.5rem 1rem; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-        .tr-pulse-dot { width: 8px; height: 8px; background-color: var(--tr-emerald); border-radius: 50%; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: tr-pulse 1.5s infinite; }
-        
-        .tr-session-details { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0 0.5rem; }
-        .tr-s-item { background: #f8fafc; border: 1px solid var(--tr-border); padding: 0.4rem 0.8rem; border-radius: 8px; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
-        .s-lbl { color: var(--tr-text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
-        .s-val { font-weight: 800; color: var(--tr-text-main); font-family: monospace; font-size: 0.9rem;}
-        .text-indigo { color: var(--tr-indigo); }
+        .k-card-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+        .k-card-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .k-icon-eceran { background: #d1fae5; color: #059669; }
+        .k-icon-grosir { background: #dbeafe; color: #2563eb; }
+        .k-card-label { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; }
+        .k-card-name { font-size: 1rem; font-weight: 800; color: #0f172a; line-height: 1.2; }
+        .k-card-desc { font-size: 0.8125rem; color: #64748b; line-height: 1.6; margin: 0 0 1rem 0; }
 
-        /* ── POS CARDS GRID ── */
-        .tr-pos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
-        
-        .tr-pos-card { display: block; text-decoration: none; border-radius: 20px; transition: all 0.3s ease; position: relative; overflow: hidden; background: #ffffff; border: 2px solid transparent; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); }
-        .tr-pos-card-inner { padding: 1.75rem; display: flex; flex-direction: column; height: 100%; z-index: 2; position: relative; }
-        
-        /* Retail Card Styling */
-        .tr-card-retail { border-color: var(--tr-border); }
-        .tr-card-retail:hover { border-color: var(--tr-emerald); transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(16, 185, 129, 0.1), 0 10px 10px -5px rgba(16, 185, 129, 0.04); }
-        .tr-card-retail .tr-pos-icon { background: var(--tr-emerald-light); color: var(--tr-emerald); }
-        .tr-card-retail .tr-badge-mode { background: var(--tr-emerald); color: #fff; }
-        .tr-card-retail .tr-pos-action { color: var(--tr-emerald); background: var(--tr-emerald-light); }
-        .tr-card-retail:hover .tr-pos-action { background: var(--tr-emerald); color: #fff; }
+        /* ── STATUS BADGE ── */
+        .k-status { margin-left: auto; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.03em; display: inline-flex; align-items: center; gap: 5px; }
+        .k-status-active { background: #dcfce7; color: #166534; }
+        .k-status-inactive { background: #f1f5f9; color: #94a3b8; }
+        .k-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; animation: k-pulse 1.5s infinite; }
 
-        /* Wholesale Card Styling */
-        .tr-card-wholesale { border-color: var(--tr-border); }
-        .tr-card-wholesale:hover { border-color: var(--tr-blue); transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.1), 0 10px 10px -5px rgba(59, 130, 246, 0.04); }
-        .tr-card-wholesale .tr-pos-icon { background: var(--tr-blue-light); color: var(--tr-blue); }
-        .tr-card-wholesale .tr-badge-mode { background: var(--tr-blue); color: #fff; }
-        .tr-card-wholesale .tr-pos-action { color: var(--tr-blue); background: var(--tr-blue-light); }
-        .tr-card-wholesale:hover .tr-pos-action { background: var(--tr-blue); color: #fff; }
+        /* ── STATS GRID ── */
+        .k-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+        .k-stat { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px; padding: 0.5rem 0.75rem; }
+        .k-stat-label { display: block; font-size: 0.65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+        .k-stat-value { display: block; font-size: 0.875rem; font-weight: 700; color: #0f172a; font-family: 'Courier New', monospace; margin-top: 2px; }
+        .k-highlight { color: #4f46e5; }
 
-        /* Card Elements */
-        .tr-pos-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
-        .tr-pos-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-        .tr-badge-mode { padding: 4px 12px; border-radius: 999px; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.1em; }
-        
-        .tr-pos-content { flex-grow: 1; }
-        .tr-pos-name { font-size: 1.35rem; font-weight: 900; color: var(--tr-text-main); margin: 0 0 0.5rem 0; }
-        .tr-pos-desc { font-size: 0.9rem; color: var(--tr-text-muted); line-height: 1.6; margin: 0 0 1.25rem 0; }
-        
-        .tr-pos-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .tr-pos-pills span { font-size: 0.75rem; font-weight: 700; color: var(--tr-text-main); background: #f1f5f9; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--tr-border); }
+        /* ── ACTION BUTTON ── */
+        .k-card-action { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; border-radius: 10px; font-weight: 700; font-size: 0.875rem; text-decoration: none; transition: 0.2s; margin-top: auto; }
+        .k-action-eceran { background: #d1fae5; color: #059669; }
+        .k-action-eceran:hover { background: #10b981; color: #fff; }
+        .k-action-grosir { background: #dbeafe; color: #2563eb; }
+        .k-action-grosir:hover { background: #3b82f6; color: #fff; }
 
-        .tr-pos-action { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-radius: 12px; font-weight: 800; font-size: 0.95rem; transition: all 0.3s ease; }
+        /* ── EMPTY STATE ── */
+        .k-card-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; padding: 1.5rem 0; margin-top: auto; text-align: center; }
+        .k-card-empty span { font-size: 0.8125rem; color: #94a3b8; }
+        .k-open-btn { background: #4f46e5; color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 0.25rem; }
+        .k-open-btn:hover { background: #4338ca; transform: translateY(-1px); }
+        .k-need-super { font-size: 0.75rem !important; color: #f59e0b !important; font-style: italic; }
 
-        /* ── BOTTOM BANNER ── */
-        .tr-info-banner { background: #ffffff; border: 1px solid var(--tr-border); border-radius: 16px; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .tr-info-content { display: flex; gap: 1rem; align-items: flex-start; flex: 1; min-width: 250px; }
-        .tr-info-icon { font-size: 1.5rem; background: #fffbeb; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; flex-shrink: 0; }
-        .tr-info-title { margin: 0 0 4px 0; font-size: 1rem; font-weight: 800; color: var(--tr-text-main); }
-        .tr-info-desc { margin: 0; font-size: 0.85rem; color: var(--tr-text-muted); line-height: 1.5; }
+        /* ── TIP ── */
+        .k-tip { display: flex; align-items: center; gap: 0.75rem; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 10px; padding: 0.875rem 1rem; }
+        .k-tip-icon { font-size: 1.25rem; flex-shrink: 0; }
+        .k-tip p { margin: 0; font-size: 0.8125rem; color: #92400e; line-height: 1.5; }
 
-        .tr-btn { display: inline-flex; align-items: center; gap: 8px; padding: 0.75rem 1.5rem; border-radius: 10px; font-size: 0.875rem; font-weight: 700; cursor: pointer; transition: 0.2s; border: none; text-decoration: none; white-space: nowrap; }
-        .tr-btn-dark { background: var(--tr-text-main); color: #fff; }
-        .tr-btn-dark:hover { background: #000; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        /* ── MODAL ── */
+        .k-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(2px); }
+        .k-modal { background: #fff; border-radius: 16px; padding: 1.5rem; width: 90%; max-width: 420px; box-shadow: 0 24px 48px rgba(0,0,0,0.15); animation: k-modalIn 0.2s ease; }
+        .k-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .k-modal-header h3 { margin: 0; font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+        .k-modal-close { background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; line-height: 1; padding: 0 4px; }
+        .k-modal-close:hover { color: #0f172a; }
+        .k-modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+        .k-btn-cancel { background: #f1f5f9; color: #64748b; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .k-btn-cancel:hover { background: #e2e8f0; }
+        .k-form-group { margin-bottom: 0.875rem; }
+        .k-form-group label { display: block; font-size: 0.8125rem; font-weight: 600; color: #334155; margin-bottom: 0.35rem; }
+        .k-form-group input, .k-form-group select, .k-form-group textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; font-family: inherit; transition: border 0.2s; box-sizing: border-box; }
+        .k-form-group input:focus, .k-form-group select:focus, .k-form-group textarea:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
 
-        /* ANIMATIONS */
-        @keyframes tr-pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
+        /* ── ANIMATIONS ── */
+        @keyframes k-pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+        @keyframes k-modalIn { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
 
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .tr-hero-section { flex-direction: column; align-items: flex-start; }
-            .tr-session-strip { width: 100%; }
-            .tr-info-banner { flex-direction: column; align-items: stretch; }
-            .tr-btn { justify-content: center; }
+        /* ── RESPONSIVE ── */
+        @media (max-width: 720px) {
+            .k-grid { grid-template-columns: 1fr; }
+            .k-header { flex-direction: column; align-items: flex-start; }
         }
     </style>
     @endpush

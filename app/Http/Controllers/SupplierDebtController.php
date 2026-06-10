@@ -6,6 +6,7 @@ use App\Models\SupplierDebt;
 use App\Models\SupplierDebtPayment;
 use App\Models\Supplier;
 use App\Models\PurchaseOrder;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -148,20 +149,31 @@ class SupplierDebtController extends Controller
 
     public function pay(Request $request, SupplierDebt $hutang)
     {
-        if ($hutang->status === 'paid') {
+        if ($hutang->status === 'paid' || $hutang->remaining_amount <= 0) {
             return back()->with('error', 'Hutang ini sudah lunas.');
         }
 
+        $remaining = (int) $hutang->remaining_amount;
+
         $request->validate([
             'payment_date'     => 'required|date',
-            'amount'           => 'required|numeric|min:1|max:' . $hutang->remaining_amount,
+            'amount'           => 'required|numeric|min:1|max:' . $remaining,
             'payment_method'   => 'required|in:cash,transfer,check,other',
-            'reference_number' => 'nullable|string',
-            'notes'            => 'nullable|string',
+            'reference_number' => 'nullable|string|max:100',
+            'notes'            => 'nullable|string|max:500',
         ]);
 
+        DB::beginTransaction();
         try {
-            DB::beginTransaction();
+            // Lock for concurrent safety
+            $hutang = SupplierDebt::where('id', $hutang->id)->lockForUpdate()->first();
+
+            // Re-check remaining after lock
+            $currentRemaining = (int) $hutang->remaining_amount;
+            if ($request->amount > $currentRemaining) {
+                DB::rollBack();
+                return back()->with('error', 'Jumlah pembayaran melebihi sisa hutang (Rp ' . number_format($currentRemaining, 0, ',', '.') . ').');
+            }
 
             SupplierDebtPayment::create([
                 'supplier_debt_id'  => $hutang->id,
@@ -173,12 +185,31 @@ class SupplierDebtController extends Controller
                 'created_by'        => Auth::id(),
             ]);
 
-            $newPaid   = $hutang->paid_amount + $request->amount;
-            $newStatus = $newPaid >= $hutang->total_amount ? 'paid' : 'partial';
-            $hutang->update(['paid_amount' => $newPaid, 'status' => $newStatus]);
+            // Recalculate from actual payments (prevents rounding drift)
+            $totalPaid = $hutang->payments()->sum('amount');
+            $hutang->paid_amount = $totalPaid;
+            $hutang->status = $totalPaid >= $hutang->total_amount ? 'paid' : 'partial';
+            $hutang->save();
+
+            AuditService::log(
+                'supplier_debt.pay',
+                'SupplierDebt',
+                $hutang->id,
+                [
+                    'amount' => $request->amount,
+                    'payment_method' => $request->payment_method,
+                    'paid_amount' => $totalPaid,
+                    'remaining' => $hutang->remaining_amount,
+                ],
+                'info'
+            );
 
             DB::commit();
-            $msg = $newStatus === 'paid' ? 'Hutang lunas! ✅' : 'Pembayaran Rp ' . number_format($request->amount, 0, ',', '.') . ' berhasil dicatat.';
+
+            $msg = $hutang->status === 'paid'
+                ? 'Hutang berhasil dilunasi! ✅'
+                : 'Pembayaran Rp ' . number_format($request->amount, 0, ',', '.') . ' berhasil dicatat. Sisa: Rp ' . number_format($hutang->remaining_amount, 0, ',', '.');
+
             return back()->with('success', $msg);
         } catch (\Exception $e) {
             DB::rollBack();

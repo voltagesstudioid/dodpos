@@ -55,11 +55,12 @@ class StockInOutController extends Controller
             });
         }
 
+        // Calculate totals BEFORE pagination (not from paginated collection)
+        $inTotal = (int) (clone $inQuery)->sum('quantity');
+        $outTotal = (int) (clone $outQuery)->sum('quantity');
+
         $ins = $inQuery->orderBy('created_at', 'desc')->paginate(15, ['*'], 'ins_page')->withQueryString();
         $outs = $outQuery->orderBy('created_at', 'desc')->paginate(15, ['*'], 'outs_page')->withQueryString();
-
-        $inTotal = (int) $ins->getCollection()->sum('quantity');
-        $outTotal = (int) $outs->getCollection()->sum('quantity');
 
         $warehouses = Warehouse::where('active', true)->orderBy('name')->get();
 

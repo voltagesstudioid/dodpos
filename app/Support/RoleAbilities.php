@@ -21,7 +21,7 @@ class RoleAbilities
             return false;
         }
 
-        if (str_contains($ability, 'hutang') || str_contains($ability, 'piutang')) {
+        if ((str_contains($ability, 'hutang') || str_contains($ability, 'piutang')) && !str_contains($ability, 'pasgar')) {
             return false;
         }
 
@@ -61,6 +61,8 @@ class RoleAbilities
                 'view_transaksi',
                 'edit_transaksi',
                 'view_pelanggan',
+                'create_pelanggan',
+                'edit_pelanggan',
                 'view_daftar_harga',
                 'view_sales_order',
                 'view_laporan_penjualan',
@@ -82,6 +84,8 @@ class RoleAbilities
                 'view_transaksi',
                 'edit_transaksi',
                 'view_pelanggan',
+                'create_pelanggan',
+                'edit_pelanggan',
                 'view_daftar_harga',
                 'view_sales_order',
                 'view_laporan_penjualan',
@@ -120,6 +124,8 @@ class RoleAbilities
                 'view_opname_stok',
                 'create_opname_stok',
                 'view_warehouse_orders',
+                'view_pasgar_hutang',
+                'verify_pasgar_hutang',
             ], true);
         }
 
@@ -141,6 +147,24 @@ class RoleAbilities
                 'view_penerimaan_barang',
                 'view_pengeluaran_barang',
                 'view_laporan_stok',
+            ], true);
+        }
+
+        if ($role === 'sales_pasgar') {
+            return in_array($ability, [
+                'view_pasgar_dashboard',
+                'view_pasgar_loading',
+                'create_pasgar_loading',
+                'view_pasgar_penjualan',
+                'create_pasgar_penjualan',
+                'view_pasgar_setoran',
+                'create_pasgar_setoran',
+                'view_pasgar_pelanggan',
+                'create_pasgar_pelanggan',
+                'edit_pasgar_pelanggan',
+                'view_pasgar_hutang',
+                'create_pasgar_hutang',
+                'pay_pasgar_hutang',
             ], true);
         }
 

@@ -10,12 +10,14 @@ class MinyakHutangBayar extends Model
 
     protected $fillable = [
         'hutang_id', 'tanggal_bayar', 'jumlah', 'cara_bayar',
-        'bukti_transfer', 'keterangan', 'created_by',
+        'id_transaksi', 'bukti_transfer', 'keterangan', 'created_by',
+        'status', 'confirmed_by', 'confirmed_at', 'reject_reason',
     ];
 
     protected $casts = [
         'tanggal_bayar' => 'datetime',
         'jumlah' => 'decimal:2',
+        'confirmed_at' => 'datetime',
     ];
 
     public function hutang()
@@ -26,5 +28,20 @@ class MinyakHutangBayar extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function confirmer()
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    public function scopeConfirmed($query)
+    {
+        return $query->where('status', 'confirmed');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
     }
 }

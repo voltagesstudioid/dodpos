@@ -6,6 +6,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -46,6 +47,16 @@ class AppServiceProvider extends ServiceProvider
         // MissingRateLimiterException.
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        // Share pending opname count for supervisor sidebar badge
+        View::composer('layouts.app', function ($view) {
+            $user = auth()->user();
+            $pendingOpname = 0;
+            if ($user && strtolower(trim((string) ($user->role ?? ''))) === 'supervisor') {
+                $pendingOpname = \App\Models\StockOpnameSession::where('status', 'submitted')->count();
+            }
+            $view->with('pendingOpnameCount', $pendingOpname);
         });
     }
 }

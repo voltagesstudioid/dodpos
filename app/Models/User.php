@@ -84,6 +84,10 @@ class User extends Authenticatable
         'kasir',
         'gudang',
         'sales',
+        'sales_minyak',
+        'sales_mineral',
+        'sales_gula',
+        'sales_pasgar',
     ];
 
     public static function isValidRole(?string $role): bool
@@ -120,6 +124,35 @@ class User extends Authenticatable
     public function setRoleAttribute($value)
     {
         $this->attributes['role'] = $value === null ? null : strtolower(trim(str_replace(' ', '', (string) $value)));
+    }
+
+    public function getDivisionAttribute(): string
+    {
+        $role = strtolower($this->role ?? '');
+        if (str_contains($role, 'gula')) {
+            return 'gula';
+        }
+        if (str_contains($role, 'mineral')) {
+            return 'mineral';
+        }
+        if (str_contains($role, 'pasgar')) {
+            return 'pasgar';
+        }
+        return 'minyak';
+    }
+
+    public function getSalesProfileAttribute()
+    {
+        $div = $this->division;
+        if ($div === 'mineral') {
+            return \App\Models\MineralSales::where('user_id', $this->id)->first();
+        } elseif ($div === 'gula') {
+            return \App\Models\GulaSales::where('user_id', $this->id)->first();
+        } elseif ($div === 'pasgar') {
+            return \App\Models\PasgarSales::where('user_id', $this->id)->first();
+        } else {
+            return \App\Models\MinyakSales::where('user_id', $this->id)->first();
+        }
     }
 
     public function employee()

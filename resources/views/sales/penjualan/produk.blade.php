@@ -102,6 +102,8 @@
     </div>
 </div>
 
+</div>
+
 {{-- SUBMIT --}}
 <div style="position:fixed;bottom:0;left:0;right:0;padding:16px;background:linear-gradient(to top,var(--bg-base) 60%,transparent);z-index:45;">
     <button onclick="simpanPenjualan()" class="tap"
@@ -109,6 +111,47 @@
         <i data-lucide="check-circle" style="width:20px;height:20px;"></i>
         Simpan Penjualan
     </button>
+</div>
+
+{{-- QRIS PAYMENT MODAL --}}
+<div id="qris-modal" style="display:none; position:fixed; inset:0; background:rgba(7,11,20,0.95); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); z-index:999; align-items:center; justify-content:center; padding:20px; animation:fadeIn 0.3s ease both;">
+    <div class="card-glow" style="width:100%; max-width:380px; padding:24px; text-align:center; position:relative; box-shadow:0 12px 40px rgba(124,58,237,0.3); border:1px solid rgba(124,58,237,0.4); background:rgba(22,27,39,0.9); border-radius:24px;">
+        
+        <div style="font-size:12px; color:#A78BFA; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Pembayaran QRIS / Transfer</div>
+        <div id="qris-invoice" style="font-size:16px; font-weight:700; color:#fff; margin-bottom:16px;">FKMXXXXXXXXXX</div>
+        
+        {{-- QR Code Container --}}
+        <div style="background:#fff; padding:16px; border-radius:24px; width:220px; height:220px; margin:0 auto 20px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(0,0,0,0.5); position:relative;">
+            <img id="qris-image" src="" alt="QRIS Code" style="width:100%; height:100%; object-fit:contain; border-radius:12px;">
+            {{-- Success Overlay --}}
+            <div id="qris-success-overlay" style="display:none; position:absolute; inset:0; background:rgba(5,150,105,0.95); border-radius:24px; align-items:center; justify-content:center; flex-direction:column; gap:8px; animation:fadeIn 0.3s ease both;">
+                <i data-lucide="check-circle" style="width:64px; height:64px; color:#fff;"></i>
+                <span style="color:#fff; font-weight:700; font-size:18px;">Lunas!</span>
+            </div>
+        </div>
+        
+        {{-- Total Tagihan --}}
+        <div style="margin-bottom:20px;">
+            <div style="font-size:11px; color:rgba(255,255,255,0.4); margin-bottom:4px;">Total Tagihan</div>
+            <div id="qris-total" style="font-size:28px; font-weight:800; color:#fff; letter-spacing:-0.5px;">Rp 0</div>
+        </div>
+
+        {{-- Status Loader --}}
+        <div id="qris-status-container" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:24px; color:rgba(255,255,255,0.6); font-size:13px; font-weight:500;">
+            <div style="width:8px; height:8px; background:#A78BFA; border-radius:50%; animation:pulse 1.2s infinite; box-shadow: 0 0 8px var(--accent);"></div>
+            <span>Menunggu Pembayaran...</span>
+        </div>
+
+        {{-- Action buttons --}}
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <button onclick="simulateCallback()" id="btn-simulate" class="tap" style="width:100%; padding:14px; background:linear-gradient(135deg,#7C3AED,#5B21B6); border:none; border-radius:12px; font-size:13px; font-weight:700; color:#fff; cursor:pointer; box-shadow:0 4px 15px rgba(124,58,237,0.3);">
+                ⚡ Simulasikan Webhook Pembayaran
+            </button>
+            <button onclick="cancelQRIS()" id="btn-cancel" class="tap" style="width:100%; padding:12px; background:transparent; border:1px solid rgba(255,255,255,0.1); border-radius:12px; font-size:13px; font-weight:600; color:rgba(255,255,255,0.5); cursor:pointer;">
+                Batal
+            </button>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -235,6 +278,9 @@ function calculateKembalian() {
     if(kembalian >= 0 && diterima > 0) document.getElementById('kembalian-amount').textContent = formatRupiah(kembalian);
 }
 
+let currentNoFaktur = null;
+let pollingInterval = null;
+
 async function simpanPenjualan() {
     if (!selectedProduk) {
         showToast('Pilih produk terlebih dahulu', 'error');
@@ -284,9 +330,15 @@ async function simpanPenjualan() {
         });
         
         if (response.ok) {
-            showToast('Penjualan berhasil disimpan', 'success');
-            sessionStorage.removeItem('selected_pelanggan');
-            window.location.href = '{{ route('sales.dashboard') }}';
+            const resData = await response.json();
+            if (paymentType === 'transfer' && resData.data && resData.data.no_faktur) {
+                showLoading(false);
+                showQRISModal(resData.data.no_faktur, total);
+            } else {
+                showToast('Penjualan berhasil disimpan', 'success');
+                sessionStorage.removeItem('selected_pelanggan');
+                window.location.href = '{{ route('sales.dashboard') }}';
+            }
         } else {
             throw new Error('Server error');
         }
@@ -303,6 +355,112 @@ async function simpanPenjualan() {
     } finally {
         showLoading(false);
     }
+}
+
+function showQRISModal(noFaktur, totalAmount) {
+    currentNoFaktur = noFaktur;
+    
+    document.getElementById('qris-invoice').textContent = noFaktur;
+    document.getElementById('qris-total').textContent = formatRupiah(totalAmount);
+    
+    const qrData = encodeURIComponent(`Invoice DODPOS: ${noFaktur} | Total: ${formatRupiah(totalAmount)}`);
+    document.getElementById('qris-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}`;
+    
+    document.getElementById('qris-success-overlay').style.display = 'none';
+    document.getElementById('qris-status-container').style.display = 'flex';
+    document.getElementById('btn-simulate').disabled = false;
+    document.getElementById('btn-cancel').disabled = false;
+    
+    document.getElementById('qris-modal').style.display = 'flex';
+    lucide.createIcons();
+    
+    startPolling(noFaktur);
+}
+
+function startPolling(noFaktur) {
+    if (pollingInterval) clearInterval(pollingInterval);
+    
+    pollingInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/v1/penjualan/status?no_faktur=${noFaktur}`);
+            if (response.ok) {
+                const result = await response.json();
+                if (result.status === 'terverifikasi') {
+                    handlePaymentSuccess();
+                }
+            }
+        } catch (e) {
+            console.error('Polling status error:', e);
+        }
+    }, 3000);
+}
+
+function handlePaymentSuccess() {
+    clearInterval(pollingInterval);
+    
+    document.getElementById('qris-success-overlay').style.display = 'flex';
+    document.getElementById('qris-status-container').style.display = 'none';
+    document.getElementById('btn-simulate').disabled = true;
+    document.getElementById('btn-cancel').disabled = true;
+    
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.15); // E5
+        osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.3); // G5
+        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.45); // C6
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.8);
+    } catch (e) {}
+
+    showToast('Pembayaran Berhasil Diterima!', 'success');
+    
+    setTimeout(() => {
+        sessionStorage.removeItem('selected_pelanggan');
+        window.location.href = '{{ route('sales.dashboard') }}';
+    }, 2000);
+}
+
+async function simulateCallback() {
+    if (!currentNoFaktur) return;
+    
+    try {
+        const response = await fetch('/api/v1/payment/callback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                no_faktur: currentNoFaktur
+            })
+        });
+        
+        if (response.ok) {
+            showToast('Sinyal callback terkirim!', 'success');
+        } else {
+            showToast('Gagal menembak callback simulator', 'error');
+        }
+    } catch (e) {
+        showToast('Koneksi bermasalah', 'error');
+    }
+}
+
+function cancelQRIS() {
+    clearInterval(pollingInterval);
+    document.getElementById('qris-modal').style.display = 'none';
+    showToast('Pembayaran QRIS Dibatalkan', 'warning');
+    setTimeout(() => {
+        sessionStorage.removeItem('selected_pelanggan');
+        window.location.href = '{{ route('sales.dashboard') }}';
+    }, 1000);
 }
 
 function formatRupiah(amount) {

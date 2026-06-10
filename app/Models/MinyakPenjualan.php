@@ -9,8 +9,8 @@ class MinyakPenjualan extends Model
     protected $table = 'minyak_penjualan';
 
     protected $fillable = [
-        'no_faktur', 'tanggal_jual', 'sales_id', 'pelanggan_id', 'produk_id',
-        'jumlah', 'harga_satuan', 'total', 'tipe_bayar', 'bayar', 'kembali', 'hutang',
+        'kunjungan_id', 'no_faktur', 'tanggal_jual', 'sales_id', 'pelanggan_id', 'produk_id',
+        'jumlah', 'harga_satuan', 'total', 'tipe_bayar', 'no_bukti_transfer', 'bukti_transfer', 'bayar', 'kembali', 'hutang',
         'latitude', 'longitude', 'foto_nota', 'keterangan', 'status',
         'verified_by', 'verified_at',
     ];
@@ -45,6 +45,11 @@ class MinyakPenjualan extends Model
     public function verifier()
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function kunjungan()
+    {
+        return $this->belongsTo(MinyakKunjungan::class, 'kunjungan_id');
     }
 
     public function hutang()

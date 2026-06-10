@@ -8,13 +8,22 @@ use App\Http\Controllers\CustomerCreditController;
 // PELANGGAN (Customer)
 // =========================================================
 
-Route::middleware('can:view_pelanggan')->group(function () {
-    Route::get('/pelanggan', [CustomerController::class, 'index'])->name('pelanggan.index');
+Route::middleware('can:create_pelanggan')->group(function () {
     Route::get('/pelanggan/create', [CustomerController::class, 'create'])->name('pelanggan.create');
     Route::post('/pelanggan', [CustomerController::class, 'store'])->name('pelanggan.store');
+});
+
+Route::middleware('can:view_pelanggan')->group(function () {
+    Route::get('/pelanggan', [CustomerController::class, 'index'])->name('pelanggan.index');
     Route::get('/pelanggan/{pelanggan}', [CustomerController::class, 'show'])->name('pelanggan.show');
+});
+
+Route::middleware('can:edit_pelanggan')->group(function () {
     Route::get('/pelanggan/{pelanggan}/edit', [CustomerController::class, 'edit'])->name('pelanggan.edit');
     Route::put('/pelanggan/{pelanggan}', [CustomerController::class, 'update'])->name('pelanggan.update');
+});
+
+Route::middleware('can:delete_pelanggan')->group(function () {
     Route::delete('/pelanggan/{pelanggan}', [CustomerController::class, 'destroy'])->name('pelanggan.destroy');
 });
 
@@ -39,6 +48,7 @@ Route::middleware('can:create_hutang_piutang')->group(function () {
 
 Route::middleware('can:delete_hutang_piutang')->group(function () {
     Route::delete('/hutang-piutang/{kredit}', [CustomerCreditController::class, 'destroy'])->name('pelanggan.kredit.destroy');
+    Route::delete('/hutang-piutang/pembayaran/{payment}', [CustomerCreditController::class, 'deletePayment'])->name('pelanggan.kredit.delete_payment');
 });
 
 // =========================================================

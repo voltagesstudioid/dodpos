@@ -121,7 +121,7 @@
 
                     {{-- Section 3 --}}
                     <fieldset class="tr-fieldset tr-fieldset-last">
-                        <legend class="tr-legend">3. Keterangan Tambahan</legend>
+                        <legend class="tr-legend">2. Keterangan Tambahan</legend>
                         <div class="tr-grid">
                             <div class="tr-col-full">
                                 <label class="tr-label">Alasan Pengeluaran</label>

@@ -2,397 +2,497 @@
     <x-slot name="header">Dashboard</x-slot>
 
     <style>
-        /* ===== DASHBOARD LIGHT STYLES ===== */
-        .dash-greeting { margin-bottom: 1.75rem; }
-        .dash-greeting h1 {
-            font-size: 1.5rem;
+        /* ===== DASHBOARD PREMIUM STYLES ===== */
+        :root {
+            --tr-bg-gradient: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+            --tr-card-bg: rgba(255, 255, 255, 0.85);
+            --tr-card-border: rgba(255, 255, 255, 0.6);
+            --tr-card-shadow: 0 8px 32px rgba(30, 41, 59, 0.05);
+            --tr-glass-blur: blur(12px);
+            --tr-primary: #4f46e5;
+            --tr-primary-light: #e0e7ff;
+            --tr-success: #059669;
+            --tr-success-light: #d1fae5;
+            --tr-warning: #d97706;
+            --tr-warning-light: #fef3c7;
+            --tr-danger: #e11d48;
+            --tr-danger-light: #ffe4e6;
+            --tr-text-main: #1e293b;
+            --tr-text-muted: #64748b;
+        }
+
+        .dash-container {
+            padding: 1.5rem 0;
+            font-family: 'Inter', system-ui, sans-serif;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Abstract Background Decoration */
+        .dash-container::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Greeting Section */
+        .tr-greeting {
+            margin-bottom: 2rem;
+            animation: tr-fade-in-up 0.6s ease-out;
+        }
+        .tr-greeting h1 {
+            font-size: 1.8rem;
             font-weight: 800;
-            color: #1e293b;
-            letter-spacing: -0.025em;
+            color: var(--tr-text-main);
+            letter-spacing: -0.03em;
             margin-bottom: 0.25rem;
         }
-        .dash-greeting h1 span { color: #6366f1; }
-        .dash-greeting p { font-size: 0.875rem; color: #94a3b8; }
+        .tr-greeting h1 span.highlight {
+            background: linear-gradient(90deg, #4f46e5, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tr-greeting p {
+            font-size: 0.95rem;
+            color: var(--tr-text-muted);
+            font-weight: 500;
+        }
 
-        /* Stat Cards */
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .stat-card {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 1.375rem 1.25rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
-            transition: all 0.25s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-            border-color: #c7d2fe;
-        }
-        .stat-icon {
-            width: 48px; height: 48px;
-            border-radius: 13px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.25rem;
-            flex-shrink: 0;
-        }
-        .stat-icon.indigo  { background: #eef2ff; }
-        .stat-icon.emerald { background: #ecfdf5; }
-        .stat-icon.amber   { background: #fffbeb; }
-        .stat-icon.rose    { background: #fff1f2; }
-
-        .stat-label {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.07em;
-            margin-bottom: 0.375rem;
-        }
-        .stat-value {
-            font-size: 1.875rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            line-height: 1;
-            margin-bottom: 0.5rem;
-        }
-        .stat-value.indigo  { color: #4f46e5; }
-        .stat-value.emerald { color: #059669; }
-        .stat-value.amber   { color: #d97706; }
-        .stat-value.rose    { color: #e11d48; }
-
-        .stat-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 0.2rem 0.6rem;
-            border-radius: 999px;
-        }
-        .stat-badge.neutral { background: #f1f5f9; color: #94a3b8; }
-        .stat-badge.up      { background: #ecfdf5; color: #059669; }
-
-        /* Content Grid */
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 1.25rem;
-        }
-        @media (max-width: 1280px) { .content-grid { grid-template-columns: 1fr; } }
-
-        /* Panel */
-        .panel {
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 16px;
+        /* Glass Cards */
+        .tr-glass-card {
+            background: var(--tr-card-bg);
+            backdrop-filter: var(--tr-glass-blur);
+            -webkit-backdrop-filter: var(--tr-glass-blur);
+            border: 1px solid var(--tr-card-border);
+            border-radius: 20px;
+            box-shadow: var(--tr-card-shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
-        .panel-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1.125rem 1.375rem;
-            border-bottom: 1px solid #f1f5f9;
+        .tr-glass-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(30, 41, 59, 0.08);
+            border-color: rgba(99, 102, 241, 0.3);
         }
-        .panel-title { font-size: 0.9375rem; font-weight: 700; color: #1e293b; }
-        .panel-subtitle { font-size: 0.7rem; color: #94a3b8; margin-top: 1px; }
-        .panel-action {
-            font-size: 0.75rem;
-            color: #6366f1;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.2s;
-        }
-        .panel-action:hover { color: #4f46e5; }
-        .panel-body { padding: 1.25rem 1.375rem; }
 
-        /* Quick Actions */
-        .quick-actions {
+        /* Stats Grid */
+        .tr-stats-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
-        .qa-btn {
+        .tr-stat-item {
+            padding: 1.5rem;
             display: flex;
             flex-direction: column;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .tr-stat-item::after {
+            content: '';
+            position: absolute;
+            right: -20px;
+            bottom: -20px;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            opacity: 0.4;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .tr-stat-item.indigo::after { background: radial-gradient(circle, var(--tr-primary-light) 0%, transparent 70%); }
+        .tr-stat-item.emerald::after { background: radial-gradient(circle, var(--tr-success-light) 0%, transparent 70%); }
+        .tr-stat-item.amber::after { background: radial-gradient(circle, var(--tr-warning-light) 0%, transparent 70%); }
+        .tr-stat-item.rose::after { background: radial-gradient(circle, var(--tr-danger-light) 0%, transparent 70%); }
+
+        .tr-stat-header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            gap: 0.625rem;
-            padding: 1.125rem 1rem;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 13px;
-            text-decoration: none;
-            color: #475569;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            transition: all 0.25s ease;
-            text-align: center;
+            z-index: 1;
         }
-        .qa-btn:hover {
-            background: #eef2ff;
-            border-color: #c7d2fe;
-            color: #4f46e5;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(99,102,241,0.12);
-        }
-        .qa-icon {
+        .tr-stat-icon {
             width: 42px; height: 42px;
             border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.25rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .tr-stat-icon.indigo { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+        .tr-stat-icon.emerald { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .tr-stat-icon.amber { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .tr-stat-icon.rose { background: linear-gradient(135deg, #f43f5e, #e11d48); color: white; }
+
+        .tr-stat-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.3rem 0.6rem;
+            border-radius: 999px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .tr-stat-badge.indigo { background: var(--tr-primary-light); color: var(--tr-primary); }
+        .tr-stat-badge.emerald { background: var(--tr-success-light); color: var(--tr-success); }
+        .tr-stat-badge.amber { background: var(--tr-warning-light); color: var(--tr-warning); }
+        .tr-stat-badge.rose { background: var(--tr-danger-light); color: var(--tr-danger); }
+
+        .tr-stat-body { z-index: 1; }
+        .tr-stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--tr-text-main);
+            letter-spacing: -0.04em;
+            line-height: 1.2;
+            margin-bottom: 0.2rem;
+        }
+        .tr-stat-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--tr-text-muted);
+        }
+
+        /* Alerts List */
+        .tr-alerts {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            animation: tr-fade-in-up 0.7s ease-out;
+        }
+        .tr-alert-item {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.25rem 1.5rem;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.9);
+            border-left: 6px solid transparent;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            text-decoration: none;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .tr-alert-item:hover {
+            transform: translateX(8px);
             background: #ffffff;
-            border: 1px solid #e2e8f0;
-            transition: all 0.25s;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
         }
-        .qa-btn:hover .qa-icon { background: #e0e7ff; border-color: #c7d2fe; }
-
-        /* Activity */
-        .activity-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.875rem;
-            padding: 0.875rem 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .activity-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .activity-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
-            margin-top: 5px;
-            flex-shrink: 0;
-        }
-        .activity-text { font-size: 0.825rem; color: #475569; line-height: 1.5; }
-        .activity-time  { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
-
-        /* Mini chart */
-        .mini-chart {
-            display: flex;
-            align-items: flex-end;
-            gap: 5px;
-            height: 70px;
-            padding: 0 0.375rem;
-        }
-        .mini-bar {
-            flex: 1; height: var(--bar-height, 8%);
-            border-radius: 5px 5px 0 0;
-            background: #e0e7ff;
+        .tr-alert-item.danger { border-left-color: var(--tr-danger); }
+        .tr-alert-item.warning { border-left-color: var(--tr-warning); }
+        .tr-alert-item.info { border-left-color: var(--tr-primary); }
+        
+        .tr-alert-icon { font-size: 1.75rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); }
+        .tr-alert-content { flex: 1; }
+        .tr-alert-title { font-size: 1rem; font-weight: 700; color: var(--tr-text-main); margin-bottom: 0.2rem; }
+        .tr-alert-msg { font-size: 0.85rem; color: var(--tr-text-muted); font-weight: 500; }
+        .tr-alert-action {
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
             transition: background 0.2s;
-            cursor: pointer;
         }
-        .mini-bar:hover  { background: #a5b4fc; }
-        .mini-bar.active { background: #6366f1; }
+        .tr-alert-item.danger .tr-alert-action { color: var(--tr-danger); background: var(--tr-danger-light); }
+        .tr-alert-item.danger:hover .tr-alert-action { background: #fda4af; color: #9f1239; }
+        .tr-alert-item.warning .tr-alert-action { color: var(--tr-warning); background: var(--tr-warning-light); }
+        .tr-alert-item.warning:hover .tr-alert-action { background: #fde68a; color: #92400e; }
+        .tr-alert-item.info .tr-alert-action { color: var(--tr-primary); background: var(--tr-primary-light); }
+        .tr-alert-item.info:hover .tr-alert-action { background: #c7d2fe; color: #3730a3; }
 
-        .chart-label {
+        /* Content Sections */
+        .tr-content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+        @media (max-width: 1024px) { .tr-content-grid { grid-template-columns: 1fr; } }
+
+        .tr-panel {
             display: flex;
-            justify-content: space-between;
-            margin-top: 0.5rem;
+            flex-direction: column;
+            height: 100%;
         }
-        .chart-label span { font-size: 0.65rem; color: #94a3b8; flex: 1; text-align: center; }
-
-        /* Info rows */
-        .info-row {
+        .tr-panel-header {
+            padding: 1.5rem 1.5rem 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.625rem 0;
-            border-bottom: 1px solid #f1f5f9;
         }
-        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
-        .info-key { font-size: 0.8rem; color: #64748b; }
-        .info-val { font-size: 0.8rem; font-weight: 600; color: #1e293b; }
+        .tr-panel-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--tr-text-main);
+        }
+        .tr-panel-subtitle {
+            font-size: 0.8rem;
+            color: var(--tr-text-muted);
+            font-weight: 500;
+            margin-top: 0.2rem;
+        }
+        .tr-panel-body { padding: 0 1.5rem 1.5rem; flex: 1; display: flex; flex-direction: column; }
 
-        .badge-green  { background: #ecfdf5; color: #059669; padding: 0.2rem 0.625rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
-        .badge-yellow { background: #fffbeb; color: #d97706; padding: 0.2rem 0.625rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+        /* Chart */
+        .tr-chart-container {
+            margin-top: 1rem;
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            height: 180px;
+            padding: 1rem 0 0;
+        }
+        .tr-chart-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            height: 100%;
+            justify-content: flex-end;
+            group: hover;
+        }
+        .tr-chart-bar {
+            width: 100%;
+            background: linear-gradient(to top, var(--tr-primary-light), #a5b4fc);
+            border-radius: 6px 6px 4px 4px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            min-height: 4px;
+            cursor: pointer;
+        }
+        .tr-chart-bar::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.8);
+            background: #1e293b;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tr-chart-bar:hover {
+            background: linear-gradient(to top, #6366f1, #4f46e5);
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+        }
+        .tr-chart-bar:hover::before {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+        .tr-chart-bar.active { background: linear-gradient(to top, #4f46e5, #312e81); }
+        .tr-chart-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--tr-text-muted);
+            text-transform: uppercase;
+        }
 
-        .empty-note { font-size: 0.78rem; color: #cbd5e1; text-align: center; padding: 1rem 0 0; }
+        /* Quick Menu */
+        .tr-quick-menu {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .tr-quick-btn {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: rgba(255,255,255,0.5);
+            border: 1px solid rgba(0,0,0,0.05);
+            border-radius: 14px;
+            text-decoration: none;
+            color: var(--tr-text-main);
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .tr-quick-btn:hover {
+            background: #ffffff;
+            border-color: rgba(99,102,241,0.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transform: translateX(4px);
+        }
+        .tr-quick-icon {
+            font-size: 1.25rem;
+            width: 38px; height: 38px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
+            background: var(--tr-primary-light);
+            color: var(--tr-primary);
+        }
+
+        /* Animations */
+        @keyframes tr-fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-stagger > * { opacity: 0; animation: tr-fade-in-up 0.5s ease-out forwards; }
+        .animate-stagger > *:nth-child(1) { animation-delay: 0.1s; }
+        .animate-stagger > *:nth-child(2) { animation-delay: 0.2s; }
+        .animate-stagger > *:nth-child(3) { animation-delay: 0.3s; }
+        .animate-stagger > *:nth-child(4) { animation-delay: 0.4s; }
     </style>
 
-    <!-- Greeting -->
-    <div class="dash-greeting">
-        <h1>Selamat Datang, <span>{{ Auth::user()->name }}</span> 👋</h1>
-        <p>{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }} &mdash; Berikut ringkasan bisnis Anda hari ini.</p>
-    </div>
+    <div class="dash-container">
+        <!-- GREETING -->
+        <div class="tr-greeting">
+            <h1>Selamat Datang, <span class="highlight">{{ Auth::user()->name }}</span> 👋</h1>
+            <p>{{ now()->locale('id')->isoFormat('dddd, D MMMM YYYY') }} &mdash; Pantau aktivitas bisnis Anda dalam satu pandangan.</p>
+        </div>
 
-    <!-- Alerts / Notifications -->
-    @if(!empty($alerts))
-    <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;">
-        @foreach($alerts as $alert)
-        <a href="{{ $alert['link'] }}" style="text-decoration:none;">
-            <div style="display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; border-radius:12px; background:{{ $alert['type'] === 'danger' ? '#fef2f2' : ($alert['type'] === 'warning' ? '#fffbeb' : '#eff6ff') }}; border:1px solid {{ $alert['type'] === 'danger' ? '#fecaca' : ($alert['type'] === 'warning' ? '#fcd34d' : '#bfdbfe') }}; transition:all 0.2s;" onmouseover="this.style.transform='translateX(4px)';" onmouseout="this.style.transform='translateX(0)';">
-                <div style="font-size:1.5rem;">{{ $alert['icon'] }}</div>
-                <div style="flex:1;">
-                    <div style="font-weight:700; color:{{ $alert['type'] === 'danger' ? '#dc2626' : ($alert['type'] === 'warning' ? '#d97706' : '#2563eb') }};">{{ $alert['title'] }}</div>
-                    <div style="font-size:0.8125rem; color:#64748b;">{{ $alert['message'] }}</div>
+        <!-- ALERTS -->
+        @if(!empty($alerts))
+            <div class="tr-alerts animate-stagger">
+                @foreach($alerts as $alert)
+                    <a href="{{ $alert['link'] }}" class="tr-alert-item {{ $alert['type'] }}">
+                        <div class="tr-alert-icon">{{ $alert['icon'] }}</div>
+                        <div class="tr-alert-content">
+                            <div class="tr-alert-title">{{ $alert['title'] }}</div>
+                            <div class="tr-alert-msg">{{ $alert['message'] }}</div>
+                        </div>
+                        <div class="tr-alert-action">Tindak Lanjut &rarr;</div>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        <!-- STATS GRID -->
+        <div class="tr-stats-grid animate-stagger">
+            <!-- Total Produk -->
+            <div class="tr-glass-card tr-stat-item indigo">
+                <div class="tr-stat-header">
+                    <div class="tr-stat-icon indigo">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    </div>
+                    <span class="tr-stat-badge indigo">Terdaftar</span>
                 </div>
-                <div style="font-size:0.75rem; color:{{ $alert['type'] === 'danger' ? '#dc2626' : ($alert['type'] === 'warning' ? '#d97706' : '#2563eb') }}; font-weight:600;">Lihat →</div>
+                <div class="tr-stat-body">
+                    <div class="tr-stat-value">{{ number_format($stats['total_products'], 0, ',', '.') }}</div>
+                    <div class="tr-stat-label">Total SKU Produk</div>
+                </div>
             </div>
-        </a>
-        @endforeach
-    </div>
-    @endif
 
-    <!-- Stat Cards -->
-    <div class="stat-grid">
-        <div class="stat-card">
-            <div class="stat-icon indigo">📦</div>
-            <div style="flex:1;min-width:0;">
-                <div class="stat-label">Total Produk</div>
-                <div class="stat-value indigo">{{ \App\Models\Product::count() }}</div>
-                <span class="stat-badge neutral">SKU terdaftar</span>
+            <!-- Transaksi Hari Ini -->
+            <div class="tr-glass-card tr-stat-item emerald">
+                <div class="tr-stat-header">
+                    <div class="tr-stat-icon emerald">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    </div>
+                    <span class="tr-stat-badge emerald">Hari Ini</span>
+                </div>
+                <div class="tr-stat-body">
+                    <div class="tr-stat-value">{{ number_format($stats['total_transactions_today'], 0, ',', '.') }}</div>
+                    <div class="tr-stat-label">Transaksi Selesai</div>
+                </div>
             </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon emerald">🧾</div>
-            <div style="flex:1;min-width:0;">
-                <div class="stat-label">Total Transaksi</div>
-                <div class="stat-value emerald">{{ \App\Models\Transaction::count() }}</div>
-                <span class="stat-badge up">↑ Semua waktu</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon amber">💰</div>
-            <div style="flex:1;min-width:0;">
-                <div class="stat-label">Pendapatan Hari Ini</div>
-                <div class="stat-value amber">Rp {{ number_format(\App\Models\Transaction::whereDate('created_at', now()->toDateString())->where('status', 'completed')->sum('total_amount'), 0, ',', '.') }}</div>
-                <span class="stat-badge neutral">Hari ini</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon rose">👥</div>
-            <div style="flex:1;min-width:0;">
-                <div class="stat-label">Pelanggan Aktif</div>
-                <div class="stat-value rose">{{ \App\Models\Customer::where('is_active', true)->count() }}</div>
-                <span class="stat-badge neutral">Total aktif</span>
-            </div>
-        </div>
-    </div>
 
-    <!-- Content Grid -->
-    <div class="content-grid">
-        <!-- Left -->
-        <div style="display:flex;flex-direction:column;gap:1.25rem;">
-            <!-- Chart -->
-            <div class="panel">
-                <div class="panel-header">
+            <!-- Omzet Hari Ini -->
+            <div class="tr-glass-card tr-stat-item amber">
+                <div class="tr-stat-header">
+                    <div class="tr-stat-icon amber">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <span class="tr-stat-badge amber">Omzet Kotor</span>
+                </div>
+                <div class="tr-stat-body">
+                    <div class="tr-stat-value"><span style="font-size:1.2rem;color:#94a3b8;font-weight:600;">Rp</span> {{ number_format($stats['revenue_today'], 0, ',', '.') }}</div>
+                    <div class="tr-stat-label">Pendapatan Hari Ini</div>
+                </div>
+            </div>
+
+            <!-- Pelanggan Aktif -->
+            <div class="tr-glass-card tr-stat-item rose">
+                <div class="tr-stat-header">
+                    <div class="tr-stat-icon rose">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <span class="tr-stat-badge rose">Total Aktif</span>
+                </div>
+                <div class="tr-stat-body">
+                    <div class="tr-stat-value">{{ number_format($stats['active_customers'], 0, ',', '.') }}</div>
+                    <div class="tr-stat-label">Pelanggan Terdaftar</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENT GRID -->
+        <div class="tr-content-grid animate-stagger">
+            <!-- Left: Chart -->
+            <div class="tr-glass-card tr-panel">
+                <div class="tr-panel-header">
                     <div>
-                        <div class="panel-title">Penjualan Mingguan</div>
-                        <div class="panel-subtitle">7 hari terakhir</div>
+                        <div class="tr-panel-title">Omzet Penjualan</div>
+                        <div class="tr-panel-subtitle">Performa 7 hari terakhir</div>
                     </div>
-                    <a href="#" class="panel-action">Lihat detail →</a>
                 </div>
-                <div class="panel-body">
-                    <div class="mini-chart">
+                <div class="tr-panel-body">
+                    <div class="tr-chart-container">
                         @foreach($weeklySales as $sale)
-                        <div class="mini-bar {{ $sale['date'] === now()->toDateString() ? 'active' : '' }}" 
-                             style="--bar-height: {{ max(8, (int) $sale['percentage']) }}%;" 
-                             title="{{ $sale['label'] }}: Rp {{ number_format($sale['amount'], 0, ',', '.') }}"></div>
-                        @endforeach
-                    </div>
-                    <div class="chart-label">
-                        @foreach($weeklySales as $sale)
-                            <span>{{ $sale['label'] }}</span>
+                        <div class="tr-chart-col">
+                            <div class="tr-chart-bar {{ $sale['date'] === now()->toDateString() ? 'active' : '' }}" 
+                                 style="height: {{ max(6, (int) $sale['percentage']) }}%;"
+                                 data-tooltip="Rp {{ number_format($sale['amount'], 0, ',', '.') }}"></div>
+                            <span class="tr-chart-label">{{ $sale['label'] }}</span>
+                        </div>
                         @endforeach
                     </div>
                     @if(collect($weeklySales)->sum('amount') == 0)
-                        <p class="empty-note">Data penjualan akan muncul setelah ada transaksi</p>
+                        <div style="text-align:center; padding:1.5rem 0; color:#94a3b8; font-size:0.85rem; font-weight:500;">
+                            Belum ada data transaksi yang tercatat dalam seminggu terakhir.
+                        </div>
                     @endif
                 </div>
             </div>
 
-            <!-- Aktivitas -->
-            <div class="panel">
-                <div class="panel-header">
+            <!-- Right: Quick Actions -->
+            <div class="tr-glass-card tr-panel">
+                <div class="tr-panel-header">
                     <div>
-                        <div class="panel-title">Aktivitas Terbaru</div>
-                        <div class="panel-subtitle">Log sistem hari ini</div>
-                    </div>
-                    <a href="#" class="panel-action">Semua log →</a>
-                </div>
-                <div class="panel-body">
-                    <div class="activity-item">
-                        <div class="activity-dot" style="background:#6366f1;"></div>
-                        <div>
-                            <div class="activity-text">Sistem berhasil dimulai</div>
-                            <div class="activity-time">{{ now()->format('H:i') }} — Hari ini</div>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-dot" style="background:#10b981;"></div>
-                        <div>
-                            <div class="activity-text">{{ Auth::user()->name }} masuk ke sistem</div>
-                            <div class="activity-time">{{ now()->format('H:i') }} — Hari ini</div>
-                        </div>
-                    </div>
-                    <p class="empty-note">Belum ada transaksi hari ini</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Right -->
-        <div style="display:flex;flex-direction:column;gap:1.25rem;">
-            <!-- Menu Cepat -->
-            <div class="panel">
-                <div class="panel-header">
-                    <div>
-                        <div class="panel-title">Menu Cepat</div>
-                        <div class="panel-subtitle">Aksi yang sering digunakan</div>
+                        <div class="tr-panel-title">Akses Cepat</div>
+                        <div class="tr-panel-subtitle">Pintasan menu penting</div>
                     </div>
                 </div>
-                <div class="panel-body">
-                    <div class="quick-actions">
+                <div class="tr-panel-body">
+                    <div class="tr-quick-menu">
                         @can('view_pos_kasir')
-                            <a href="{{ route('kasir.index') }}" class="qa-btn">
-                                <div class="qa-icon" style="background:#eef2ff;color:#4f46e5;border-color:#c7d2fe;">🛒</div>
-                                Buka Kasir
+                            <a href="{{ route('kasir.index') }}" class="tr-quick-btn">
+                                <div class="tr-quick-icon">💻</div>
+                                <div>Buka POS Kasir</div>
                             </a>
                         @endcan
-                        <a href="{{ route('gudang.terimapo.index') }}" class="qa-btn">
-                            <div class="qa-icon" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;">📥</div>
-                            Terima PO (Supplier)
+                        <a href="{{ route('gudang.terimapo.index') }}" class="tr-quick-btn">
+                            <div class="tr-quick-icon" style="background:#d1fae5; color:#059669;">📥</div>
+                            <div>Terima PO Supplier</div>
                         </a>
-                        <a href="{{ route('operasional.pengeluaran.create') }}" class="qa-btn">
-                            <div class="qa-icon" style="background:#fff1f2;color:#e11d48;border-color:#fecdd3;">💸</div>
-                            Catat Biaya
+                        <a href="{{ route('operasional.pengeluaran.create') }}" class="tr-quick-btn">
+                            <div class="tr-quick-icon" style="background:#ffe4e6; color:#e11d48;">💸</div>
+                            <div>Catat Pengeluaran</div>
                         </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Info Sistem -->
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title">Info Sistem</div>
-                </div>
-                <div class="panel-body">
-                    <div class="info-row">
-                        <span class="info-key">Versi App</span>
-                        <span class="info-val" style="color:#6366f1;">v1.0.0</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-key">Database</span>
-                        <span class="badge-green">Terhubung</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-key">Mode</span>
-                        <span class="badge-yellow">Development</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-key">Waktu Server</span>
-                        <span class="info-val">{{ now()->format('H:i:s') }}</span>
+                        <a href="{{ route('pembelian.hutang.index') }}" class="tr-quick-btn">
+                            <div class="tr-quick-icon" style="background:#fef3c7; color:#d97706;">💳</div>
+                            <div>Kelola Hutang</div>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
 </x-app-layout>

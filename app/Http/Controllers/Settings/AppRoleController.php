@@ -25,7 +25,12 @@ class AppRoleController extends Controller
 
         $roles = $query->paginate(20)->withQueryString();
 
-        return view('pengaturan.roles.index', compact('roles', 'search'));
+        $totalRoles = AppRole::count();
+        $activeRoles = AppRole::where('active', true)->count();
+        $inactiveRoles = $totalRoles - $activeRoles;
+        $stats = compact('totalRoles', 'activeRoles', 'inactiveRoles');
+
+        return view('pengaturan.roles.index', compact('roles', 'search', 'stats'));
     }
 
     public function create()
@@ -59,6 +64,14 @@ class AppRoleController extends Controller
 
     public function update(Request $request, AppRole $role)
     {
+        $newKey = strtolower($request->string('key')->value());
+        if ($newKey !== $role->key) {
+            $userCount = User::where('role', $role->key)->count();
+            if ($userCount > 0) {
+                return back()->withInput()->with('error', "Key role '{$role->key}' tidak dapat diubah karena digunakan oleh {$userCount} pengguna. Gunakan fitur Migrasi Role.");
+            }
+        }
+
         $request->validate([
             'key' => [
                 'required',

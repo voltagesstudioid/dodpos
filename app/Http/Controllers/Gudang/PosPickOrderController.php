@@ -115,6 +115,7 @@ class PosPickOrderController extends Controller
 
     /**
      * Complete pick order (when cashier confirms receipt)
+     * Note: Stock is already deducted by the POS transaction, so we only update status here.
      */
     public function complete(PosPickOrder $pickOrder)
     {
@@ -122,33 +123,6 @@ class PosPickOrderController extends Controller
 
         try {
             DB::beginTransaction();
-
-            // Deduct stock from warehouse
-            foreach ($pickOrder->items as $item) {
-                $stockAvailable = ProductStock::where('warehouse_id', $pickOrder->warehouse_id)
-                    ->where('product_id', $item->product_id)
-                    ->where('stock', '>=', $item->quantity)
-                    ->first();
-
-                if (!$stockAvailable) {
-                    throw new \Exception("Stok tidak mencukupi untuk {$item->product->name}");
-                }
-
-                // Deduct stock
-                $stockAvailable->decrement('stock', $item->quantity);
-
-                // Record stock movement
-                StockMovement::create([
-                    'product_id' => $item->product_id,
-                    'warehouse_id' => $pickOrder->warehouse_id,
-                    'type' => 'out',
-                    'quantity' => $item->quantity,
-                    'reference_type' => 'PosPickOrder',
-                    'reference_id' => $pickOrder->id,
-                    'notes' => "Pengambilan untuk transaksi {$pickOrder->transaction->invoice_number}",
-                    'created_by' => Auth::id(),
-                ]);
-            }
 
             $pickOrder->update([
                 'status' => 'completed',
@@ -159,7 +133,7 @@ class PosPickOrderController extends Controller
             DB::commit();
 
             return redirect()->route('gudang.pos_pick.index')
-                ->with('success', 'Pick order selesai. Stok telah dikurangi.');
+                ->with('success', 'Pick order selesai.');
 
         } catch (\Exception $e) {
             DB::rollback();

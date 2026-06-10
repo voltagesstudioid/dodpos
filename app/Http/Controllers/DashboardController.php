@@ -46,84 +46,114 @@ class DashboardController extends Controller
                     return $sales;
                 });
 
+                // Statistik Utama (cached for 60 seconds)
+                $stats = Cache::remember($this->getCacheKey('stats'), 60, function () {
+                    $today = now()->toDateString();
+                    return [
+                        'total_products' => class_exists(\App\Models\Product::class) ? \App\Models\Product::count() : 0,
+                        'total_transactions_today' => class_exists(\App\Models\Transaction::class) ? \App\Models\Transaction::whereDate('created_at', $today)->count() : 0,
+                        'revenue_today' => class_exists(\App\Models\Transaction::class) ? \App\Models\Transaction::whereDate('created_at', $today)->where('status', 'completed')->sum('total_amount') : 0,
+                        'active_customers' => class_exists(\App\Models\Customer::class) ? \App\Models\Customer::where('is_active', true)->count() : 0,
+                    ];
+                });
+
                 // Notifikasi Penting (cached for 2 minutes)
                 $alerts = Cache::remember($this->getCacheKey('alerts'), 120, function () {
                     $alertList = [];
+                    $today = now()->toDateString();
                     
                     // PO Terlambat
-                    $latePOs = \App\Models\PurchaseOrder::whereIn('status', ['ordered', 'partial'])
-                        ->whereNotNull('expected_date')
-                        ->whereDate('expected_date', '<', now())
-                        ->count();
-                    if ($latePOs > 0) {
-                        $alertList[] = [
-                            'type' => 'danger',
-                            'icon' => '⚠️',
-                            'title' => $latePOs . ' PO Terlambat',
-                            'message' => 'Purchase order melewati estimasi tanggal terima',
-                            'link' => route('pembelian.order', ['status' => 'ordered']),
-                        ];
+                    if (class_exists(\App\Models\PurchaseOrder::class)) {
+                        $latePOs = \App\Models\PurchaseOrder::whereIn('status', ['ordered', 'partial'])
+                            ->whereNotNull('expected_date')
+                            ->whereDate('expected_date', '<', $today)
+                            ->count();
+                        if ($latePOs > 0) {
+                            $alertList[] = [
+                                'type' => 'danger',
+                                'icon' => '⚠️',
+                                'title' => $latePOs . ' PO Terlambat',
+                                'message' => 'Purchase order melewati estimasi tanggal terima',
+                                'link' => route('pembelian.order', ['status' => 'ordered']),
+                            ];
+                        }
                     }
                     
                     // Hutang Jatuh Tempo
-                    $overdueDebts = \App\Models\SupplierDebt::where('status', '!=', 'paid')
-                        ->where('due_date', '<', now())
-                        ->count();
-                    if ($overdueDebts > 0) {
-                        $alertList[] = [
-                            'type' => 'warning',
-                            'icon' => '💳',
-                            'title' => $overdueDebts . ' Hutang Jatuh Tempo',
-                            'message' => 'Pembayaran ke supplier sudah lewat tanggal jatuh tempo',
-                            'link' => route('pembelian.hutang.index', ['status' => 'unpaid']),
-                        ];
+                    if (class_exists(\App\Models\SupplierDebt::class)) {
+                        $overdueDebts = \App\Models\SupplierDebt::where('status', '!=', 'paid')
+                            ->whereDate('due_date', '<', $today)
+                            ->count();
+                        if ($overdueDebts > 0) {
+                            $alertList[] = [
+                                'type' => 'warning',
+                                'icon' => '💳',
+                                'title' => $overdueDebts . ' Hutang Jatuh Tempo',
+                                'message' => 'Pembayaran ke supplier sudah lewat tanggal jatuh tempo',
+                                'link' => route('pembelian.hutang.index', ['status' => 'unpaid']),
+                            ];
+                        }
                     }
                     
                     // Stok Minimum
-                    $lowStock = \App\Models\Product::whereColumn('stock', '<=', 'min_stock')->count();
-                    if ($lowStock > 0) {
-                        $alertList[] = [
-                            'type' => 'info',
-                            'icon' => '📦',
-                            'title' => $lowStock . ' Produk Stok Minimum',
-                            'message' => 'Produk mencapai batas stok minimum',
-                            'link' => route('gudang.minstok'),
-                        ];
+                    if (class_exists(\App\Models\Product::class)) {
+                        $lowStock = \App\Models\Product::whereColumn('stock', '<=', 'min_stock')->count();
+                        if ($lowStock > 0) {
+                            $alertList[] = [
+                                'type' => 'info',
+                                'icon' => '📦',
+                                'title' => $lowStock . ' Produk Stok Minimum',
+                                'message' => 'Produk mencapai batas stok minimum',
+                                'link' => route('gudang.minstok'),
+                            ];
+                        }
                     }
 
                     // Barang Expired / Akan Expired
-                    $expiredStock = \App\Models\ProductStock::whereNotNull('expired_date')
-                        ->where('stock', '>', 0)
-                        ->where('expired_date', '<=', now()->addDays(30))
-                        ->count();
-                    if ($expiredStock > 0) {
-                        $alertList[] = [
-                            'type' => 'danger',
-                            'icon' => '⚠️',
-                            'title' => $expiredStock . ' Batch Akan Expired',
-                            'message' => 'Barang akan kadaluarsa dalam 30 hari',
-                            'link' => route('gudang.expired'),
-                        ];
+                    if (class_exists(\App\Models\ProductStock::class)) {
+                        $expiredStock = \App\Models\ProductStock::whereNotNull('expired_date')
+                            ->where('stock', '>', 0)
+                            ->whereDate('expired_date', '<=', now()->addDays(30)->toDateString())
+                            ->count();
+                        if ($expiredStock > 0) {
+                            $alertList[] = [
+                                'type' => 'danger',
+                                'icon' => '⚠️',
+                                'title' => $expiredStock . ' Batch Akan Expired',
+                                'message' => 'Barang akan kadaluarsa dalam 30 hari',
+                                'link' => route('gudang.expired'),
+                            ];
+                        }
                     }
 
                     // Opname Pending Approval
-                    $pendingOpname = \App\Models\StockOpnameSession::where('status', 'submitted')->count();
-                    if ($pendingOpname > 0) {
-                        $alertList[] = [
-                            'type' => 'warning',
-                            'icon' => '📋',
-                            'title' => $pendingOpname . ' Opname Menunggu',
-                            'message' => 'Sesi opname menunggu approval supervisor',
-                            'link' => route('gudang.opname_approval.index'),
-                        ];
+                    if (class_exists(\App\Models\StockOpnameSession::class)) {
+                        $pendingOpname = \App\Models\StockOpnameSession::where('status', 'submitted')->count();
+                        if ($pendingOpname > 0) {
+                            $alertList[] = [
+                                'type' => 'warning',
+                                'icon' => '📋',
+                                'title' => $pendingOpname . ' Opname Menunggu',
+                                'message' => 'Sesi opname menunggu approval supervisor',
+                                'link' => route('gudang.opname_approval.index'),
+                            ];
+                        }
                     }
 
                     return $alertList;
                 });
 
-                return view('dashboard', compact('weeklySales', 'alerts'));
+                return view('dashboard', compact('weeklySales', 'alerts', 'stats'));
             case 'admin_sales':
                 return redirect()->route('admin-sales.dashboard');
+            case 'sales_minyak':
+                return redirect()->route('minyak.dashboard');
+            case 'sales_mineral':
+                return redirect()->route('mineral.dashboard');
+            case 'sales_gula':
+                return redirect()->route('gula.dashboard');
+            case 'sales_pasgar':
+                return redirect()->route('pasgar.dashboard');
             case 'admin1':
                 // Dashboard untuk Admin 1 (Kasir Utama & Pencatatan Sales)
                 // Metrik: Ringkasan Penjualan Harian, Omzet, dan Uang Masuk Hari Ini

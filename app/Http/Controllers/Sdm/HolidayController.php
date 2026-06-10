@@ -28,24 +28,59 @@ class HolidayController extends Controller
 
         $setting = StoreSetting::current();
         $calendarMode = (string) ($setting->sdm_calendar_mode ?? 'auto');
+        $workingDaysMode = (string) ($setting->sdm_working_days_mode ?? 'mon_sat');
 
         $holidayByDate = $holidays->keyBy(fn ($h) => $h->date->format('Y-m-d'));
 
         $calendar = [];
         $cursor = Carbon::parse($start);
         $endC = Carbon::parse($end);
+        $totalWorking = 0;
+        $totalHoliday = 0;
+        $totalOverride = 0;
+
         while ($cursor->lte($endC)) {
             $dateStr = $cursor->toDateString();
             $row = $holidayByDate->get($dateStr);
+
+            // Determine actual working day status
+            if ($row) {
+                $isWorking = (bool) $row->is_working_day;
+                $totalOverride++;
+            } elseif ($calendarMode === 'manual') {
+                $isWorking = false;
+            } else {
+                $dow = (int) $cursor->dayOfWeek;
+                $isWorking = $workingDaysMode === 'mon_fri'
+                    ? ($dow >= Carbon::MONDAY && $dow <= Carbon::FRIDAY)
+                    : ($dow >= Carbon::MONDAY && $dow <= Carbon::SATURDAY);
+            }
+
+            if ($isWorking) {
+                $totalWorking++;
+            } else {
+                $totalHoliday++;
+            }
+
             $calendar[] = [
                 'date' => $dateStr,
                 'row' => $row,
                 'dow' => $cursor->translatedFormat('D'),
+                'is_working' => $isWorking,
+                'day' => $cursor->day,
+                'is_today' => $dateStr === now()->toDateString(),
             ];
             $cursor->addDay();
         }
 
-        return view('sdm.libur.index', compact('holidays', 'calendar', 'month', 'calendarMode'));
+        $stats = [
+            'working' => $totalWorking,
+            'holiday' => $totalHoliday,
+            'override' => $totalOverride,
+            'total' => count($calendar),
+        ];
+
+        return view('sdm.libur.index', compact('holidays', 'calendar', 'month', 'calendarMode', 'workingDaysMode', 'stats'));
     }
 
     public function store(Request $request)
@@ -53,7 +88,7 @@ class HolidayController extends Controller
         $validated = $request->validate([
             'date' => 'required|date|unique:sdm_holidays,date',
             'name' => 'nullable|string|max:120',
-            'is_working_day' => 'nullable|in:1',
+            'is_working_day' => 'nullable|in:0,1',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -99,6 +134,12 @@ class HolidayController extends Controller
 
         $overwrite = ($validated['overwrite'] ?? null) === '1';
 
+        // Load all existing holidays for the month upfront
+        $existingMap = SdmHoliday::query()
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->get()
+            ->keyBy(fn ($h) => \Carbon\Carbon::parse($h->date)->toDateString());
+
         $cursor = $start->copy();
         while ($cursor->lte($end)) {
             $dow = (int) $cursor->dayOfWeek;
@@ -107,21 +148,23 @@ class HolidayController extends Controller
                 : ($dow >= Carbon::MONDAY && $dow <= Carbon::SATURDAY);
 
             $dateStr = $cursor->toDateString();
-            $existing = SdmHoliday::query()->whereDate('date', $dateStr)->first();
+            $existing = $existingMap->get($dateStr);
             if ($existing && ! $overwrite) {
                 $cursor->addDay();
 
                 continue;
             }
 
-            SdmHoliday::updateOrCreate(
-                ['date' => $dateStr],
-                [
-                    'name' => $existing?->name,
+            if ($existing) {
+                $existing->update([
                     'is_working_day' => $isWorkingDay,
-                    'notes' => $existing?->notes,
-                ]
-            );
+                ]);
+            } else {
+                SdmHoliday::create([
+                    'date' => $dateStr,
+                    'is_working_day' => $isWorkingDay,
+                ]);
+            }
 
             $cursor->addDay();
         }

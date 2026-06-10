@@ -385,7 +385,7 @@
             }
             
             document.addEventListener('change', function(e){
-                if(e.target && e.target.classList.contains('reorder-check') || e.target.id === 'reorder-check-all'){
+                if(e.target && (e.target.classList.contains('reorder-check') || e.target.id === 'reorder-check-all')){
                     updateSummary();
                 }
             });

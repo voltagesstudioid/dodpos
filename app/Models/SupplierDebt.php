@@ -53,9 +53,30 @@ class SupplierDebt extends Model
         return $this->due_date && $this->due_date->isPast() && $this->status !== 'paid';
     }
 
+    /**
+     * Recalculate paid_amount and status from actual payment records.
+     */
+    public function recalculate(): void
+    {
+        $totalPaid = $this->payments()->sum('amount');
+        $this->paid_amount = $totalPaid;
+        $this->status = $totalPaid >= $this->total_amount ? 'paid' : ($totalPaid > 0 ? 'partial' : 'unpaid');
+        $this->save();
+    }
+
+    /**
+     * Mark all overdue debts (call from scheduler or manually).
+     */
+    public static function markAllOverdue(): int
+    {
+        return self::whereNotIn('status', ['paid'])
+            ->where('due_date', '<', now())
+            ->update(['status' => 'overdue']);
+    }
+
     public static function generateInvoiceNumber(): string
     {
-        $last = static::latest()->first();
+        $last = static::orderBy('id', 'desc')->first();
         $num  = $last ? (int) substr($last->invoice_number, -4) + 1 : 1;
         return 'HUT-' . date('Ymd') . '-' . str_pad($num, 4, '0', STR_PAD_LEFT);
     }

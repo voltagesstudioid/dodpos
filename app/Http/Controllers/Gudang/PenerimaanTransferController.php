@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Gudang;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\TransferReceipt;
@@ -122,7 +123,16 @@ class PenerimaanTransferController extends Controller
             ]
         );
 
-        return view('gudang.terima_transfer.index', compact('transfers'));
+        // Stats untuk badge tab (hindari query di Blade)
+        $pendingReqCount = \App\Models\ProductRequest::where('status', 'approved')->count();
+        $pendingTransferQuery = StockMovement::where('type', 'transfer_in')->where('status', 'pending');
+        $userWhId = auth()->user()->employee?->warehouse_id;
+        if ($userWhId) {
+            $pendingTransferQuery->where('warehouse_id', $userWhId);
+        }
+        $pendingTransferCount = $pendingTransferQuery->count();
+
+        return view('gudang.terima_transfer.index', compact('transfers', 'pendingReqCount', 'pendingTransferCount'));
     }
 
     /**
@@ -275,6 +285,9 @@ class PenerimaanTransferController extends Controller
 
                     $destStock->stock += $received;
                     $destStock->save();
+
+                    // Keep products.stock in sync with SUM(product_stocks.stock)
+                    Product::where('id', $movIn->product_id)->increment('stock', $received);
 
                     $movIn->balance = $destStock->stock;
                 }

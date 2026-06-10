@@ -34,7 +34,26 @@ class ProductController extends Controller
         $products = $query->latest()->paginate(15)->withQueryString();
         $categories = Category::orderBy('name')->get();
 
-        return view('products.index', compact('products', 'categories'));
+        // Compute stats from full dataset (not paginated)
+        $baseQuery = Product::query();
+        if ($request->search) {
+            $sanitizedSearch = SearchSanitizer::sanitize($request->search);
+            $baseQuery->where(function ($q) use ($sanitizedSearch) {
+                $q->where('name', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('sku', 'like', "%{$sanitizedSearch}%")
+                    ->orWhere('barcode', 'like', "%{$sanitizedSearch}%");
+            });
+        }
+        if ($request->category_id) {
+            $baseQuery->where('category_id', $request->category_id);
+        }
+        $totalProducts = (clone $baseQuery)->count();
+        $lowStockCount = (clone $baseQuery)->whereColumn('stock', '<=', 'min_stock')->where('min_stock', '>', 0)->count();
+        $totalCategories = Category::count();
+        $totalUnits = Unit::count();
+        $stats = compact('totalProducts', 'lowStockCount', 'totalCategories', 'totalUnits');
+
+        return view('products.index', compact('products', 'categories', 'stats'));
     }
 
     /**
@@ -74,13 +93,13 @@ class ProductController extends Controller
             'barcode' => 'nullable|string|unique:products,barcode',
             'price' => 'required|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'min_stock' => 'required|integer|min:0',
+            'stock' => 'required|numeric|min:0',
+            'min_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             // Unit conversions validation
             'units' => 'nullable|array',
             'units.*.unit_id' => 'required|exists:units,id',
-            'units.*.conversion_factor' => 'required|integer|min:1',
+            'units.*.conversion_factor' => 'required|numeric|min:0.0001',
             'units.*.purchase_price' => 'required|numeric|min:0',
             'units.*.sell_price_ecer' => 'required|numeric|min:0',
             'units.*.sell_price_grosir' => 'required|numeric|min:0',
@@ -168,11 +187,11 @@ class ProductController extends Controller
             'barcode' => 'nullable|string|unique:products,barcode,'.$product->id,
             'price' => 'required|numeric|min:0',
             'purchase_price' => 'nullable|numeric|min:0',
-            'min_stock' => 'required|integer|min:0',
+            'min_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string',
             'units' => 'nullable|array',
             'units.*.unit_id' => 'required|exists:units,id',
-            'units.*.conversion_factor' => 'required|integer|min:1',
+            'units.*.conversion_factor' => 'required|numeric|min:0.0001',
             'units.*.purchase_price' => 'required|numeric|min:0',
             'units.*.sell_price_ecer' => 'required|numeric|min:0',
             'units.*.sell_price_grosir' => 'required|numeric|min:0',
@@ -217,12 +236,26 @@ class ProductController extends Controller
 
     public function destroy(Product $product)
     {
+        // Protect against deleting products with active stock in warehouses
+        $stockCount = \App\Models\ProductStock::where('product_id', $product->id)->where('stock', '>', 0)->count();
+        if ($stockCount > 0) {
+            return back()->with('error', "Produk '{$product->name}' tidak bisa dihapus karena masih memiliki stok di {$stockCount} gudang.");
+        }
+
+        // Protect against deleting products with transaction history
+        $movementCount = \App\Models\StockMovement::where('product_id', $product->id)->count();
+        if ($movementCount > 0) {
+            return back()->with('error', "Produk '{$product->name}' tidak bisa dihapus karena sudah memiliki {$movementCount} riwayat pergerakan stok.");
+        }
+
         $productData = [
             'id' => $product->id,
             'sku' => $product->sku,
             'name' => $product->name,
         ];
 
+        // Clean up unit conversions before deleting
+        $product->unitConversions()->delete();
         $product->delete();
 
         AuditService::log('product.delete', 'Product', $productData['id'], $productData);
@@ -805,7 +838,7 @@ class ProductController extends Controller
             ProductUnitConversion::updateOrCreate(
                 ['product_id' => $product->id, 'unit_id' => $u['unit_id']],
                 [
-                    'conversion_factor' => (int) $u['conversion_factor'],
+                    'conversion_factor' => (float) $u['conversion_factor'],
                     'purchase_price' => (float) $u['purchase_price'],
                     'sell_price_ecer' => (float) $u['sell_price_ecer'],
                     'sell_price_grosir' => (float) $u['sell_price_grosir'],

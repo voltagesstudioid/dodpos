@@ -27,6 +27,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // API rate limiting
         $middleware->throttleApi();
+
+        // Kecualikan proteksi CSRF untuk rute ADMS ZKTeco
+        $middleware->validateCsrfTokens(except: [
+            'iclock/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->report(function (AuthorizationException $e) {

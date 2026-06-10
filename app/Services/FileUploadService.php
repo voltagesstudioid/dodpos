@@ -80,12 +80,14 @@ class FileUploadService
                     $image->scaleDown($maxWidth, $maxHeight);
                 }
 
-                // Strip EXIF data for privacy
-                $image->strip();
+                // Strip EXIF/color profile data for privacy
+                if (! empty($options['strip_exif'])) {
+                    $image->removeProfile();
+                }
 
                 // Save processed image
                 Storage::disk($disk)->put($path, (string) $image->encode());
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Image processing failed', ['error' => $e->getMessage()]);
                 // Fall back to direct storage
                 Storage::disk($disk)->putFileAs($directory, $file, $filename);
@@ -206,7 +208,7 @@ class FileUploadService
             if ($minHeight && $height < $minHeight) {
                 throw new \InvalidArgumentException("Tinggi gambar minimal {$minHeight}px.");
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             if ($e instanceof \InvalidArgumentException) {
                 throw $e;
             }

@@ -140,11 +140,25 @@ class BackupValidationService
     }
 
     /**
+     * Recursively sort array keys to ensure consistent JSON encoding.
+     */
+    private static function ksortRecursive(array &$array): void
+    {
+        ksort($array);
+        foreach ($array as &$value) {
+            if (is_array($value)) {
+                self::ksortRecursive($value);
+            }
+        }
+    }
+
+    /**
      * Generate signature for backup data integrity.
      */
     public static function generateSignature(array $data, string $secretKey): string
     {
-        $canonical = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_SORT_KEYS);
+        self::ksortRecursive($data);
+        $canonical = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         return hash_hmac('sha256', $canonical, $secretKey);
     }
 

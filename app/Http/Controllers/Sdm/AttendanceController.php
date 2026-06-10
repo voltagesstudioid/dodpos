@@ -8,6 +8,7 @@ use App\Models\SdmHoliday;
 use App\Models\SdmLeaveRequest;
 use App\Models\StockOpnameSession;
 use App\Models\StoreSetting;
+use App\Models\SdmEmployee;
 use App\Models\User;
 use App\Services\FileUploadService;
 use App\Support\WarehouseConfig;
@@ -98,9 +99,9 @@ class AttendanceController extends Controller
         $currentUserId = Auth::id();
         $isSupervisor = strtolower((string) (Auth::user()?->role ?? '')) === 'supervisor';
 
-        // Get attendances with their related user
+        // Get attendances with their related user (use whereDate for SQLite compatibility)
         $attendances = Attendance::with('user')
-            ->where('date', $date)
+            ->whereDate('date', $date)
             ->when(! $isSupervisor && $currentUserId, fn ($q) => $q->where('user_id', $currentUserId))
             ->orderBy('check_in_time', 'asc')
             ->get();
@@ -139,7 +140,56 @@ class AttendanceController extends Controller
 
         $monthLabel = Carbon::createFromDate((int) $year, (int) $m, 1)->translatedFormat('F Y');
 
-        return view('sdm.absensi.index', compact('date', 'month', 'monthLabel', 'attendances', 'users', 'monthlyCounts', 'monthlyHours'));
+        // Build attendance map: user_id => attendance for this date
+        $attMap = $attendances->keyBy('user_id');
+
+        // Compute daily stats
+        $stats = [
+            'total_employees' => $users->count(),
+            'present'         => $attendances->whereIn('status', ['present', 'late'])->count(),
+            'late'            => $attendances->where('status', 'late')->count(),
+            'absent'          => $attendances->where('status', 'absent')->count(),
+            'izin_sakit'      => $attendances->whereIn('status', ['izin', 'sakit'])->count(),
+            'belum'           => max(0, $users->count() - $attendances->whereNotNull('user_id')->count()),
+        ];
+
+        // Load store setting for display & editing by supervisor
+        $setting = StoreSetting::current();
+
+        return view('sdm.absensi.index', compact(
+            'date', 'month', 'monthLabel', 'attendances', 'users',
+            'monthlyCounts', 'monthlyHours', 'attMap', 'stats',
+            'setting', 'isSupervisor'
+        ));
+    }
+
+    /**
+     * Supervisor menyimpan pengaturan jam kerja langsung dari halaman absensi.
+     */
+    public function updateSchedule(Request $request)
+    {
+        // Hanya supervisor yang boleh mengubah
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if ($role !== 'supervisor') {
+            abort(403, 'Akses ditolak.');
+        }
+
+        $validated = $request->validate([
+            'sdm_work_start_time'      => 'required|date_format:H:i',
+            'sdm_work_end_time'        => 'required|date_format:H:i',
+            'sdm_late_grace_minutes'   => 'required|integer|min:0|max:120',
+            'sdm_overtime_rate_per_hour' => 'nullable|numeric|min:0',
+        ]);
+
+        $setting = StoreSetting::current();
+        $setting->update([
+            'sdm_work_start_time'        => $validated['sdm_work_start_time'],
+            'sdm_work_end_time'          => $validated['sdm_work_end_time'],
+            'sdm_late_grace_minutes'     => (int) $validated['sdm_late_grace_minutes'],
+            'sdm_overtime_rate_per_hour' => $validated['sdm_overtime_rate_per_hour'] ?? $setting->sdm_overtime_rate_per_hour,
+        ]);
+
+        return redirect()->back()->with('success', 'Pengaturan jam kerja berhasil disimpan.');
     }
 
     public function monthly(Request $request)
@@ -975,12 +1025,22 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Check if user is a sales role (sales_minyak, sales_mineral, etc.)
+     */
+    private function isSalesRole(?User $user): bool
+    {
+        $role = strtolower((string) ($user?->role ?? ''));
+        return str_starts_with($role, 'sales_') || $role === 'sales';
+    }
+
+    /**
      * Halaman absen mandiri untuk karyawan (check-in / check-out dengan selfie)
      */
     public function selfPanel(Request $request)
     {
         $user = Auth::user();
-        if (! $user?->employee || ! $user->employee->active) {
+        $isSales = $this->isSalesRole($user);
+        if (! $isSales && (! $user?->employee || ! $user->employee->active)) {
             return redirect()->route('dashboard')->with('error', 'Akun Anda belum terdaftar sebagai karyawan aktif.');
         }
         $date = Carbon::parse($request->input('date', now()->toDateString()))->toDateString();
@@ -1041,7 +1101,8 @@ class AttendanceController extends Controller
     public function selfStore(Request $request)
     {
         $user = Auth::user();
-        if (! $user?->employee || ! $user->employee->active) {
+        $isSales = $this->isSalesRole($user);
+        if (! $isSales && (! $user?->employee || ! $user->employee->active)) {
             return redirect()->route('dashboard')->with('error', 'Akun Anda belum terdaftar sebagai karyawan aktif.');
         }
         $action = strtolower((string) $request->input('action'));

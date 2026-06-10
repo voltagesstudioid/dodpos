@@ -114,6 +114,27 @@ class MinyakApiController extends Controller
                     'jenis_kendaraan' => $sales->jenis_kendaraan,
                     'target_harian' => (float) $sales->target_harian,
                 ],
+                // CamelCase compatibility fields for PWA Mobile view
+                'hariIni' => [
+                    'penjualanTotal' => (float) $totalPenjualan,
+                    'jumlahTransaksi' => $jumlahTransaksi,
+                ],
+                'target' => [
+                    'persen' => $targetTercapai,
+                    'terpenuhi' => (float) $totalPenjualan,
+                    'total' => (float) $sales->target_harian,
+                ],
+                'ringkasanHutang' => [
+                    'totalPiutang' => (float) $totalPiutang,
+                    'jumlahPelanggan' => $pelangganIds->count(),
+                ],
+                'loadingHariIni' => [
+                    'detail' => $loadingHariIni->map(function ($l) {
+                        return [
+                            'sisa' => $l->sisa_stok,
+                        ];
+                    }),
+                ],
             ],
         ]);
     }
@@ -753,15 +774,23 @@ class MinyakApiController extends Controller
             ], 422);
         }
 
-        // Calculate totals
+        // Calculate totals based on all non-cancelled sales of today
         $penjualanQuery = MinyakPenjualan::where('sales_id', $sales->id)
             ->whereDate('tanggal_jual', $request->tanggal)
-            ->where('status', 'terverifikasi');
+            ->where('status', '!=', 'batal');
 
         $totalPenjualan = $penjualanQuery->sum('total');
         $jumlahTransaksi = $penjualanQuery->count();
-        $totalHutangBaru = $penjualanQuery->where('tipe_bayar', 'hutang')->sum('hutang');
-        $jumlahHutangBaru = $penjualanQuery->where('tipe_bayar', 'hutang')->count();
+        $totalHutangBaru = MinyakPenjualan::where('sales_id', $sales->id)
+            ->whereDate('tanggal_jual', $request->tanggal)
+            ->where('status', '!=', 'batal')
+            ->where('tipe_bayar', 'hutang')
+            ->sum('hutang');
+        $jumlahHutangBaru = MinyakPenjualan::where('sales_id', $sales->id)
+            ->whereDate('tanggal_jual', $request->tanggal)
+            ->where('status', '!=', 'batal')
+            ->where('tipe_bayar', 'hutang')
+            ->count();
 
         $selisih = $request->total_setor - $totalPenjualan;
 
@@ -774,19 +803,44 @@ class MinyakApiController extends Controller
             $buktiSetorPath = $filename;
         }
 
-        $setoran = MinyakSetoran::create([
-            'tanggal' => $request->tanggal,
-            'sales_id' => $sales->id,
-            'total_penjualan' => $totalPenjualan,
-            'total_setor' => $request->total_setor,
-            'selisih' => $selisih,
-            'jumlah_transaksi' => $jumlahTransaksi,
-            'jumlah_hutang_baru' => $jumlahHutangBaru,
-            'total_hutang_baru' => $totalHutangBaru,
-            'status' => 'pending',
-            'catatan_sales' => $request->catatan_sales,
-            'bukti_setor' => $buktiSetorPath,
-        ]);
+        $isAutoApproved = ((float) $selisih === 0.0);
+
+        DB::beginTransaction();
+        try {
+            $setoran = MinyakSetoran::create([
+                'tanggal' => $request->tanggal,
+                'sales_id' => $sales->id,
+                'total_penjualan' => $totalPenjualan,
+                'total_setor' => $request->total_setor,
+                'selisih' => $selisih,
+                'jumlah_transaksi' => $jumlahTransaksi,
+                'jumlah_hutang_baru' => $jumlahHutangBaru,
+                'total_hutang_baru' => $totalHutangBaru,
+                'status' => $isAutoApproved ? 'terverifikasi' : 'pending',
+                'catatan_sales' => $request->catatan_sales,
+                'bukti_setor' => $buktiSetorPath,
+                'catatan_verifikasi' => $isAutoApproved ? 'Auto-verified by system (selisih pas)' : null,
+                'verified_at' => $isAutoApproved ? now() : null,
+            ]);
+
+            if ($isAutoApproved) {
+                // Auto-verify all associated pending sales for today
+                MinyakPenjualan::where('sales_id', $sales->id)
+                    ->whereDate('tanggal_jual', $request->tanggal)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status' => 'terverifikasi'
+                    ]);
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan setoran: ' . $e->getMessage()
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
@@ -795,7 +849,7 @@ class MinyakApiController extends Controller
                 'status' => $setoran->status,
                 'selisih' => (float) $selisih,
             ],
-            'message' => 'Setoran berhasil dicatat, menunggu verifikasi',
+            'message' => $isAutoApproved ? 'Setoran berhasil dicatat dan diverifikasi otomatis' : 'Setoran berhasil dicatat, menunggu verifikasi',
         ], 201);
     }
 
@@ -820,19 +874,16 @@ class MinyakApiController extends Controller
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'keterangan' => 'nullable|string',
-            'ada_penjualan' => 'boolean',
-            'penjualan_id' => 'nullable|exists:minyak_penjualan,id',
         ]);
 
         $kunjungan = MinyakKunjungan::create([
             'sales_id' => $sales->id,
             'pelanggan_id' => $request->pelanggan_id,
-            'waktu_kunjungan' => $request->waktu_kunjungan,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'keterangan' => $request->keterangan,
-            'ada_penjualan' => $request->ada_penjualan ?? false,
-            'penjualan_id' => $request->penjualan_id,
+            'waktu_checkin' => $request->waktu_kunjungan,
+            'latitude_checkin' => $request->latitude,
+            'longitude_checkin' => $request->longitude,
+            'catatan' => $request->keterangan,
+            'status' => 'checkin',
         ]);
 
         return response()->json([
@@ -925,7 +976,7 @@ class MinyakApiController extends Controller
 
         // Get today's kunjungan
         $kunjunganHariIni = MinyakKunjungan::where('sales_id', $sales->id)
-            ->whereDate('waktu_kunjungan', $today)
+            ->whereDate('waktu_checkin', $today)
             ->with('pelanggan')
             ->get();
 
@@ -949,12 +1000,53 @@ class MinyakApiController extends Controller
                         'id' => $k->id,
                         'pelanggan_id' => $k->pelanggan_id,
                         'nama_toko' => $k->pelanggan->nama_toko,
-                        'waktu_kunjungan' => $k->waktu_kunjungan?->toDateTimeString(),
-                        'ada_penjualan' => $k->ada_penjualan,
+                        'waktu_kunjungan' => $k->waktu_checkin?->toDateTimeString(),
                     ];
                 }),
                 'list_belum_dikunjungi' => $belumDikunjungi,
             ],
+        ]);
+    }
+
+    /**
+     * Get all kunjungan history
+     */
+    public function kunjunganList(Request $request)
+    {
+        $user = $request->user();
+        $sales = MinyakSales::where('user_id', $user->id)->first();
+
+        if (! $sales) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sales profile not found',
+            ], 404);
+        }
+
+        $perPage = $request->input('per_page', 15);
+        $kunjungans = MinyakKunjungan::where('sales_id', $sales->id)
+            ->with('pelanggan')
+            ->orderBy('waktu_checkin', 'desc')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $kunjungans->through(function ($k) {
+                return [
+                    'id' => $k->id,
+                    'pelanggan' => [
+                        'id' => $k->pelanggan?->id,
+                        'nama_toko' => $k->pelanggan?->nama_toko,
+                        'nama_pemilik' => $k->pelanggan?->nama_pemilik,
+                    ],
+                    'waktu_checkin' => $k->waktu_checkin?->toDateTimeString(),
+                    'created_at' => $k->created_at?->toDateTimeString(),
+                    'latitude' => (float) $k->latitude_checkin,
+                    'longitude' => (float) $k->longitude_checkin,
+                    'keterangan' => $k->catatan,
+                    'foto' => $k->foto_checkin ? asset('storage/' . $k->foto_checkin) : null,
+                ];
+            }),
         ]);
     }
 }

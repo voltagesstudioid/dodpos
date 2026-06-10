@@ -21,7 +21,15 @@ class UnitController extends Controller
                   ->orWhere('abbreviation', 'like', '%' . $request->search . '%');
         }
         $units = $query->latest()->paginate(15)->withQueryString();
-        return view('master.satuan.index', compact('units'));
+
+        // Stats from full dataset
+        $totalSatuan = Unit::count();
+        $satuanTerpakai = Unit::whereHas('products')->count();
+        $satuanKonversi = Unit::whereIn('id', ProductUnitConversion::select('unit_id')->distinct())->count();
+        $satuanKosong = $totalSatuan - $satuanTerpakai;
+        $stats = compact('totalSatuan', 'satuanTerpakai', 'satuanKonversi', 'satuanKosong');
+
+        return view('master.satuan.index', compact('units', 'stats'));
     }
 
     public function create()

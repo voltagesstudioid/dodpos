@@ -193,9 +193,12 @@ class PosTransactionService
      *
      * @throws \Exception
      */
-    public function validatePosSession(): void
+    public function validatePosSession(string $type = 'eceran'): void
     {
-        $activeSession = \App\Models\PosSession::where('status', 'open')->latest()->first();
+        $activeSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', $type)
+            ->latest()
+            ->first();
         if (! $activeSession) {
             throw new \Exception('Sesi kasir sudah ditutup. Silakan refresh halaman atau buka sesi baru.');
         }
@@ -232,8 +235,9 @@ class PosTransactionService
      */
     public function validateTransferReference(string $paymentMethod, ?string $reference): void
     {
-        if ($paymentMethod === 'transfer' && blank($reference)) {
-            throw new \Exception('ID transaksi transfer wajib diisi.');
+        if (in_array($paymentMethod, ['transfer', 'qris']) && blank($reference)) {
+            $label = $paymentMethod === 'qris' ? 'QRIS' : 'transfer';
+            throw new \Exception('ID transaksi ' . $label . ' wajib diisi.');
         }
     }
 
@@ -243,7 +247,7 @@ class PosTransactionService
     public function getSafeErrorMessage(\Exception $e): string
     {
         $message = $e->getMessage();
-        $safeKeywords = ['Produk', 'kredit', 'Stok', 'Pelanggan', 'Jumlah bayar', 'ID transaksi', 'Inkonsistensi', 'Sisa limit'];
+        $safeKeywords = ['Produk', 'kredit', 'Stok', 'Pelanggan', 'Jumlah bayar', 'ID transaksi', 'Inkonsistensi', 'Sisa limit', 'Sesi kasir'];
 
         foreach ($safeKeywords as $keyword) {
             if (str_contains($message, $keyword)) {

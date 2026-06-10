@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MinyakApiController;
+use App\Http\Controllers\Api\MineralApiController;
 use App\Http\Controllers\Api\ProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,8 @@ use Illuminate\Support\Facades\Route;
 // =========================================================
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/payment/callback', [\App\Http\Controllers\Api\PaymentCallbackController::class, 'handleCallback']);
+    Route::get('/penjualan/status', [\App\Http\Controllers\Api\PaymentCallbackController::class, 'checkStatus']);
     // Register endpoint diamankan — hanya admin yang bisa buat user via web panel
     // Route::post('/register', [AuthController::class, 'register']); // DIHAPUS: security risk
 
@@ -44,6 +47,7 @@ Route::middleware('throttle:60,1')->group(function () {
         Route::get('/loading/today', [MinyakApiController::class, 'loadingToday']);
 
         // Penjualan (Sales)
+        Route::get('/penjualan', [MinyakApiController::class, 'penjualanHistory']);
         Route::post('/penjualan', [MinyakApiController::class, 'storePenjualan']);
         Route::post('/penjualan/sync', [MinyakApiController::class, 'syncPenjualan']);
         Route::get('/penjualan/history', [MinyakApiController::class, 'penjualanHistory']);
@@ -57,8 +61,47 @@ Route::middleware('throttle:60,1')->group(function () {
         Route::post('/setoran', [MinyakApiController::class, 'storeSetoran']);
 
         // Kunjungan (Visits)
+        Route::get('/kunjungan', [MinyakApiController::class, 'kunjunganList']);
         Route::post('/kunjungan', [MinyakApiController::class, 'storeKunjungan']);
         Route::get('/kunjungan/target', [MinyakApiController::class, 'kunjunganTarget']);
+    });
+
+    // =========================================================
+    // MINERAL API — Mobile Sales App
+    // =========================================================
+    Route::middleware(['auth:sanctum', 'active'])->prefix('v1/mineral')->group(function () {
+
+        // Dashboard
+        Route::get('/dashboard', [MineralApiController::class, 'dashboard']);
+
+        // Pelanggan (Customers)
+        Route::get('/pelanggan', [MineralApiController::class, 'pelangganList']);
+        Route::get('/pelanggan/{id}', [MineralApiController::class, 'pelangganDetail']);
+
+        // Produk
+        Route::get('/produk', [MineralApiController::class, 'produkList']);
+
+        // Loading (Stok Kendaraan)
+        Route::get('/loading/today', [MineralApiController::class, 'loadingToday']);
+
+        // Penjualan (Sales)
+        Route::get('/penjualan', [MineralApiController::class, 'penjualanHistory']);
+        Route::post('/penjualan', [MineralApiController::class, 'storePenjualan']);
+        Route::post('/penjualan/sync', [MineralApiController::class, 'syncPenjualan']);
+        Route::get('/penjualan/history', [MineralApiController::class, 'penjualanHistory']);
+
+        // Hutang (Debts)
+        Route::get('/hutang', [MineralApiController::class, 'hutangList']);
+        Route::post('/hutang/{id}/bayar', [MineralApiController::class, 'bayarHutang']);
+
+        // Setoran (Daily Deposit)
+        Route::get('/setoran/info', [MineralApiController::class, 'setoranInfo']);
+        Route::post('/setoran', [MineralApiController::class, 'storeSetoran']);
+
+        // Kunjungan (Visits)
+        Route::get('/kunjungan', [MineralApiController::class, 'kunjunganList']);
+        Route::post('/kunjungan', [MineralApiController::class, 'storeKunjungan']);
+        Route::get('/kunjungan/target', [MineralApiController::class, 'kunjunganTarget']);
     });
 });
 

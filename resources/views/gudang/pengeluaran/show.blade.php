@@ -55,7 +55,21 @@
                         </tr>
                         <tr style="border-bottom:1px dashed #e2e8f0;">
                             <td style="padding:0.75rem 0; color:#64748b;">Kuantitas Keluar</td>
-                            <td style="padding:0.75rem 0; font-weight:800; color:#ef4444; font-size:1.1rem;">-{{ $outbound->quantity }}</td>
+                            <td style="padding:0.75rem 0; font-weight:800; color:#ef4444; font-size:1.1rem;">
+                                @php
+                                    $hasUnit = $outbound->unit_id && $outbound->quantity_in_unit && (float)$outbound->conversion_factor > 1;
+                                    $unitName = $outbound->unit?->abbreviation ?? $outbound->unit?->name ?? '';
+                                    $baseUnitName = $outbound->product?->unit?->abbreviation ?? $outbound->product?->unit?->name ?? '';
+                                @endphp
+                                −{{ $hasUnit ? number_format((float)$outbound->quantity_in_unit, 0) : number_format((int)$outbound->quantity, 0) }}
+                                <span style="font-size:0.8rem; font-weight:600; opacity:.75; margin-left:2px;">{{ $hasUnit ? $unitName : ($baseUnitName ?: '') }}</span>
+                                @if($hasUnit)
+                                <div style="font-size:0.75rem; color:#64748b; font-weight:600; font-family:monospace; margin-top:2px;">
+                                    = {{ number_format((int)$outbound->quantity, 0) }} {{ $baseUnitName ?: 'base' }}
+                                    <span style="font-weight:400; color:#94a3b8;">(×{{ (int)$outbound->conversion_factor }})</span>
+                                </div>
+                                @endif
+                            </td>
                         </tr>
                     </table>
                 </div>

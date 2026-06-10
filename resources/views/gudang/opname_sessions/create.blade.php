@@ -31,7 +31,15 @@
                         <div class="tr-alert tr-alert-danger">
                             <svg class="tr-alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                             <span>{{ session('error') }}</span>
-                        </div> 
+                        </div>
+                        @if(session('existing_session_id'))
+                        <div style="padding: 0 1.25rem 0.75rem;">
+                            <a href="{{ route('gudang.opname_sessions.edit', session('existing_session_id')) }}" class="tr-btn tr-btn-warning" style="font-size:0.8rem; padding:0.5rem 1rem;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Buka Sesi Draft yang Sudah Ada
+                            </a>
+                        </div>
+                        @endif
                     @endif
 
                     @if($errors->any())
@@ -69,6 +77,14 @@
                                     </select>
                                 </div>
                                 @error('warehouse_id') <div class="tr-error">{{ $message }}</div> @enderror
+                            </div>
+
+                            {{-- Deadline --}}
+                            <div class="tr-form-group">
+                                <label class="tr-label">Deadline <span class="tr-label-opt">(Opsional)</span></label>
+                                <input type="date" name="deadline_at" class="tr-input @error('deadline_at') is-invalid @enderror" value="{{ old('deadline_at') }}" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
+                                <div class="tr-input-hint">Tentukan tanggal target selesainya opname ini.</div>
+                                @error('deadline_at') <div class="tr-error">{{ $message }}</div> @enderror
                             </div>
 
                             {{-- Catatan --}}
@@ -240,7 +256,7 @@
             content: ''; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
             width: 10px; height: 10px;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-size: contain; background-repeat: no-space; pointer-events: none;
+            background-size: contain; background-repeat: no-repeat; pointer-events: none;
         }
 
         /* ── FOOTER ACTIONS ── */

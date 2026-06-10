@@ -50,6 +50,17 @@ class CustomerCredit extends Model
         return $this->due_date && $this->due_date->isPast() && $this->status !== 'paid';
     }
 
+    /**
+     * Recalculate paid_amount and status from actual payment records.
+     */
+    public function recalculate(): void
+    {
+        $totalPaid = $this->payments()->sum('amount');
+        $this->paid_amount = $totalPaid;
+        $this->status = $totalPaid >= $this->amount ? 'paid' : ($totalPaid > 0 ? 'partial' : 'unpaid');
+        $this->save();
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return $this->type === 'debt' ? 'Hutang Pelanggan' : 'Piutang / Kredit';

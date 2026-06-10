@@ -306,25 +306,53 @@ class LaporanController extends Controller
     {
         $isPrint = $request->boolean('print');
         $warehouseId = $request->warehouse_id;
-        $categoryId = $request->category_id;
-        $search = $request->search;
+        $categoryId  = $request->category_id;
+        $search      = $request->search;
 
-        // ── Summary cards ────────────────────────────────────────────
+        // ── Summary KPI cards ─────────────────────────────────────────
+        // Total produk terdaftar (semua, termasuk stok 0)
         $totalProducts = Product::count();
-        $totalStockQty = Product::sum('stock');
-        $lowStockCount = Product::whereColumn('stock', '<=', 'min_stock')->where('min_stock', '>', 0)->count();
+
+        // Total qty fisik: ambil dari product_stocks agar akurat dan real-time
+        $totalStockQty = ProductStock::where('stock', '>', 0)->sum('stock');
+
+        // "Hampir habis" = stock aktif (> 0) tapi sudah di bawah atau sama dengan batas minimum
+        // Gunakan DB::table agar tidak ada ambiguitas join dari Eloquent model scopes
+        $lowStockCount = DB::table('product_stocks')
+            ->join('products', 'product_stocks.product_id', '=', 'products.id')
+            ->where('product_stocks.stock', '>', 0)
+            ->where('products.min_stock', '>', 0)
+            ->whereColumn('product_stocks.stock', '<=', 'products.min_stock')
+            ->distinct('product_stocks.product_id')
+            ->count('product_stocks.product_id');
+
+        // Batch kadaluarsa: tanggal sudah terlewat (strictly < hari ini)
         $expiredCount = ProductStock::whereNotNull('expired_date')
             ->where('stock', '>', 0)
             ->where('expired_date', '<', Carbon::today())
             ->count();
+
+        // Akan expired: hari ini s/d 30 hari ke depan (tidak overlap dengan expired)
         $nearExpiredCount = ProductStock::whereNotNull('expired_date')
             ->where('stock', '>', 0)
-            ->whereBetween('expired_date', [Carbon::today(), Carbon::today()->addDays(30)])
+            ->whereBetween('expired_date', [Carbon::today(), Carbon::today()->copy()->addDays(30)])
             ->count();
 
-        // ── Per-warehouse stock summary ───────────────────────────────
-        $warehouses = Warehouse::withCount('productStocks as stock_lines')
-            ->withSum('productStocks as total_qty', 'stock')
+        // Nilai stok total (stok × harga beli) — untuk informasi tambahan
+        $totalStockValue = DB::table('product_stocks')
+            ->join('products as p', 'product_stocks.product_id', '=', 'p.id')
+            ->where('product_stocks.stock', '>', 0)
+            ->selectRaw('COALESCE(SUM(product_stocks.stock * COALESCE(p.purchase_price, 0)), 0) as val')
+            ->value('val') ?? 0;
+
+        // ── Per-warehouse stock summary (sidebar) ────────────────────
+        // Hanya hitung record dengan stock > 0 agar angka relevan
+        $warehouses = Warehouse::withCount([
+                'productStocks as stock_lines' => fn ($q) => $q->where('stock', '>', 0),
+            ])
+            ->withSum([
+                'productStocks as total_qty' => fn ($q) => $q->where('stock', '>', 0),
+            ], 'stock')
             ->orderBy('name')
             ->get();
 
@@ -352,51 +380,70 @@ class LaporanController extends Controller
             ->get()
             ->groupBy('product_id');
 
-        // ── Low stock products ────────────────────────────────────────
+        // ── Stok menipis (sidebar widget) — global, tidak terfilter ──
+        // Ambil max 10, urutkan dari yang paling kritis (stok terendah relatif thd min_stock)
+        // Gunakan DB::table agar tidak ada ambiguitas join
+        $lowStockProductIds = DB::table('product_stocks')
+            ->join('products as p2', 'product_stocks.product_id', '=', 'p2.id')
+            ->where('product_stocks.stock', '>', 0)
+            ->where('p2.min_stock', '>', 0)
+            ->whereColumn('product_stocks.stock', '<=', 'p2.min_stock')
+            ->orderByRaw('(product_stocks.stock / p2.min_stock) ASC')
+            ->distinct('product_stocks.product_id')
+            ->pluck('product_stocks.product_id')
+            ->take(10);
+
         $lowStockProducts = Product::with(['category'])
-            ->whereColumn('stock', '<=', 'min_stock')
-            ->where('min_stock', '>', 0)
-            ->orderBy('stock', 'asc')
+            ->whereIn('id', $lowStockProductIds)
+            ->orderByRaw('(stock / NULLIF(min_stock, 0)) ASC')
             ->take(10)
             ->get();
 
-        // ── Recent stock movements (last 20) ─────────────────────────
-        $recentMovements = StockMovement::with(['product', 'warehouse', 'user'])
+        // ── Aktivitas stok terbaru (sidebar widget) ──────────────────
+        $recentMovements = StockMovement::with(['product:id,name', 'warehouse:id,name'])
             ->latest()
-            ->take(15)
+            ->take(12)
             ->get();
 
-        // ── Categories for filter ─────────────────────────────────────
+        // ── Kategori untuk filter dropdown ───────────────────────────
         $categories = \App\Models\Category::orderBy('name')->get();
 
         $maskStock = $this->shouldMaskStock();
 
+        // ── Export CSV / XLSX ────────────────────────────────────────
         $export = strtolower((string) $request->query('export', ''));
         if (in_array($export, ['csv', 'xlsx'], true)) {
-            $filename = 'laporan-stok-'.now()->format('Y-m-d').'.'.$export;
-            $headers = [
+            $filename = 'laporan-stok-' . now()->format('Y-m-d') . '.' . $export;
+            $headers  = [
                 'sku',
-                'nama',
+                'nama_produk',
                 'kategori',
                 'satuan',
                 'stok_global',
                 'min_stok',
+                'status',
+                'nilai_stok',
             ];
 
             $rows = (function () use ($stockQuery) {
                 $list = (clone $stockQuery)
-                    ->with(['category:id,name', 'unit:id,name'])
+                    ->with(['category:id,name', 'unit:id,name,abbreviation'])
                     ->orderBy('stock', 'desc')
                     ->get();
 
                 foreach ($list as $p) {
+                    $isLow  = ($p->min_stock ?? 0) > 0 && $p->stock <= $p->min_stock;
+                    $status = $p->stock <= 0 ? 'HABIS' : ($isLow ? 'MENIPIS' : 'AMAN');
+
                     yield [
                         (string) ($p->sku ?? ''),
                         (string) ($p->name ?? ''),
                         (string) ($p->category?->name ?? ''),
-                        (string) ($p->unit?->name ?? ''),
-                        (float) ($p->stock ?? 0),
-                        (float) ($p->min_stock ?? 0),
+                        (string) ($p->unit?->abbreviation ?? ''),
+                        (float)  ($p->stock ?? 0),
+                        (float)  ($p->min_stock ?? 0),
+                        $status,
+                        (float)  (($p->stock ?? 0) * ($p->purchase_price ?? 0)),
                     ];
                 }
             })();
@@ -407,13 +454,11 @@ class LaporanController extends Controller
         }
 
         return view('laporan.stok', compact(
-            'totalProducts', 'totalStockQty', 'lowStockCount',
-            'expiredCount', 'nearExpiredCount',
+            'totalProducts', 'totalStockQty', 'totalStockValue',
+            'lowStockCount', 'expiredCount', 'nearExpiredCount',
             'warehouses', 'products', 'lowStockProducts', 'recentMovements',
             'categories', 'warehouseId', 'categoryId', 'search',
-            'warehouseStocks',
-            'maskStock',
-            'isPrint'
+            'warehouseStocks', 'maskStock', 'isPrint'
         ));
     }
 
@@ -588,15 +633,15 @@ class LaporanController extends Controller
         $isPrint = $request->boolean('print');
         $search = $request->search;
 
-        $totalSuppliers = \App\Models\Supplier::where('active', true)->count();
+        $totalSuppliers = Supplier::where('active', true)->count();
         $totalDebt = \App\Models\SupplierDebt::whereIn('status', ['unpaid', 'partial'])
-            ->sum(\Illuminate\Support\Facades\DB::raw('total_amount - paid_amount'));
+            ->sum(DB::raw('total_amount - paid_amount'));
 
         $suppliersWithDebt = \App\Models\SupplierDebt::whereIn('status', ['unpaid', 'partial'])
             ->distinct('supplier_id')
             ->count('supplier_id');
 
-        $query = \App\Models\Supplier::with(['debts' => function ($q) {
+        $query = Supplier::with(['debts' => function ($q) {
             $q->whereIn('status', ['unpaid', 'partial']);
         }]);
 

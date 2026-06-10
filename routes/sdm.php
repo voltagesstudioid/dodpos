@@ -16,16 +16,16 @@ use App\Http\Controllers\Sdm\PotonganGajiController;
 Route::prefix('sdm')->name('sdm.')->group(function () {
     
     // Karyawan
-    Route::middleware('can:view_karyawan')->group(function () {
-        Route::get('/karyawan', [EmployeeController::class, 'index'])->name('karyawan.index');
-        Route::get('/karyawan/export', [EmployeeController::class, 'export'])->name('karyawan.export');
-        Route::get('/karyawan/{karyawan}', [EmployeeController::class, 'show'])->name('karyawan.show');
-    });
-
     Route::middleware('can:create_karyawan')->group(function () {
         Route::get('/karyawan/create', [EmployeeController::class, 'create'])->name('karyawan.create');
         Route::post('/karyawan', [EmployeeController::class, 'store'])->name('karyawan.store');
         Route::post('/karyawan/import', [EmployeeController::class, 'importFromAccounts'])->name('karyawan.import');
+    });
+
+    Route::middleware('can:view_karyawan')->group(function () {
+        Route::get('/karyawan', [EmployeeController::class, 'index'])->name('karyawan.index');
+        Route::get('/karyawan/export', [EmployeeController::class, 'export'])->name('karyawan.export');
+        Route::get('/karyawan/{karyawan}', [EmployeeController::class, 'show'])->name('karyawan.show');
     });
 
     Route::middleware('can:edit_karyawan')->group(function () {
@@ -50,6 +50,7 @@ Route::prefix('sdm')->name('sdm.')->group(function () {
         Route::post('/absensi/link-user', [AttendanceController::class, 'linkUser'])->name('absensi.link_user');
         Route::post('/absensi/manual', [AttendanceController::class, 'storeManual'])->name('absensi.manual.store');
         Route::post('/absensi/generate-absent', [AttendanceController::class, 'generateAbsent'])->name('absensi.generate_absent');
+        Route::post('/absensi/jadwal', [AttendanceController::class, 'updateSchedule'])->name('absensi.update_schedule');
         Route::post('/cuti', [LeaveRequestController::class, 'store'])->name('cuti.store');
         Route::post('/libur', [HolidayController::class, 'store'])->name('libur.store');
         Route::post('/libur/generate', [HolidayController::class, 'generateMonth'])->name('libur.generate');

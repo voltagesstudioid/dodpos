@@ -18,7 +18,15 @@ class KategoriController extends Controller
             $query->where('name', 'like', '%' . $request->search . '%');
         }
         $kategoris = $query->latest()->paginate(15)->withQueryString();
-        return view('master.kategori.index', compact('kategoris'));
+
+        // Stats from full dataset
+        $totalKategori = Category::count();
+        $kategoriTerpakai = Category::whereHas('products')->count();
+        $kategoriKosong = $totalKategori - $kategoriTerpakai;
+        $totalProduk = Product::count();
+        $stats = compact('totalKategori', 'kategoriTerpakai', 'kategoriKosong', 'totalProduk');
+
+        return view('master.kategori.index', compact('kategoris', 'stats'));
     }
 
     public function create()

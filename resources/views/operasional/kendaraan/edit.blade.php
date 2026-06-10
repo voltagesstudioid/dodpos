@@ -63,6 +63,45 @@
                                     placeholder="Tambahkan informasi tambahan mengenai kondisi kendaraan...">{{ old('description', $kendaraan->description) }}</textarea>
                                 @error('description') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
+
+                            {{-- Ditugaskan Kepada Sales --}}
+                            <div class="tr-form-group">
+                                <label class="tr-label">
+                                    <span class="tr-label-with-icon">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        Ditugaskan Kepada Sales
+                                    </span>
+                                    <span class="tr-optional">(Opsional)</span>
+                                </label>
+                                @php
+                                    $currentAssignment = '';
+                                    if ($kendaraan->sales_type && $kendaraan->sales_id) {
+                                        $currentAssignment = $kendaraan->sales_type . ':' . $kendaraan->sales_id;
+                                    }
+                                @endphp
+                                <select name="sales_assignment" 
+                                    class="tr-select @error('sales_assignment') is-invalid @enderror" 
+                                    id="sales_assignment">
+                                    <option value="">— Belum ditugaskan —</option>
+                                    @foreach($salesList as $module => $salesItems)
+                                        @if(count($salesItems) > 0)
+                                            <optgroup label="{{ $module }}">
+                                                @foreach($salesItems as $s)
+                                                    @php
+                                                        $optVal = 'App\\Models\\' . ($module === 'Gula' ? 'GulaSales' : ($module === 'Mineral' ? 'MineralSales' : ($module === 'Minyak' ? 'MinyakSales' : 'PasgarSales'))) . ':' . $s['id'];
+                                                    @endphp
+                                                    <option value="{{ $optVal }}" {{ old('sales_assignment', $currentAssignment) == $optVal ? 'selected' : '' }}>
+                                                        {{ $s['kode_sales'] }} — {{ $s['nama'] }}
+                                                        @if($s['no_kendaraan']) ({{ strtoupper($s['no_kendaraan']) }}) @endif
+                                                    </option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                @error('sales_assignment') <div class="tr-error-msg">{{ $message }}</div> @enderror
+                                <p class="tr-hint">Pilih sales yang akan menggunakan kendaraan ini. Plat nomor akan otomatis tersimpan di profil sales.</p>
+                            </div>
                         </div>
 
                         {{-- Action Buttons --}}
@@ -130,6 +169,26 @@
             color: var(--tr-text-main); transition: all 0.2s; outline: none;
         }
         .tr-input:focus, .tr-textarea:focus { border-color: var(--tr-indigo); background-color: #ffffff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
+
+        /* ── SELECT ── */
+        .tr-select {
+            width: 100%; padding: 0.75rem 1rem; 
+            border: 1.5px solid var(--tr-border); border-radius: 10px;
+            background-color: #fcfcfd; font-family: inherit; font-size: 0.9375rem; 
+            color: var(--tr-text-main); transition: all 0.2s; outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+            cursor: pointer;
+        }
+        .tr-select:focus { border-color: var(--tr-indigo); background-color: #ffffff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
+        .tr-select optgroup { font-weight: 700; color: var(--tr-indigo); }
+        .tr-select option { font-weight: 400; padding: 6px 0; }
+
+        .tr-label-with-icon { display: inline-flex; align-items: center; gap: 5px; }
+        .tr-hint { margin-top: 8px; font-size: 0.75rem; color: var(--tr-text-muted); line-height: 1.5; }
         
         .tr-plate-input { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 700; letter-spacing: 0.05em; }
 

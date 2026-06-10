@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
+use App\Models\StoreSetting;
 use App\Services\ReferenceNumberService;
 use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
@@ -254,8 +255,9 @@ class SalesOrderController extends Controller
     public function show(SalesOrder $salesOrder)
     {
         $salesOrder->load(['customer', 'user', 'items.product']);
+        $storeSettings = StoreSetting::current();
 
-        return view('penjualan.sales-order.show', compact('salesOrder'));
+        return view('penjualan.sales-order.show', compact('salesOrder', 'storeSettings'));
     }
 
     public function edit(SalesOrder $salesOrder)

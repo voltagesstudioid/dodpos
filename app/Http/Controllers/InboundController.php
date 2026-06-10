@@ -251,9 +251,13 @@ class InboundController extends Controller
                 $query->whereNull('expired_date');
             }
 
-            $stockRecord = $query->first();
+            $stockRecord = $query->lockForUpdate()->first();
 
             if ($stockRecord) {
+                if ($stockRecord->stock < $inbound->quantity) {
+                    DB::rollBack();
+                    return back()->with('error', 'Stok tidak cukup untuk dibatalkan (stok sudah terpakai).');
+                }
                 $stockRecord->stock -= $inbound->quantity;
                 $stockRecord->save();
             }

@@ -1,574 +1,827 @@
 <x-app-layout>
-    <x-slot name="header">Laporan Stok</x-slot>
+<x-slot name="header">Laporan Stok Global</x-slot>
 
-    <div class="tr-page-wrapper">
-        <div class="tr-page">
-            @php $isPrint = (bool) ($isPrint ?? request()->boolean('print')); @endphp
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
-            @if($isPrint && request()->boolean('preview'))
-                @include('print.partials.preview-toolbar', ['title' => 'Laporan Stok'])
-            @endif
+    .stok-wrap {
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        width: 100%;
+        padding: 1.75rem 2rem;
+        max-width: 1700px;
+        animation: fadeSlideIn .35s ease both;
+    }
 
-            @if($isPrint)
-                <div style="margin-bottom:1rem; border-bottom:1px solid #e2e8f0; padding-bottom:0.75rem;">
-                    <div style="font-size:1.25rem; font-weight:900; color:#0f172a;">Laporan Stok</div>
-                    <div style="font-size:0.8rem; color:#475569; margin-top:0.25rem;">
-                        @if($search) Pencarian: <strong>{{ $search }}</strong> • @endif
-                        @if($warehouseId) Gudang: <strong>{{ optional($warehouses->firstWhere('id', (int) $warehouseId))->name ?? $warehouseId }}</strong> • @endif
-                        @if($categoryId) Kategori: <strong>{{ optional($categories->firstWhere('id', (int) $categoryId))->name ?? $categoryId }}</strong> • @endif
-                        Dicetak: <strong>{{ now()->format('d/m/Y H:i') }}</strong>
-                    </div>
-                </div>
-            @endif
+    /* ── PAGE HEADER ─────────────────────────────────────── */
+    .stk-ph {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.25rem;
+        margin-bottom: 1.75rem;
+        flex-wrap: wrap;
+    }
+    .stk-ph-left { display: flex; gap: 1rem; align-items: center; }
+    .stk-ph-icon {
+        width: 52px; height: 52px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        display: flex; align-items: center; justify-content: center;
+        color: white; flex-shrink: 0;
+        box-shadow: 0 8px 20px rgba(79,70,229,.3);
+    }
+    .stk-ph-title {
+        font-size: 1.625rem; font-weight: 900;
+        color: #0f172a; letter-spacing: -.035em; margin: 0 0 .2rem;
+        line-height: 1.1;
+    }
+    .stk-ph-sub { font-size: .85rem; color: #64748b; margin: 0; }
+    .stk-ph-actions { display: flex; gap: .625rem; flex-wrap: wrap; align-items: center; }
 
-            {{-- ─── HEADER ─── --}}
-            <div class="tr-header">
-                <div class="tr-header-text">
-                    <div class="tr-eyebrow">Laporan & Analitik</div>
-                    <h1 class="tr-title">
-                        <div class="tr-title-icon-box bg-indigo">
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                        </div>
-                        Laporan Stok Global
-                    </h1>
-                    <p class="tr-subtitle">Ringkasan kondisi dan sebaran stok seluruh produk di semua gudang.</p>
-                </div>
-                <div class="tr-header-actions">
-                    <a href="{{ route('gudang.stok') }}" class="tr-btn tr-btn-outline">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-                        Rekap per Gudang
-                    </a>
-                    <a href="{{ route('gudang.minstok') }}" class="tr-btn tr-btn-warning-outline">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                        Min. Stok
-                    </a>
-                    <a href="{{ route('gudang.expired') }}" class="tr-btn tr-btn-danger-outline">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                        Expired
-                    </a>
-                    @if(! $isPrint)
-                        <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'page' => null]) }}" class="tr-btn tr-btn-outline">⬇️ CSV</a>
-                        <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null]) }}" class="tr-btn tr-btn-outline">⬇️ Excel</a>
-                        <a href="{{ request()->fullUrlWithQuery(['print' => 1, 'preview' => 1, 'page' => null]) }}" target="_blank" class="tr-btn tr-btn-outline">🖨️ Cetak</a>
-                    @endif
-                </div>
+    .stk-btn {
+        display: inline-flex; align-items: center; gap: .4rem;
+        padding: .5rem .9rem; border-radius: 10px;
+        font-size: .8rem; font-weight: 700; cursor: pointer;
+        text-decoration: none; border: 1.5px solid; transition: all .2s;
+        font-family: inherit; white-space: nowrap;
+    }
+    .stk-btn-ghost { background: white; border-color: #e2e8f0; color: #475569; }
+    .stk-btn-ghost:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+    .stk-btn-warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+    .stk-btn-warn:hover { background: #fef3c7; border-color: #fbbf24; }
+    .stk-btn-danger { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+    .stk-btn-danger:hover { background: #ffe4e6; border-color: #fda4af; }
+    .stk-btn-primary {
+        background: linear-gradient(135deg, #4f46e5, #4338ca);
+        border-color: transparent; color: white;
+        box-shadow: 0 4px 12px rgba(79,70,229,.25);
+    }
+    .stk-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(79,70,229,.35); }
+    .stk-btn-success { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .stk-btn-success:hover { background: #d1fae5; }
+
+    /* ── KPI GRID ─────────────────────────────────────────── */
+    .stk-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    @media (max-width: 1300px) { .stk-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 780px)  { .stk-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .stk-kpi {
+        background: #fff; border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.25rem 1.375rem;
+        display: flex; flex-direction: column; gap: .625rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,.04);
+        transition: all .25s; position: relative; overflow: hidden;
+        cursor: default;
+    }
+    .stk-kpi::after {
+        content: ''; position: absolute;
+        top: -20px; right: -20px;
+        width: 80px; height: 80px; border-radius: 50%;
+        opacity: .06; transition: all .3s;
+    }
+    .stk-kpi:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.09); }
+    .stk-kpi:hover::after { transform: scale(1.4); opacity: .1; }
+    .stk-kpi-row { display: flex; align-items: center; justify-content: space-between; }
+    .stk-kpi-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .stk-kpi-label {
+        font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #94a3b8; margin-bottom: .2rem;
+    }
+    .stk-kpi-value {
+        font-size: 2rem; font-weight: 900; line-height: 1;
+        letter-spacing: -.04em;
+        animation: countUp .45s ease both;
+    }
+    .stk-kpi-footer { font-size: .72rem; color: #94a3b8; display: flex; align-items: center; gap: .3rem; }
+
+    .kpi-indigo .stk-kpi-icon { background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #4f46e5; }
+    .kpi-indigo .stk-kpi-value { color: #4f46e5; }
+    .kpi-indigo::after { background: #4f46e5; }
+
+    .kpi-emerald .stk-kpi-icon { background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; }
+    .kpi-emerald .stk-kpi-value { color: #059669; }
+    .kpi-emerald::after { background: #059669; }
+
+    .kpi-amber .stk-kpi-icon { background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #d97706; }
+    .kpi-amber .stk-kpi-value { color: #d97706; }
+    .kpi-amber::after { background: #f59e0b; }
+
+    .kpi-rose .stk-kpi-icon { background: linear-gradient(135deg, #fff1f2, #ffe4e6); color: #e11d48; }
+    .kpi-rose .stk-kpi-value { color: #e11d48; }
+    .kpi-rose::after { background: #e11d48; }
+
+    .kpi-orange .stk-kpi-icon { background: linear-gradient(135deg, #fff7ed, #ffedd5); color: #ea580c; }
+    .kpi-orange .stk-kpi-value { color: #ea580c; }
+    .kpi-orange::after { background: #f97316; }
+
+    /* ── MAIN LAYOUT ──────────────────────────────────────── */
+    .stk-layout {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 1.25rem;
+        align-items: flex-start;
+    }
+    @media (max-width: 1100px) { .stk-layout { grid-template-columns: 1fr; } }
+
+    /* ── MAIN PANEL ───────────────────────────────────────── */
+    .stk-panel {
+        background: white; border-radius: 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 12px rgba(0,0,0,.04);
+        overflow: hidden;
+    }
+    .stk-panel-header {
+        padding: 1.125rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(180deg, #fdfdfe, #f9fafc);
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap;
+    }
+    .stk-panel-title {
+        font-size: .9375rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .5rem;
+    }
+    .stk-panel-meta { font-size: .72rem; color: #94a3b8; margin-top: 2px; }
+
+    /* ── FILTER BAR ───────────────────────────────────────── */
+    .stk-filter-bar {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        background: #f8fafc;
+        display: flex; gap: .75rem; flex-wrap: wrap; align-items: flex-end;
+    }
+    .stk-fg {
+        display: flex; flex-direction: column; gap: .3rem;
+        flex: 1; min-width: 200px;
+    }
+    .stk-fg label {
+        font-size: .68rem; font-weight: 800; color: #475569;
+        text-transform: uppercase; letter-spacing: .06em;
+    }
+    .stk-input-wrap { position: relative; }
+    .stk-input-wrap svg {
+        position: absolute; left: .8rem; top: 50%;
+        transform: translateY(-50%); color: #94a3b8; pointer-events: none;
+    }
+    .stk-fi {
+        width: 100%; padding: .575rem .875rem;
+        padding-left: 2.4rem;
+        border-radius: 9px; border: 1.5px solid #e2e8f0;
+        background: white; color: #1e293b; font-size: .875rem;
+        font-family: inherit; outline: none; transition: all .2s;
+    }
+    .stk-fs {
+        width: 100%; padding: .575rem .875rem;
+        border-radius: 9px; border: 1.5px solid #e2e8f0;
+        background: white; color: #1e293b; font-size: .875rem;
+        font-family: inherit; outline: none; transition: all .2s; cursor: pointer;
+    }
+    .stk-fi:focus, .stk-fs:focus {
+        border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+        background: white;
+    }
+    .stk-filter-actions { display: flex; gap: .5rem; align-items: flex-end; padding-bottom: 1px; }
+
+    /* ── TABLE ────────────────────────────────────────────── */
+    .stk-table-wrap { overflow-x: auto; }
+    .stk-table {
+        width: 100%; border-collapse: collapse; min-width: 760px;
+    }
+    .stk-table thead th {
+        padding: .75rem 1.25rem;
+        font-size: .68rem; font-weight: 800; color: #64748b;
+        text-transform: uppercase; letter-spacing: .06em;
+        background: linear-gradient(180deg, #f8fafc, #f4f8fc);
+        border-bottom: 2px solid #e8edf4;
+        text-align: left; white-space: nowrap;
+    }
+    .stk-table thead th.center { text-align: center; }
+    .stk-table tbody tr {
+        border-bottom: 1px solid #f4f7fc;
+        transition: background .14s;
+    }
+    .stk-table tbody tr:last-child { border-bottom: none; }
+    .stk-table tbody tr:hover td { background: linear-gradient(90deg, #fafbff, #f8f9ff); }
+    .stk-table td {
+        padding: .9rem 1.25rem;
+        font-size: .845rem; color: #374151;
+        vertical-align: middle;
+    }
+    .stk-table td.center { text-align: center; }
+
+    .stk-prod-name { font-weight: 800; color: #0f172a; margin-bottom: .15rem; font-size: .9rem; }
+    .stk-prod-sku { font-size: .72rem; color: #94a3b8; }
+    .stk-prod-cat {
+        display: inline-block; margin-top: .375rem;
+        padding: .2rem .6rem; background: #eef2ff; color: #4338ca;
+        font-size: .68rem; font-weight: 700; border-radius: 6px;
+    }
+
+    /* Warehouse chips */
+    .stk-wh-list { display: flex; flex-direction: column; gap: .4rem; }
+    .stk-wh-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .35rem .65rem; border-radius: 8px;
+        background: #f8fafc; border: 1px solid #e8edf4;
+        font-size: .78rem;
+    }
+    .stk-wh-name { display: flex; align-items: center; gap: .35rem; color: #64748b; font-weight: 600; }
+    .stk-wh-qty { font-weight: 800; color: #4f46e5; font-size: .82rem; }
+
+    /* Stock qty + bar */
+    .stk-qty-wrap { text-align: center; }
+    .stk-qty-num {
+        font-size: 1.4rem; font-weight: 900; line-height: 1;
+        letter-spacing: -.03em; margin-bottom: .15rem;
+    }
+    .stk-qty-num.ok   { color: #059669; }
+    .stk-qty-num.low  { color: #d97706; }
+    .stk-qty-num.out  { color: #e11d48; }
+    .stk-qty-unit { font-size: .7rem; color: #94a3b8; font-weight: 600; }
+
+    /* Health bar under qty */
+    .stk-hbar {
+        width: 64px; height: 4px; border-radius: 99px;
+        background: #e2e8f0; margin: .3rem auto 0; overflow: hidden;
+    }
+    .stk-hbar-fill { height: 100%; border-radius: 99px; transition: width .4s; }
+
+    /* Status badges */
+    .stk-badge {
+        display: inline-flex; align-items: center; gap: .3rem;
+        padding: .3rem .75rem; border-radius: 99px;
+        font-size: .72rem; font-weight: 800; letter-spacing: .04em;
+    }
+    .stk-badge-ok    { background: #dcfce7; color: #15803d; }
+    .stk-badge-warn  { background: #fef3c7; color: #92400e; }
+    .stk-badge-danger{ background: #fee2e2; color: #991b1b; }
+
+    /* ── SIDEBAR ──────────────────────────────────────────── */
+    .stk-sidebar {
+        display: flex; flex-direction: column; gap: 1.125rem;
+        position: sticky; top: 1.5rem;
+    }
+    @media (max-width: 1100px) {
+        .stk-sidebar { position: static; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    }
+
+    .stk-widget {
+        background: white; border-radius: 18px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,.04);
+    }
+    .stk-widget-hd {
+        padding: .875rem 1.125rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: .875rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .5rem;
+        background: linear-gradient(180deg, #fdfdfe, #f9fafc);
+    }
+    .stk-widget-body { display: flex; flex-direction: column; }
+    .stk-w-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: .875rem 1.125rem; border-bottom: 1px solid #f4f7fc;
+        transition: background .14s;
+    }
+    .stk-w-item:last-child { border-bottom: none; }
+    .stk-w-item:hover { background: #fafbff; }
+    .stk-w-item-left h4 { font-size: .85rem; font-weight: 700; color: #0f172a; margin: 0 0 .15rem; }
+    .stk-w-item-left p  { font-size: .7rem; color: #64748b; margin: 0; }
+    .stk-w-item-right { font-weight: 800; font-size: .875rem; }
+
+    /* Warehouse stock bar */
+    .stk-wbar { margin-top: .375rem; }
+    .stk-wbar-track { height: 3px; border-radius: 99px; background: #e2e8f0; overflow: hidden; margin-top: .25rem; }
+    .stk-wbar-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #4f46e5, #7c3aed); }
+
+    /* Widget alert */
+    .stk-widget-warn { border-color: #fde68a; }
+    .stk-widget-warn .stk-widget-hd { background: linear-gradient(135deg, #fef9e7, #fef3c7); border-color: #fde68a; color: #92400e; }
+
+    .stk-widget-link {
+        display: block; text-align: center; padding: .75rem;
+        font-size: .75rem; font-weight: 700; text-decoration: none;
+        background: #fef9e7; color: #92400e; border-top: 1px solid #fde68a;
+        transition: background .2s;
+    }
+    .stk-widget-link:hover { background: #fef3c7; }
+
+    /* ── EMPTY STATE ─────────────────────────────────────── */
+    .stk-empty {
+        text-align: center; padding: 3.5rem 1.5rem;
+    }
+    .stk-empty-icon {
+        width: 64px; height: 64px; border-radius: 18px;
+        background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1rem; color: #94a3b8;
+    }
+    .stk-empty h3 { font-size: 1rem; font-weight: 700; color: #1e293b; margin: 0 0 .375rem; }
+    .stk-empty p  { font-size: .845rem; color: #64748b; margin: 0; }
+
+    /* ── PAGINATION ─────────────────────────────────────── */
+    .stk-pag { padding: 1rem 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: center; }
+
+    /* ── PRINT ─────────────────────────────────────────── */
+    @media print {
+        .stk-sidebar, .stk-ph-actions, .stk-filter-bar, .stk-pag { display: none !important; }
+        .stk-layout { grid-template-columns: 1fr !important; }
+        .stk-panel { box-shadow: none !important; border: none !important; }
+        body { background: #fff !important; }
+    }
+
+    @keyframes countUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeSlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+</style>
+
+<div class="stok-wrap">
+
+    @php
+        $isPrint = (bool) ($isPrint ?? request()->boolean('print'));
+        $totalQtyFormatted = number_format($totalStockQty ?? 0);
+    @endphp
+
+    {{-- PRINT HEADER --}}
+    @if($isPrint)
+        <div style="margin-bottom:1.5rem; border-bottom:2px solid #e2e8f0; padding-bottom:.75rem;">
+            <div style="font-size:1.375rem; font-weight:900; color:#0f172a;">📦 Laporan Stok Global</div>
+            <div style="font-size:.8rem; color:#64748b; margin-top:.25rem;">
+                @if($search ?? null) Pencarian: <strong>{{ $search }}</strong> &bull; @endif
+                @if($warehouseId ?? null) Gudang: <strong>{{ optional($warehouses->firstWhere('id', (int)$warehouseId))->name ?? $warehouseId }}</strong> &bull; @endif
+                @if($categoryId ?? null) Kategori: <strong>{{ optional($categories->firstWhere('id', (int)$categoryId))->name ?? $categoryId }}</strong> &bull; @endif
+                Dicetak: <strong>{{ now()->format('d/m/Y H:i') }}</strong>
             </div>
+        </div>
+    @endif
 
-            {{-- ─── TABBED NAVIGATION ─── --}}
-            <div class="tr-tabs">
-                <a href="{{ route('products.index') }}" class="tr-tab-item">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                    Stok Barang Induk (Master)
+    {{-- PAGE HEADER --}}
+    <div class="stk-ph">
+        <div class="stk-ph-left">
+            <div class="stk-ph-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="stk-ph-title">Laporan Stok Global</h1>
+                <p class="stk-ph-sub">Ringkasan kondisi dan sebaran stok seluruh produk di semua gudang.</p>
+            </div>
+        </div>
+
+        <div class="stk-ph-actions">
+            <a href="{{ route('gudang.stok') }}" class="stk-btn stk-btn-ghost">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Rekap Per Gudang
+            </a>
+            <a href="{{ route('gudang.minstok') }}" class="stk-btn stk-btn-warn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Min. Stok
+                @if(($lowStockCount ?? 0) > 0)
+                    <span style="background:#f59e0b;color:white;padding:.1rem .45rem;border-radius:99px;font-size:.65rem;">{{ $lowStockCount }}</span>
+                @endif
+            </a>
+            <a href="{{ route('gudang.expired') }}" class="stk-btn stk-btn-danger">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Expired
+                @if(($expiredCount ?? 0) > 0)
+                    <span style="background:#e11d48;color:white;padding:.1rem .45rem;border-radius:99px;font-size:.65rem;">{{ $expiredCount }}</span>
+                @endif
+            </a>
+
+            @if(!$isPrint)
+                <a href="{{ request()->fullUrlWithQuery(['export' => 'csv', 'page' => null]) }}" class="stk-btn stk-btn-ghost">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    CSV
                 </a>
-                <a href="{{ route('gudang.stok-semua') }}" class="tr-tab-item active-indigo">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
-                    Sebaran Semua Gudang
+                <a href="{{ request()->fullUrlWithQuery(['export' => 'xlsx', 'page' => null]) }}" class="stk-btn stk-btn-success">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Excel
                 </a>
-            </div>
-
-            {{-- ─── KPI SUMMARY CARDS ─── --}}
-            <div class="tr-kpi-grid">
-                <div class="tr-kpi-card border-indigo">
-                    <div class="tr-kpi-icon bg-indigo">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-                    </div>
-                    <div>
-                        <div class="tr-kpi-value text-indigo">{{ number_format($totalProducts) }}</div>
-                        <div class="tr-kpi-label">Total Produk</div>
-                    </div>
-                </div>
-                <div class="tr-kpi-card border-success">
-                    <div class="tr-kpi-icon bg-success">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    </div>
-                    <div>
-                        <div class="tr-kpi-value text-success">{{ number_format($totalStockQty) }}</div>
-                        <div class="tr-kpi-label">Total Qty Fisik</div>
-                    </div>
-                </div>
-                <div class="tr-kpi-card border-warning">
-                    <div class="tr-kpi-icon bg-warning">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </div>
-                    <div>
-                        <div class="tr-kpi-value text-warning">{{ $lowStockCount }}</div>
-                        <div class="tr-kpi-label">Hampir Habis</div>
-                    </div>
-                </div>
-                <div class="tr-kpi-card border-danger">
-                    <div class="tr-kpi-icon bg-danger">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                    </div>
-                    <div>
-                        <div class="tr-kpi-value text-danger">{{ $expiredCount }}</div>
-                        <div class="tr-kpi-label">Batch Kadaluarsa</div>
-                    </div>
-                </div>
-                <div class="tr-kpi-card border-orange">
-                    <div class="tr-kpi-icon bg-orange">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
-                    <div>
-                        <div class="tr-kpi-value text-orange">{{ $nearExpiredCount }}</div>
-                        <div class="tr-kpi-label">Akan Exp. (30 Hr)</div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- ─── MAIN LAYOUT (2 COLUMNS) ─── --}}
-            <div class="tr-layout-grid">
-                
-                {{-- KOLOM KIRI: TABEL UTAMA --}}
-                <div class="tr-col-main">
-                    <div class="tr-card">
-                        
-                        {{-- Filter Bar --}}
-                        <div class="tr-card-header tr-filter-bar">
-                            <form method="GET" class="tr-filter-form">
-                                <div class="tr-form-group tr-flex-1">
-                                    <label class="tr-label">Cari Produk</label>
-                                    <div class="tr-search">
-                                        <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                                        <input type="text" name="search" value="{{ $search }}" placeholder="Ketik Nama / SKU...">
-                                    </div>
-                                </div>
-                                <div class="tr-form-group">
-                                    <label class="tr-label">Kategori</label>
-                                    <div class="tr-select-wrapper">
-                                        <select name="category_id" class="tr-select">
-                                            <option value="">Semua Kategori</option>
-                                            @foreach($categories as $cat)
-                                                <option value="{{ $cat->id }}" @selected($categoryId == $cat->id)>{{ $cat->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="tr-form-group">
-                                    <label class="tr-label">Filter Gudang</label>
-                                    <div class="tr-select-wrapper">
-                                        <select name="warehouse_id" class="tr-select">
-                                            <option value="">Semua Gudang</option>
-                                            @foreach($warehouses as $wh)
-                                                <option value="{{ $wh->id }}" @selected($warehouseId == $wh->id)>{{ $wh->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="tr-filter-actions">
-                                    <button type="submit" class="tr-btn tr-btn-dark">Filter</button>
-                                    @if($search || $categoryId || $warehouseId)
-                                        <a href="{{ route('laporan.stok') }}" class="tr-btn tr-btn-outline">Reset</a>
-                                    @endif
-                                </div>
-                            </form>
-                        </div>
-
-                        {{-- Main Table --}}
-                        <div class="table-responsive">
-                            <table class="tr-table">
-                                <thead>
-                                    <tr>
-                                        <th>Detail Produk</th>
-                                        <th>Sebaran Gudang</th>
-                                        <th class="c">Total Global</th>
-                                        <th class="c">Batas Min.</th>
-                                        <th class="c">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($products as $p)
-                                        @php
-                                            $isLow = $p->min_stock > 0 && $p->stock <= $p->min_stock;
-                                            $perGudang = $warehouseStocks->get($p->id, collect());
-                                        @endphp
-                                        <tr>
-                                            <td>
-                                                <div class="tr-prod-name">{{ $p->name }}</div>
-                                                <div class="tr-prod-sku">SKU: {{ $p->sku }}</div>
-                                                <div class="tr-prod-cat">{{ $p->category?->name ?? 'Tanpa Kategori' }}</div>
-                                            </td>
-                                            
-                                            <td style="min-width: 240px;">
-                                                @if($perGudang->isEmpty())
-                                                    <span class="tr-text-muted tr-italic">Tidak ada stok tercatat</span>
-                                                @else
-                                                    <div class="tr-breakdown-list">
-                                                        @foreach($perGudang as $wh)
-                                                            <div class="tr-breakdown-item">
-                                                                <span class="wh-name">
-                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                                                    {{ $wh->warehouse->name ?? '-' }}
-                                                                </span>
-                                                                <span class="wh-qty">
-                                                                    {{ number_format($wh->total_stock) }} 
-                                                                    <span class="wh-unit">{{ $p->unit?->abbreviation ?? '' }}</span>
-                                                                </span>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @endif
-                                            </td>
-                                            
-                                            <td class="c">
-                                                <div class="tr-stock-total {{ $isLow ? 'text-warning' : 'text-success' }}">
-                                                    {{ number_format($p->stock) }}
-                                                </div>
-                                                <div class="tr-unit-text">{{ $p->unit?->abbreviation ?? '' }}</div>
-                                            </td>
-                                            
-                                            <td class="c tr-font-semibold tr-text-muted">{{ $p->min_stock ?? '-' }}</td>
-                                            
-                                            <td class="c">
-                                                @if($p->stock == 0)
-                                                    <span class="tr-badge tr-badge-danger">HABIS</span>
-                                                @elseif($isLow)
-                                                    <span class="tr-badge tr-badge-warning">MENIPIS</span>
-                                                @else
-                                                    <span class="tr-badge tr-badge-success">AMAN</span>
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="5">
-                                                <div class="tr-empty-state">
-                                                    <div class="tr-empty-icon">
-                                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6.01" y2="8"></line><line x1="10" y1="8" x2="10.01" y2="8"></line></svg>
-                                                    </div>
-                                                    <h6>Tidak Ada Produk Ditemukan</h6>
-                                                    <p>Coba sesuaikan filter pencarian, kategori, atau gudang di atas.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-
-                        @if($products->hasPages())
-                            <div class="tr-pagination">
-                                {{ $products->links() }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- KOLOM KANAN: WIDGET SIDEBAR --}}
-                <div class="tr-col-side">
-                    
-                    {{-- Widget: Stok Per Gudang --}}
-                    <div class="tr-widget-card">
-                        <div class="tr-widget-header">
-                            <h3 class="tr-widget-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                Total Stok Gudang
-                            </h3>
-                        </div>
-                        <div class="tr-widget-body">
-                            @forelse ($warehouses as $wh)
-                                <div class="tr-widget-item">
-                                    <div class="item-left">
-                                        <div class="item-title">{{ $wh->name }}</div>
-                                        <div class="item-desc">{{ $wh->stock_lines ?? 0 }} record tersimpan</div>
-                                    </div>
-                                    <div class="item-right text-indigo">
-                                        {{ number_format($wh->total_qty ?? 0) }}
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="tr-empty-compact">Belum ada data gudang.</div>
-                            @endforelse
-                        </div>
-                    </div>
-
-                    {{-- Widget: Low Stock Alert --}}
-                    @if($lowStockProducts->count())
-                        <div class="tr-widget-card border-warning">
-                            <div class="tr-widget-header bg-warning-soft">
-                                <h3 class="tr-widget-title text-warning">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                                    Stok Menipis (Alert)
-                                </h3>
-                            </div>
-                            <div class="tr-widget-body">
-                                @foreach($lowStockProducts as $p)
-                                    <div class="tr-widget-item">
-                                        <div class="item-left">
-                                            <div class="item-title">{{ $p->name }}</div>
-                                            <div class="item-desc">Min limit: {{ $p->min_stock }}</div>
-                                        </div>
-                                        <div class="item-right">
-                                            <span class="tr-badge tr-badge-warning">{{ $p->stock }} Sisa</span>
-                                        </div>
-                                    </div>
-                                @endforeach
-                                <a href="{{ route('gudang.minstok') }}" class="tr-widget-link text-warning">Lihat Semua Alert &rarr;</a>
-                            </div>
-                        </div>
-                    @endif
-
-                    {{-- Widget: Recent Movements --}}
-                    <div class="tr-widget-card">
-                        <div class="tr-widget-header">
-                            <h3 class="tr-widget-title">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                                Aktivitas Terbaru
-                            </h3>
-                        </div>
-                        <div class="tr-widget-body">
-                            @forelse($recentMovements as $m)
-                                <div class="tr-widget-item align-start">
-                                    <div class="item-left">
-                                        <div class="item-title tr-truncate" style="max-width: 180px;" title="{{ $m->product?->name ?? '-' }}">
-                                            {{ $m->product?->name ?? '-' }}
-                                        </div>
-                                        <div class="item-desc">{{ $m->warehouse?->name }} • {{ $m->created_at->diffForHumans() }}</div>
-                                    </div>
-                                    <div class="item-right">
-                                        @if($m->type === 'in')
-                                            <span class="tr-val-plus text-success">+{{ (int) $m->quantity }}</span>
-                                        @else
-                                            <span class="tr-val-minus text-danger">−{{ (int) $m->quantity }}</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="tr-empty-compact">Belum ada pergerakan.</div>
-                            @endforelse
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
+                <a href="{{ request()->fullUrlWithQuery(['print' => 1, 'preview' => 1, 'page' => null]) }}" target="_blank" class="stk-btn stk-btn-ghost">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Cetak
+                </a>
+            @endif
         </div>
     </div>
 
-    @push('styles')
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+    {{-- KPI CARDS --}}
+    <div class="stk-kpi-grid">
+        {{-- Total Produk --}}
+        <div class="stk-kpi kpi-indigo" style="animation-delay:.04s">
+            <div class="stk-kpi-row">
+                <div class="stk-kpi-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                        <path d="M8 4v4M16 4v4M2 12h20"/>
+                    </svg>
+                </div>
+                <div style="font-size:.7rem;font-weight:700;color:#c7d2fe;background:#eef2ff;padding:.15rem .5rem;border-radius:6px;">Produk</div>
+            </div>
+            <div>
+                <div class="stk-kpi-label">Total Produk Terdaftar</div>
+                <div class="stk-kpi-value">{{ number_format($totalProducts ?? 0) }}</div>
+            </div>
+            <div class="stk-kpi-footer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Semua kategori
+            </div>
+        </div>
 
-        :root {
-            --tr-bg: #f8fafc;
-            --tr-surface: #ffffff;
-            --tr-border: #e2e8f0;
-            --tr-border-light: #f1f5f9;
-            --tr-text-main: #0f172a;
-            --tr-text-muted: #64748b;
-            --tr-text-light: #94a3b8;
-            
-            --tr-indigo: #4f46e5; /* Primary */
-            --tr-indigo-hover: #4338ca;
-            --tr-indigo-light: #e0e7ff;
-            
-            --tr-success: #10b981;
-            --tr-success-bg: #dcfce7;
-            --tr-success-text: #166534;
-            
-            --tr-warning: #f59e0b;
-            --tr-warning-bg: #fef3c7;
-            --tr-warning-text: #b45309;
-            
-            --tr-danger: #ef4444;
-            --tr-danger-bg: #fee2e2;
-            --tr-danger-text: #991b1b;
-            
-            --tr-orange: #f97316;
-            --tr-orange-bg: #ffedd5;
-            --tr-orange-text: #c2410c;
+        {{-- Total Stok Fisik --}}
+        <div class="stk-kpi kpi-emerald" style="animation-delay:.08s">
+            <div class="stk-kpi-row">
+                <div class="stk-kpi-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    </svg>
+                </div>
+                <div style="font-size:.7rem;font-weight:700;color:#a7f3d0;background:#ecfdf5;padding:.15rem .5rem;border-radius:6px;">Qty</div>
+            </div>
+            <div>
+                <div class="stk-kpi-label">Total Qty Fisik</div>
+                <div class="stk-kpi-value">{{ $totalQtyFormatted }}</div>
+            </div>
+            <div class="stk-kpi-footer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Seluruh gudang aktif
+            </div>
+        </div>
 
-            --tr-radius-lg: 14px;
-            --tr-radius-md: 8px;
-            --tr-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.02);
-            --tr-shadow-card: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
-        }
+        {{-- Hampir Habis --}}
+        <div class="stk-kpi kpi-amber" style="animation-delay:.12s">
+            <div class="stk-kpi-row">
+                <div class="stk-kpi-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </div>
+                @if(($lowStockCount ?? 0) > 0)
+                    <div style="font-size:.65rem;font-weight:800;color:#92400e;background:#fef3c7;padding:.15rem .5rem;border-radius:6px;animation:pulse-dot 1.5s ease infinite;">⚠ PERLU RESTOK</div>
+                @endif
+            </div>
+            <div>
+                <div class="stk-kpi-label">Stok Hampir Habis</div>
+                <div class="stk-kpi-value">{{ number_format($lowStockCount ?? 0) }}</div>
+            </div>
+            <div class="stk-kpi-footer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Di bawah minimum limit
+            </div>
+        </div>
 
-        .tr-page-wrapper { background-color: var(--tr-bg); min-height: 100vh; padding-bottom: 3rem; }
-        .tr-page { padding: 1.5rem; max-width: 1400px; margin: 0 auto; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--tr-text-main); }
+        {{-- Kadaluarsa --}}
+        <div class="stk-kpi kpi-rose" style="animation-delay:.16s">
+            <div class="stk-kpi-row">
+                <div class="stk-kpi-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                </div>
+                @if(($expiredCount ?? 0) > 0)
+                    <div style="font-size:.65rem;font-weight:800;color:#991b1b;background:#fee2e2;padding:.15rem .5rem;border-radius:6px;">‼ KRITIS</div>
+                @endif
+            </div>
+            <div>
+                <div class="stk-kpi-label">Batch Kadaluarsa</div>
+                <div class="stk-kpi-value">{{ number_format($expiredCount ?? 0) }}</div>
+            </div>
+            <div class="stk-kpi-footer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Sudah melewati tanggal
+            </div>
+        </div>
 
-        /* ── HEADER ── */
-        .tr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
-        .tr-eyebrow { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tr-indigo); margin-bottom: 0.35rem; }
-        .tr-title { font-size: 1.6rem; font-weight: 900; color: var(--tr-text-main); margin: 0 0 0.4rem 0; display: flex; align-items: center; gap: 10px; letter-spacing: -0.02em; }
-        .tr-title-icon-box { display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; }
-        .tr-title-icon-box.bg-indigo { background: var(--tr-indigo-light); color: var(--tr-indigo); }
-        .tr-subtitle { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0; line-height: 1.4; }
-        
-        .tr-header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        {{-- Akan Expired --}}
+        <div class="stk-kpi kpi-orange" style="animation-delay:.2s">
+            <div class="stk-kpi-row">
+                <div class="stk-kpi-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </div>
+                @if(($nearExpiredCount ?? 0) > 0)
+                    <div style="font-size:.65rem;font-weight:800;color:#9a3412;background:#ffedd5;padding:.15rem .5rem;border-radius:6px;">30 Hari</div>
+                @endif
+            </div>
+            <div>
+                <div class="stk-kpi-label">Akan Expired (30hr)</div>
+                <div class="stk-kpi-value">{{ number_format($nearExpiredCount ?? 0) }}</div>
+            </div>
+            <div class="stk-kpi-footer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                Mendekati tanggal kadaluarsa
+            </div>
+        </div>
+    </div>
 
-        /* ── TABS ── */
-        .tr-tabs { display: flex; gap: 2rem; border-bottom: 1px solid var(--tr-border); margin-bottom: 1.5rem; overflow-x: auto; white-space: nowrap; }
-        .tr-tab-item { display: inline-flex; align-items: center; gap: 8px; padding-bottom: 0.75rem; color: var(--tr-text-muted); font-size: 0.85rem; font-weight: 600; text-decoration: none; border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .tr-tab-item:hover { color: var(--tr-text-main); }
-        .tr-tab-item.active-indigo { color: var(--tr-indigo); border-bottom-color: var(--tr-indigo); }
+    {{-- MAIN LAYOUT --}}
+    <div class="stk-layout">
 
-        /* ── KPI GRID ── */
-        .tr-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .tr-kpi-card { background: var(--tr-surface); border-radius: var(--tr-radius-md); padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); border-left-width: 4px; }
-        .tr-kpi-card.border-indigo { border-left-color: var(--tr-indigo); }
-        .tr-kpi-card.border-success { border-left-color: var(--tr-success); }
-        .tr-kpi-card.border-warning { border-left-color: var(--tr-warning); }
-        .tr-kpi-card.border-danger { border-left-color: var(--tr-danger); }
-        .tr-kpi-card.border-orange { border-left-color: var(--tr-orange); }
-        
-        .tr-kpi-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .bg-indigo { background: var(--tr-indigo-light); color: var(--tr-indigo); }
-        .bg-success { background: var(--tr-success-bg); color: var(--tr-success); }
-        .bg-warning { background: var(--tr-warning-bg); color: var(--tr-warning); }
-        .bg-danger { background: var(--tr-danger-bg); color: var(--tr-danger); }
-        .bg-orange { background: var(--tr-orange-bg); color: var(--tr-orange); }
-        
-        .tr-kpi-value { font-size: 1.5rem; font-weight: 800; line-height: 1.1; margin-bottom: 2px; color: var(--tr-text-main); }
-        .tr-kpi-label { font-size: 0.7rem; color: var(--tr-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.3; }
-        
-        .text-indigo { color: var(--tr-indigo); }
-        .text-success { color: var(--tr-success); }
-        .text-warning { color: var(--tr-warning); }
-        .text-danger { color: var(--tr-danger); }
-        .text-orange { color: var(--tr-orange); }
+        {{-- LEFT: PRODUCT TABLE --}}
+        <div class="stk-panel">
+            {{-- Panel Header --}}
+            <div class="stk-panel-header">
+                <div>
+                    <div class="stk-panel-title">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        Daftar Produk &amp; Sebaran Stok
+                    </div>
+                    <div class="stk-panel-meta">
+                        {{ $products->total() }} produk ditemukan
+                        @if($search ?? null) &bull; Pencarian: "{{ $search }}" @endif
+                        @if($warehouseId ?? null) &bull; Gudang terfilter @endif
+                        @if($categoryId ?? null) &bull; Kategori terfilter @endif
+                    </div>
+                </div>
+                <div style="display:flex;gap:.5rem;align-items:center;">
+                    @if($search || $categoryId || $warehouseId)
+                        <a href="{{ route('laporan.stok') }}" class="stk-btn stk-btn-ghost" style="font-size:.75rem;padding:.4rem .7rem;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            Reset Filter
+                        </a>
+                    @endif
+                </div>
+            </div>
 
-        /* ── LAYOUT GRID (KIRI & KANAN) ── */
-        .tr-layout-grid { display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem; align-items: flex-start; }
-        .tr-col-main { min-width: 0; } /* Prevents table blowout */
-        .tr-col-side { display: flex; flex-direction: column; gap: 1.5rem; position: sticky; top: 1.5rem; }
+            {{-- Filter --}}
+            <div class="stk-filter-bar">
+                <form method="GET" style="display:contents;">
+                    <div class="stk-fg">
+                        <label>Cari Produk</label>
+                        <div class="stk-input-wrap">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" name="search" value="{{ $search ?? '' }}" class="stk-fi" placeholder="Nama atau SKU produk..." id="search-input">
+                        </div>
+                    </div>
+                    <div class="stk-fg">
+                        <label>Kategori</label>
+                        <select name="category_id" class="stk-fs" id="category-filter">
+                            <option value="">Semua Kategori</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}" @selected(($categoryId ?? '') == $cat->id)>{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="stk-fg">
+                        <label>Gudang</label>
+                        <select name="warehouse_id" class="stk-fs" id="warehouse-filter">
+                            <option value="">Semua Gudang</option>
+                            @foreach($warehouses as $wh)
+                                <option value="{{ $wh->id }}" @selected(($warehouseId ?? '') == $wh->id)>{{ $wh->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="stk-filter-actions">
+                        <button type="submit" class="stk-btn stk-btn-primary" id="filter-btn">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+                            Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
 
-        /* ── MAIN CARD & FILTERS ── */
-        .tr-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-card); overflow: hidden; }
-        .tr-filter-bar { padding: 1rem 1.5rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
-        
-        .tr-filter-form { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
-        .tr-form-group { display: flex; flex-direction: column; gap: 6px; }
-        .tr-flex-1 { flex: 1; min-width: 220px; }
-        .tr-label { font-size: 0.75rem; font-weight: 700; color: var(--tr-text-main); text-transform: uppercase; letter-spacing: 0.05em; }
-        
-        .tr-search { display: flex; align-items: center; gap: 8px; background: var(--tr-bg); border-radius: 6px; padding: 0.5rem 0.85rem; border: 1px solid var(--tr-border); transition: border-color 0.2s; height: 38px; }
-        .tr-search:focus-within { border-color: var(--tr-indigo); background: #ffffff; }
-        .tr-search-icon { color: var(--tr-text-light); flex-shrink: 0; }
-        .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
-        
-        .tr-select-wrapper { position: relative; }
-        .tr-select { padding: 0.5rem 0.85rem; padding-right: 2rem; border: 1px solid var(--tr-border); border-radius: 6px; font-family: inherit; font-size: 0.85rem; color: var(--tr-text-main); background: var(--tr-bg); appearance: none; outline: none; transition: border-color 0.2s; cursor: pointer; height: 38px; min-width: 160px; }
-        .tr-select:focus { border-color: var(--tr-indigo); background: #ffffff; }
-        .tr-select-wrapper::after { content: ''; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-size: contain; background-repeat: no-repeat; pointer-events: none; }
-        
-        .tr-filter-actions { display: flex; gap: 6px; height: 38px; align-items: center; }
+            {{-- Table --}}
+            <div class="stk-table-wrap">
+                <table class="stk-table">
+                    <thead>
+                        <tr>
+                            <th style="width:35%">Detail Produk</th>
+                            <th style="width:30%">Sebaran Gudang</th>
+                            <th class="center" style="width:13%">Total Global</th>
+                            <th class="center" style="width:10%">Min. Limit</th>
+                            <th class="center" style="width:12%">Status Stok</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($products as $p)
+                            @php
+                                $isLow = ($p->min_stock ?? 0) > 0 && $p->stock <= $p->min_stock;
+                                $isOut = $p->stock <= 0;
+                                $perGudang = $warehouseStocks->get($p->id, collect());
+                                // Health % for progress bar (capped at 100)
+                                $healthPct = ($p->min_stock ?? 0) > 0
+                                    ? min(100, round($p->stock / $p->min_stock * 100))
+                                    : 100;
+                                $barColor = $isOut ? '#e11d48' : ($isLow ? '#f59e0b' : '#059669');
+                            @endphp
+                            <tr>
+                                <td>
+                                    <div class="stk-prod-name">{{ $p->name }}</div>
+                                    <div class="stk-prod-sku">SKU: {{ $p->sku ?? '—' }}</div>
+                                    @if($p->category)
+                                        <span class="stk-prod-cat">{{ $p->category->name }}</span>
+                                    @else
+                                        <span class="stk-prod-cat" style="background:#f1f5f9;color:#64748b;">Tanpa Kategori</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($perGudang->isEmpty())
+                                        <span style="font-size:.78rem;color:#94a3b8;font-style:italic;">Tidak ada stok tercatat di gudang</span>
+                                    @else
+                                        <div class="stk-wh-list">
+                                            @foreach($perGudang as $wh)
+                                                <div class="stk-wh-item">
+                                                    <span class="stk-wh-name">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                                        {{ $wh->warehouse->name ?? '—' }}
+                                                    </span>
+                                                    <span class="stk-wh-qty">{{ number_format($wh->total_stock) }} {{ $p->unit?->abbreviation ?? '' }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </td>
+                                <td class="center">
+                                    <div class="stk-qty-wrap">
+                                        <div class="stk-qty-num {{ $isOut ? 'out' : ($isLow ? 'low' : 'ok') }}">
+                                            {{ number_format($p->stock) }}
+                                        </div>
+                                        <div class="stk-qty-unit">{{ $p->unit?->abbreviation ?? '' }}</div>
+                                        @if(($p->min_stock ?? 0) > 0)
+                                            <div class="stk-hbar">
+                                                <div class="stk-hbar-fill" style="width:{{ $healthPct }}%; background:{{ $barColor }};"></div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="center" style="font-weight:700; color:{{ ($p->min_stock ?? 0) > 0 ? '#475569' : '#cbd5e1' }}">
+                                    {{ $p->min_stock ?? '—' }}
+                                </td>
+                                <td class="center">
+                                    @if($isOut)
+                                        <span class="stk-badge stk-badge-danger">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                            HABIS
+                                        </span>
+                                    @elseif($isLow)
+                                        <span class="stk-badge stk-badge-warn">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+                                            MENIPIS
+                                        </span>
+                                    @else
+                                        <span class="stk-badge stk-badge-ok">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                            AMAN
+                                        </span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5">
+                                    <div class="stk-empty">
+                                        <div class="stk-empty-icon">
+                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                        </div>
+                                        <h3>Tidak ada produk ditemukan</h3>
+                                        <p>Coba sesuaikan filter pencarian, kategori, atau gudang.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
 
-        /* BUTTONS */
-        .tr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-family: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; height: 38px; }
-        .tr-btn-dark { background: var(--tr-text-main); color: #ffffff; border-color: var(--tr-text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .tr-btn-dark:hover { background: #000000; transform: translateY(-1px); }
-        .tr-btn-outline { border-color: var(--tr-border); color: var(--tr-text-muted); background: var(--tr-surface); }
-        .tr-btn-outline:hover { border-color: var(--tr-text-light); color: var(--tr-text-main); background: #f8fafc; }
-        
-        .tr-btn-warning-outline { border-color: var(--tr-warning-border); color: var(--tr-warning-text); background: var(--tr-warning-bg); }
-        .tr-btn-warning-outline:hover { background: #fde68a; }
-        .tr-btn-danger-outline { border-color: var(--tr-danger-border); color: var(--tr-danger-text); background: var(--tr-danger-bg); }
-        .tr-btn-danger-outline:hover { background: #fecaca; }
+            {{-- Pagination --}}
+            @if($products->hasPages())
+                <div class="stk-pag">{{ $products->links() }}</div>
+            @endif
+        </div>
 
-        /* ── MAIN TABLE ── */
-        .table-responsive { width: 100%; overflow-x: auto; }
-        .tr-table { width: 100%; border-collapse: collapse; min-width: 800px; }
-        .tr-table thead th { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--tr-text-muted); padding: 0.85rem 1.5rem; border-bottom: 1px solid var(--tr-border); background: var(--tr-bg); white-space: nowrap; text-align: left; }
-        .tr-table tbody tr { transition: background 0.15s ease; border-bottom: 1px solid var(--tr-border-light); }
-        .tr-table tbody tr:hover { background: #f8fafc; }
-        .tr-table tbody td { padding: 1.25rem 1.5rem; font-size: 0.85rem; vertical-align: top; }
-        .tr-table tbody tr:last-child { border-bottom: none; }
-        
-        .tr-table th.c, .tr-table td.c { text-align: center; }
+        {{-- RIGHT: SIDEBAR --}}
+        <div class="stk-sidebar">
 
-        /* Cells */
-        .tr-prod-name { font-weight: 800; color: var(--tr-text-main); font-size: 0.9rem; line-height: 1.3; }
-        .tr-prod-sku { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 4px; }
-        .tr-prod-cat { font-size: 0.75rem; font-weight: 600; color: var(--tr-indigo); background: var(--tr-indigo-light); display: inline-block; padding: 2px 6px; border-radius: 4px; margin-top: 6px; }
-        .tr-font-mono { font-family: monospace; font-weight: 600; color: var(--tr-text-main); }
-        
-        /* Breakdown Gudang List */
-        .tr-breakdown-list { display: flex; flex-direction: column; gap: 6px; }
-        .tr-breakdown-item { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px dashed var(--tr-border-light); }
-        .tr-breakdown-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .wh-name { font-size: 0.75rem; font-weight: 600; color: var(--tr-text-muted); display: flex; align-items: center; gap: 4px; }
-        .wh-name svg { color: var(--tr-text-light); }
-        .wh-qty { font-size: 0.85rem; font-weight: 800; color: var(--tr-indigo); }
-        .wh-unit { font-size: 0.7rem; font-weight: 500; color: var(--tr-text-light); }
-        .tr-italic { font-style: italic; }
+            {{-- Total Stock per Gudang --}}
+            <div class="stk-widget">
+                <div class="stk-widget-hd">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    Total Stok per Gudang
+                </div>
+                <div class="stk-widget-body">
+                    @php
+                        $maxWhQty = $warehouses->max('total_qty') ?: 1;
+                    @endphp
+                    @forelse($warehouses as $wh)
+                        @php $pct = $maxWhQty > 0 ? round(($wh->total_qty ?? 0) / $maxWhQty * 100) : 0; @endphp
+                        <div class="stk-w-item">
+                            <div class="stk-w-item-left" style="flex:1; min-width:0;">
+                                <h4>{{ $wh->name }}</h4>
+                                <p>{{ number_format($wh->stock_lines ?? 0) }} record tersimpan</p>
+                                <div class="stk-wbar">
+                                    <div class="stk-wbar-track">
+                                        <div class="stk-wbar-fill" style="width:{{ $pct }}%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stk-w-item-right" style="color:#4f46e5; margin-left:.75rem; flex-shrink:0;">
+                                {{ number_format($wh->total_qty ?? 0) }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="stk-w-item">
+                            <p style="color:#94a3b8; font-style:italic; margin:0; font-size:.8rem;">Belum ada gudang terdaftar</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
 
-        .tr-stock-total { font-size: 1.25rem; font-weight: 900; line-height: 1; }
-        .tr-unit-text { font-size: 0.75rem; font-weight: 600; color: var(--tr-text-light); margin-top: 4px; }
-        .tr-font-semibold { font-weight: 600; }
+            {{-- Stok Menipis Alert --}}
+            @if(($lowStockProducts ?? collect())->count() > 0)
+                <div class="stk-widget stk-widget-warn">
+                    <div class="stk-widget-hd">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Stok Menipis
+                        <span style="margin-left:auto;background:#f59e0b;color:white;padding:.1rem .5rem;border-radius:99px;font-size:.65rem;font-weight:800;">{{ $lowStockProducts->count() }}</span>
+                    </div>
+                    <div class="stk-widget-body">
+                        @foreach($lowStockProducts as $prod)
+                            @php
+                                $pctLeft = ($prod->min_stock ?? 0) > 0
+                                    ? max(0, min(100, round($prod->stock / $prod->min_stock * 100)))
+                                    : 0;
+                            @endphp
+                            <div class="stk-w-item">
+                                <div class="stk-w-item-left" style="flex:1; min-width:0;">
+                                    <h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">{{ $prod->name }}</h4>
+                                    <p>Min: {{ number_format($prod->min_stock) }} &bull; Sisa: {{ number_format($prod->stock) }}</p>
+                                    <div class="stk-wbar">
+                                        <div class="stk-wbar-track">
+                                            <div class="stk-wbar-fill" style="width:{{ $pctLeft }}%; background:linear-gradient(90deg, #f59e0b, #ef4444);"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="stk-w-item-right" style="margin-left:.625rem; flex-shrink:0;">
+                                    <span class="stk-badge stk-badge-warn" style="font-size:.65rem;">{{ $prod->stock }} sisa</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                    <a href="{{ route('gudang.minstok') }}" class="stk-widget-link">Lihat Semua Alert &rarr;</a>
+                </div>
+            @endif
 
-        .tr-badge { display: inline-flex; align-items: center; justify-content: center; padding: 0.35rem 0.6rem; border-radius: 6px; font-weight: 800; font-size: 0.7rem; letter-spacing: 0.05em; }
-        .tr-badge-success { background: var(--tr-success-bg); color: var(--tr-success-text); border: 1px solid #bbf7d0; }
-        .tr-badge-warning { background: var(--tr-warning-bg); color: var(--tr-warning-text); border: 1px solid var(--tr-warning-border); }
-        .tr-badge-danger { background: var(--tr-danger-bg); color: var(--tr-danger-text); border: 1px solid #fecaca; }
+            {{-- Aktivitas Terbaru --}}
+            <div class="stk-widget">
+                <div class="stk-widget-hd">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Aktivitas Stok Terbaru
+                </div>
+                <div class="stk-widget-body">
+                    @php
+                        /** @var \App\Models\StockMovement[] $recentMovements */
+                    @endphp
+                    @forelse($recentMovements ?? [] as $move)
+                        <div class="stk-w-item">
+                            <div class="stk-w-item-left" style="flex:1; min-width:0;">
+                                <h4 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">
+                                    {{ $move->product?->name ?? '—' }}
+                                </h4>
+                                <p>{{ $move->warehouse?->name ?? '—' }} &bull; {{ $move->created_at->diffForHumans() }}</p>
+                            </div>
+                            <div class="stk-w-item-right" style="font-family:monospace;margin-left:.5rem;flex-shrink:0;">
+                                @if($move->type === 'in')
+                                    <span style="color:#059669;font-size:.9rem;">+{{ (int)$move->quantity }}</span>
+                                @else
+                                    <span style="color:#e11d48;font-size:.9rem;">-{{ (int)$move->quantity }}</span>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <div class="stk-w-item">
+                            <p style="color:#94a3b8;font-style:italic;margin:0;font-size:.8rem;">Belum ada aktivitas stok</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
 
-        /* ── SIDE WIDGETS ── */
-        .tr-widget-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); overflow: hidden; }
-        .tr-widget-card.border-warning { border: 1px solid var(--tr-warning-border); }
-        
-        .tr-widget-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
-        .tr-widget-header.bg-warning-soft { background: var(--tr-warning-bg); border-bottom-color: var(--tr-warning-border); }
-        .tr-widget-title { font-size: 0.9rem; font-weight: 800; color: var(--tr-text-main); margin: 0; display: flex; align-items: center; gap: 8px; }
-        
-        .tr-widget-body { display: flex; flex-direction: column; }
-        .tr-widget-item { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--tr-border-light); }
-        .tr-widget-item.align-start { align-items: flex-start; }
-        .tr-widget-item:last-child { border-bottom: none; }
-        
-        .item-title { font-size: 0.85rem; font-weight: 700; color: var(--tr-text-main); margin-bottom: 2px; }
-        .item-desc { font-size: 0.75rem; color: var(--tr-text-muted); }
-        .item-right { font-weight: 800; font-size: 0.9rem; }
-        
-        .tr-widget-link { display: block; text-align: center; padding: 0.85rem; font-size: 0.8rem; font-weight: 700; text-decoration: none; border-top: 1px solid var(--tr-warning-border); background: var(--tr-warning-bg); transition: background 0.2s; }
-        .tr-widget-link:hover { filter: brightness(0.95); }
-        
-        .tr-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .tr-val-plus { font-family: monospace; font-weight: 800; }
-        .tr-val-minus { font-family: monospace; font-weight: 800; }
+        </div>{{-- /sidebar --}}
+    </div>{{-- /layout --}}
+</div>{{-- /stok-wrap --}}
 
-        /* ── EMPTY STATES & PAGINATION ── */
-        .tr-empty-state { text-align: center; padding: 4rem 1.5rem; }
-        .tr-empty-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--tr-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; color: var(--tr-text-light); }
-        .tr-empty-state h6 { font-size: 1rem; font-weight: 700; color: var(--tr-text-main); margin-bottom: 0.35rem; }
-        .tr-empty-state p { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0 auto; max-width: 300px; line-height: 1.4; }
-        
-        .tr-empty-compact { padding: 1.5rem; text-align: center; font-size: 0.8rem; color: var(--tr-text-light); font-style: italic; }
+@if($isPrint && !request()->boolean('preview'))
+    <script>window.addEventListener('load', function(){ window.print(); });</script>
+@endif
 
-        .tr-pagination { padding: 1rem 1.5rem; border-top: 1px solid var(--tr-border-light); background: #ffffff; }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 1024px) {
-            .tr-layout-grid { grid-template-columns: 1fr; }
-            .tr-col-side { position: static; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        }
-        @media (max-width: 768px) {
-            .tr-header { flex-direction: column; align-items: flex-start; }
-            .tr-header-actions { width: 100%; }
-            .tr-header-actions .tr-btn { flex: 1; justify-content: center; }
-            .tr-filter-form { flex-direction: column; align-items: stretch; }
-            .tr-filter-actions { flex-direction: row; }
-            .tr-filter-actions .tr-btn { flex: 1; }
-        }
-    </style>
-    @endpush
-
-    <style>
-        @page { size: A4; margin: 12mm; }
-        @media print {
-            .sidebar, .sidebar-overlay, .topbar { display: none !important; }
-            body { background: #fff !important; }
-            .tr-page-wrapper { background: #fff !important; padding: 0 !important; min-height: auto !important; height: auto !important; overflow: visible !important; }
-            .tr-page { padding: 0 !important; max-width: 100% !important; min-height: auto !important; height: auto !important; }
-            .tr-header-actions, .tr-tabs, .tr-filter-bar, .tr-col-side { display: none !important; }
-            .tr-card { box-shadow: none !important; }
-            a { color: #000 !important; text-decoration: none !important; }
-        }
-    </style>
-
-    @if($isPrint && ! request()->boolean('preview'))
-        <script>
-            window.addEventListener('load', function () {
-                window.print();
-            });
-        </script>
-    @endif
 </x-app-layout>

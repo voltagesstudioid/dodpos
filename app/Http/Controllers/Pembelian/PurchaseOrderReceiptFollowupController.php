@@ -177,6 +177,9 @@ class PurchaseOrderReceiptFollowupController extends Controller
 
             $receipt->reorder_purchase_order_id = $newPo->id;
             $receipt->followup_action = $receipt->followup_action ?: 'request_replacement';
+            $receipt->followup_status = 'resolved';
+            $receipt->resolved_by = Auth::id();
+            $receipt->resolved_at = now();
             $receipt->save();
 
             DB::commit();
@@ -302,6 +305,9 @@ class PurchaseOrderReceiptFollowupController extends Controller
 
             $receipt->purchase_return_id = $return->id;
             $receipt->followup_action = $receipt->followup_action ?: 'return_to_supplier';
+            $receipt->followup_status = 'resolved';
+            $receipt->resolved_by = Auth::id();
+            $receipt->resolved_at = now();
             $receipt->save();
 
             DB::commit();

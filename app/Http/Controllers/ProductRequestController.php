@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 
 class ProductRequestController extends Controller
 {
     public function index(Request $request)
     {
-        $query = \App\Models\ProductRequest::with(['user', 'product', 'fromWarehouse', 'toWarehouse', 'unit'])->latest();
+        $query = \App\Models\ProductRequest::with(['user', 'product.unit', 'fromWarehouse', 'toWarehouse', 'unit'])->latest();
 
         // Admin3/Admin4 hanya melihat request mereka sendiri. Supervisor melihat semua.
         $role = strtolower(auth()->user()->role);
@@ -61,7 +62,7 @@ class ProductRequestController extends Controller
 
     public function create()
     {
-        $products = \App\Models\Product::with(['unit', 'unitConversions.unit'])->orderBy('name')->get();
+        $products = \App\Models\Product::with('unit')->orderBy('name')->get();
         $warehouses = \App\Models\Warehouse::where('active', true)->orderBy('name')->get();
         $units = \App\Models\Unit::orderBy('name')->get();
 
@@ -74,14 +75,15 @@ class ProductRequestController extends Controller
         $data['user_id'] = auth()->id();
         $data['status'] = 'pending';
         $data['quantity'] = (float) ($data['quantity'] ?? 0);
-        $data['conversion_factor'] = (float) ($data['conversion_factor'] ?? 1);
+        $data['conversion_factor'] = 1; // Simplified since we don't use conversion factors yet
 
         if (($data['type'] ?? null) === 'transfer') {
             $role = strtolower(auth()->user()->role);
-            $data['from_warehouse_id'] = 1;
+            // Use WarehouseConfig instead of hardcoded IDs
+            $data['from_warehouse_id'] = $data['from_warehouse_id'] ?? WarehouseConfig::getMainId();
             if (empty($data['to_warehouse_id'])) {
                 if ($role === 'admin4') {
-                    $data['to_warehouse_id'] = 2;
+                    $data['to_warehouse_id'] = WarehouseConfig::getBranchId();
                 } else {
                     return back()->withInput()->with('error', 'Gudang tujuan wajib dipilih untuk permintaan transfer.');
                 }
@@ -118,8 +120,8 @@ class ProductRequestController extends Controller
             $payload['approved_at'] = now();
 
             if ($productRequest->type === 'transfer') {
-                $payload['from_warehouse_id'] = $productRequest->from_warehouse_id ?: 1;
-                $payload['to_warehouse_id'] = $productRequest->to_warehouse_id ?: 2;
+                $payload['from_warehouse_id'] = $productRequest->from_warehouse_id ?: WarehouseConfig::getMainId();
+                $payload['to_warehouse_id'] = $productRequest->to_warehouse_id ?: WarehouseConfig::getBranchId();
             }
         }
 

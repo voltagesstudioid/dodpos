@@ -56,8 +56,8 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                     <div>
-                        <div class="tr-stat-value">{{ $vehiclesWithExpenses }}</div>
-                        <div class="tr-stat-label">Digunakan</div>
+                        <div class="tr-stat-value">{{ $assignedVehicles }}</div>
+                        <div class="tr-stat-label">Ditugaskan</div>
                     </div>
                 </div>
                 <div class="tr-stat-card">
@@ -103,6 +103,7 @@
                                 <th style="width: 70px;" class="c">No</th>
                                 <th>Plat Nomor</th>
                                 <th>Jenis / Tipe</th>
+                                <th>Ditugaskan Kepada</th>
                                 <th>Keterangan</th>
                                 <th class="r" style="width: 180px;">Aksi</th>
                             </tr>
@@ -118,6 +119,19 @@
                                     </td>
                                     <td>
                                         <div class="tr-font-bold tr-text-main">{{ $kendaraan->type ?: '—' }}</div>
+                                    </td>
+                                    <td>
+                                        @if($kendaraan->sales)
+                                            <div class="tr-sales-badge">
+                                                <span class="tr-sales-module tr-module-{{ strtolower($kendaraan->getSalesModuleLabel()) }}">{{ $kendaraan->getSalesModuleLabel() }}</span>
+                                                <span class="tr-sales-name">{{ $kendaraan->sales->nama }}</span>
+                                            </div>
+                                        @else
+                                            <div class="tr-text-muted tr-unassigned">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                                                Belum ditugaskan
+                                            </div>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="tr-text-muted">{{ $kendaraan->description ?: '— Tidak ada keterangan' }}</div>
@@ -143,7 +157,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">🚚</div>
                                             <h6>Belum ada kendaraan</h6>
@@ -254,6 +268,16 @@
         .bg-success { background: #10b981; }
         .tr-btn-dark { background: #1e293b; color: white; }
         .tr-btn-dark:hover { background: #0f172a; }
+
+        /* Sales assignment badge */
+        .tr-sales-badge { display: flex; align-items: center; gap: 8px; }
+        .tr-sales-module { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+        .tr-module-gula { background: #fef3c7; color: #92400e; }
+        .tr-module-mineral { background: #dbeafe; color: #1e40af; }
+        .tr-module-minyak { background: #fce7f3; color: #9d174d; }
+        .tr-module-pasgar { background: #d1fae5; color: #065f46; }
+        .tr-sales-name { font-weight: 600; color: var(--tr-text-main); font-size: 0.875rem; }
+        .tr-unassigned { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #94a3b8; }
 
         /* Filter */
         .tr-filter-bar { margin-bottom: 1rem; }

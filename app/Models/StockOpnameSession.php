@@ -16,11 +16,17 @@ class StockOpnameSession extends Model
         'approved_by',
         'approved_at',
         'approval_notes',
+        'deadline_at',
+        'reversed_at',
+        'reversed_by',
+        'reversal_notes',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
         'approved_at' => 'datetime',
+        'deadline_at' => 'datetime',
+        'reversed_at' => 'datetime',
     ];
 
     public function warehouse()
@@ -36,6 +42,11 @@ class StockOpnameSession extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function reverser()
+    {
+        return $this->belongsTo(User::class, 'reversed_by');
     }
 
     public function items()

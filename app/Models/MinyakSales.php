@@ -13,6 +13,8 @@ class MinyakSales extends Model
 
     protected $fillable = [
         'user_id',
+        'vehicle_id',
+        'regional_id',
         'kode_sales',
         'nama',
         'no_hp',
@@ -28,6 +30,16 @@ class MinyakSales extends Model
     protected $casts = [
         'target_harian' => 'decimal:2',
     ];
+
+    public function regional()
+    {
+        return $this->belongsTo(MinyakRegional::class, 'regional_id');
+    }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id');
+    }
 
     public function user()
     {

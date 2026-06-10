@@ -1,391 +1,426 @@
 <x-app-layout>
     <x-slot name="header">Buat Permintaan Barang</x-slot>
 
-    <div class="tr-page-wrapper">
-        <div class="tr-form-container">
-            
-            {{-- Navigation Back --}}
-            <a href="{{ route('gudang.request.index') }}" class="tr-back-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                Kembali ke Daftar Permintaan
-            </a>
+    <style>
+        /* Global Styles for this page */
+        .request-page {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #64748b;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: #0f172a; }
+        .form-card {
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .header-text h1 {
+            font-size: 1.375rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0 0 0.25rem 0;
+        }
+        .header-text p {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin: 0;
+        }
+        .card-body {
+            padding: 1.5rem;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+        }
+        .form-label .required {
+            color: #ef4444;
+        }
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            background: #f8fafc;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .form-input:focus, .form-select:focus {
+            border-color: #6366f1;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        .form-input.error, .form-select.error {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+        .form-error {
+            font-size: 0.75rem;
+            color: #ef4444;
+            margin-top: 0.25rem;
+            font-weight: 600;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .card-footer {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid #f1f5f9;
+            background: #f8fafc;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.25rem;
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-secondary {
+            background: #ffffff;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
+        }
+        .btn-secondary:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+        }
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .alert-danger {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+        .alert-success {
+            background: #dcfce7;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+        .alert-icon {
+            flex-shrink: 0;
+        }
+        .alert-list {
+            margin: 0.5rem 0 0 1.25rem;
+            padding: 0;
+        }
+        .alert-list li {
+            margin-bottom: 0.25rem;
+        }
+        .warehouse-group {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .warehouse-group.visible {
+            display: block;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .card-footer {
+                flex-direction: column-reverse;
+            }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
 
-            {{-- Main Paper / Document --}}
-            <div class="tr-paper">
-                
-                {{-- Paper Header --}}
-                <div class="tr-paper-header">
-                    <div class="tr-header-icon bg-indigo">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </div>
-                    <div class="tr-header-text">
-                        <h1 class="tr-title">Form Pengajuan Barang</h1>
-                        <p class="tr-subtitle">Pilih produk yang menipis dan jenis permintaannya untuk ditinjau oleh Supervisor.</p>
-                    </div>
-                </div>
+    <div class="request-page">
+        <a href="{{ route('gudang.request.index') }}" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"></path>
+            </svg>
+            Kembali ke Daftar Permintaan
+        </a>
 
-                {{-- Alerts --}}
-                @if(session('error') || $errors->any())
-                <div class="tr-paper-alerts">
-                    @if(session('error')) 
-                        <div class="tr-alert tr-alert-danger">
-                            <svg class="tr-alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-                            <span>{{ session('error') }}</span>
-                        </div> 
+        <!-- Alerts -->
+        @if(session('error') || $errors->any())
+            <div class="alert alert-danger">
+                <svg class="alert-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <div>
+                    @if(session('error'))
+                        <strong>{{ session('error') }}</strong>
                     @endif
-
                     @if($errors->any())
-                        <div class="tr-alert tr-alert-danger tr-alert-block">
-                            <div class="tr-alert-head">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                                <strong>Terdapat kesalahan input:</strong>
-                            </div>
-                            <ul>
-                                @foreach($errors->all() as $err) <li>{{ $err }}</li> @endforeach
-                            </ul>
-                        </div>
+                        <strong>Terdapat kesalahan input:</strong>
+                        <ul class="alert-list">
+                            @foreach($errors->all() as $err)
+                                <li>{{ $err }}</li>
+                            @endforeach
+                        </ul>
                     @endif
                 </div>
-                @endif
-
-                {{-- The Form --}}
-                <form action="{{ route('gudang.request.store') }}" method="POST" id="requestForm">
-                    @csrf
-
-                    <fieldset class="tr-fieldset tr-fieldset-last">
-                        <div class="tr-form-stack">
-                            
-                            {{-- Pilih Produk --}}
-                            <div class="tr-form-group">
-                                <label class="tr-label">Pilih Produk <span class="tr-req">*</span></label>
-                                <div class="tr-select-wrapper">
-                                    <select name="product_id" class="tr-select @error('product_id') is-invalid @enderror" required autofocus>
-                                        <option value="">-- Cari atau Pilih Produk --</option>
-                                        @foreach($products as $p)
-                                            <option value="{{ $p->id }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
-                                                {{ $p->sku ? "[$p->sku] " : "" }} {{ $p->name }} (Sisa Stok: {{ $p->stock }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                @error('product_id') <div class="tr-error">{{ $message }}</div> @enderror
-                            </div>
-
-                            <div class="tr-grid">
-                                {{-- Jenis Permintaan --}}
-                                <div class="tr-col-half">
-                                    <label class="tr-label">Jenis Permintaan <span class="tr-req">*</span></label>
-                                    <div class="tr-select-wrapper">
-                                        <select name="type" id="typeSelect" class="tr-select @error('type') is-invalid @enderror" required>
-                                            <option value="po" {{ old('type') == 'po' ? 'selected' : '' }}>Purchase Order (Beli Baru)</option>
-                                            <option value="transfer" {{ old('type') == 'transfer' ? 'selected' : '' }}>Transfer (Minta dari Cabang)</option>
-                                        </select>
-                                    </div>
-                                    @error('type') <div class="tr-error">{{ $message }}</div> @enderror
-                                </div>
-
-                                {{-- Satuan --}}
-                                <div class="tr-col-half">
-                                    <label class="tr-label">Satuan <span class="tr-text-muted font-normal">(Opsional)</span></label>
-                                    <div class="tr-select-wrapper">
-                                        <select name="unit_id" id="unitSelect" class="tr-select @error('unit_id') is-invalid @enderror">
-                                            <option value="">-- Satuan Dasar --</option>
-                                            @foreach($units ?? [] as $u)
-                                                <option value="{{ $u->id }}" data-factor="{{ $u->conversion_factor ?? 1 }}" {{ old('unit_id') == $u->id ? 'selected' : '' }}>
-                                                    {{ $u->name }} {{ $u->conversion_factor && $u->conversion_factor != 1 ? '(1 = '.$u->conversion_factor.' base)' : '' }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <input type="hidden" name="conversion_factor" id="conversionFactor" value="{{ old('conversion_factor', 1) }}">
-                                    @error('unit_id') <div class="tr-error">{{ $message }}</div> @enderror
-                                </div>
-                            </div>
-
-                            <div class="tr-form-group">
-                                <label class="tr-label">Jumlah (Qty) <span class="tr-req">*</span></label>
-                                <input type="number" name="quantity" id="quantityInput" class="tr-input @error('quantity') is-invalid @enderror" required min="1" value="{{ old('quantity') }}" placeholder="Cth: 50">
-                                <div class="tr-input-hint" id="qtyHint" style="margin-top:4px; display: none;">
-                                    Setara dengan <strong id="baseQty">0</strong> satuan dasar
-                                </div>
-                                @error('quantity') <div class="tr-error">{{ $message }}</div> @enderror
-                            </div>
-
-                            {{-- Gudang Tujuan (Hanya Muncul Jika Tipe: Transfer) --}}
-                            <div class="tr-form-group" id="warehouseToGroup" style="display:none; padding: 1rem; background: var(--tr-bg); border-radius: var(--tr-radius-md); border: 1px solid var(--tr-border-light);">
-                                <label class="tr-label">Gudang Tujuan <span class="tr-text-muted font-normal">(Barang akan dikirim ke mana?)</span></label>
-                                <div class="tr-select-wrapper">
-                                    <select name="to_warehouse_id" class="tr-select @error('to_warehouse_id') is-invalid @enderror">
-                                        <option value="">-- Pilih Gudang Tujuan --</option>
-                                        @foreach(($warehouses ?? []) as $wh)
-                                            <option value="{{ $wh->id }}" {{ (string) old('to_warehouse_id') === (string) $wh->id ? 'selected' : '' }}>
-                                                {{ $wh->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="tr-input-hint" style="margin-top:6px;">Karena ini adalah permintaan transfer, mohon tentukan gudang mana yang akan menerima barang.</div>
-                                @error('to_warehouse_id') <div class="tr-error">{{ $message }}</div> @enderror
-                            </div>
-
-                            {{-- Catatan --}}
-                            <div class="tr-form-group">
-                                <label class="tr-label">Catatan / Alasan Mendesak</label>
-                                <textarea name="notes" rows="3" class="tr-input tr-textarea @error('notes') is-invalid @enderror" placeholder="Contoh: Stok display toko sudah habis total, butuh segera dikirim...">{{ old('notes') }}</textarea>
-                                @error('notes') <div class="tr-error">{{ $message }}</div> @enderror
-                            </div>
-
-                        </div>
-                    </fieldset>
-
-                    {{-- Footer Actions --}}
-                    <div class="tr-form-footer">
-                        <a href="{{ route('gudang.request.index') }}" class="tr-btn tr-btn-light">Batalkan</a>
-                        <button type="submit" class="tr-btn tr-btn-primary" id="submitBtn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-                            Kirim Pengajuan
-                        </button>
-                    </div>
-                </form>
             </div>
+        @endif
+
+        <!-- Main Card -->
+        <div class="form-card">
+            <div class="card-header">
+                <div class="header-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </div>
+                <div class="header-text">
+                    <h1>Form Pengajuan Barang</h1>
+                    <p>Pilih produk yang menipis dan jenis permintaannya untuk ditinjau oleh Supervisor.</p>
+                </div>
+            </div>
+
+            <form action="{{ route('gudang.request.store') }}" method="POST" id="requestForm">
+                @csrf
+                <div class="card-body">
+                    <!-- Product Selection -->
+                    <div class="form-group">
+                        <label class="form-label">Pilih Produk <span class="required">*</span></label>
+                        <input type="text" id="productSearch" class="form-input" placeholder="Cari produk berdasarkan nama atau SKU...">
+                        <select name="product_id" id="productSelect" class="form-select @error('product_id') error @enderror" required autofocus style="margin-top: 0.5rem;">
+                            <option value="">-- Pilih Produk --</option>
+                            @foreach($products as $p)
+                                <option value="{{ $p->id }}" data-name="{{ strtolower($p->name) }}" data-sku="{{ strtolower($p->sku ?? '') }}" {{ old('product_id') == $p->id ? 'selected' : '' }}>
+                                    {{ $p->sku ? "[$p->sku] " : '' }}{{ $p->name }} (Sisa Stok: {{ $p->stock }})
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('product_id')
+                            <div class="form-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- Type & Unit -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Jenis Permintaan <span class="required">*</span></label>
+                            <select name="type" id="typeSelect" class="form-select @error('type') error @enderror" required>
+                                <option value="po" {{ old('type') == 'po' ? 'selected' : '' }}>Purchase Order (Beli Baru)</option>
+                                <option value="transfer" {{ old('type') == 'transfer' ? 'selected' : '' }}>Transfer (Minta dari Cabang)</option>
+                            </select>
+                            @error('type')
+                                <div class="form-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Satuan <span class="text-muted font-normal">(Opsional)</span></label>
+                            <select name="unit_id" id="unitSelect" class="form-select @error('unit_id') error @enderror">
+                                <option value="">-- Satuan Dasar --</option>
+                                @foreach($units ?? [] as $u)
+                                    <option value="{{ $u->id }}" {{ old('unit_id') == $u->id ? 'selected' : '' }}>
+                                        {{ $u->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('unit_id')
+                                <div class="form-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Warehouse Destination (only for transfer) -->
+                    <div class="warehouse-group" id="warehouseGroup">
+                        <label class="form-label">Gudang Tujuan <span class="required">*</span></label>
+                        <select name="to_warehouse_id" id="toWarehouseSelect" class="form-select @error('to_warehouse_id') error @enderror">
+                            <option value="">-- Pilih Gudang Tujuan --</option>
+                            @foreach(($warehouses ?? []) as $wh)
+                                <option value="{{ $wh->id }}" {{ (string) old('to_warehouse_id') === (string) $wh->id ? 'selected' : '' }}>
+                                    {{ $wh->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('to_warehouse_id')
+                            <div class="form-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- Quantity -->
+                    <div class="form-group" style="margin-top: 1rem;">
+                        <label class="form-label">Jumlah (Qty) <span class="required">*</span></label>
+                        <input type="number" name="quantity" id="quantityInput" class="form-input @error('quantity') error @enderror" required min="1" value="{{ old('quantity') }}" placeholder="Contoh: 50">
+                        @error('quantity')
+                            <div class="form-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="form-group">
+                        <label class="form-label">Catatan / Alasan</label>
+                        <textarea name="notes" id="notesInput" rows="3" class="form-input form-textarea @error('notes') error @enderror" placeholder="Contoh: Stok display toko sudah habis total, butuh segera dikirim...">{{ old('notes') }}</textarea>
+                        @error('notes')
+                            <div class="form-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="card-footer">
+                    <a href="{{ route('gudang.request.index') }}" class="btn btn-secondary">Batal</a>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        Kirim Pengajuan
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
-    @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Elements
             const form = document.getElementById('requestForm');
             const submitBtn = document.getElementById('submitBtn');
+            const searchInput = document.getElementById('productSearch');
+            const productSelect = document.getElementById('productSelect');
             const typeSelect = document.getElementById('typeSelect');
-            const warehouseToGroup = document.getElementById('warehouseToGroup');
-            const toWarehouseSelect = document.querySelector('select[name="to_warehouse_id"]');
-            const unitSelect = document.getElementById('unitSelect');
-            const conversionFactorInput = document.getElementById('conversionFactor');
-            const quantityInput = document.getElementById('quantityInput');
-            const qtyHint = document.getElementById('qtyHint');
-            const baseQtyDisplay = document.getElementById('baseQty');
+            const warehouseGroup = document.getElementById('warehouseGroup');
+            const toWarehouseSelect = document.getElementById('toWarehouseSelect');
 
-            // Update conversion factor when unit changes
-            if (unitSelect) {
-                unitSelect.addEventListener('change', function() {
-                    const selected = unitSelect.options[unitSelect.selectedIndex];
-                    const factor = parseFloat(selected.dataset.factor) || 1;
-                    conversionFactorInput.value = factor;
-                    updateQtyHint();
+            // 1. Product Search Logic
+            const allProducts = Array.from(productSelect.options).map(option => ({
+                id: option.value,
+                name: option.getAttribute('data-name') || '',
+                sku: option.getAttribute('data-sku') || '',
+                text: option.textContent,
+                selected: option.selected
+            }));
+
+            function renderProducts(searchTerm = '') {
+                const filtered = allProducts.filter(product => {
+                    if (product.id === '') return true;
+                    const term = searchTerm.toLowerCase().trim();
+                    return product.name.includes(term) || product.sku.includes(term);
+                });
+                productSelect.innerHTML = '';
+                filtered.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = product.text;
+                    option.selected = product.selected;
+                    option.setAttribute('data-name', product.name);
+                    option.setAttribute('data-sku', product.sku);
+                    productSelect.appendChild(option);
                 });
             }
-
-            // Update hint when quantity changes
-            if (quantityInput) {
-                quantityInput.addEventListener('input', updateQtyHint);
+            if (searchInput) {
+                searchInput.addEventListener('input', function() { renderProducts(this.value); });
             }
 
-            function updateQtyHint() {
-                if (!qtyHint || !baseQtyDisplay || !quantityInput) return;
-                const qty = parseFloat(quantityInput.value) || 0;
-                const factor = parseFloat(conversionFactorInput.value) || 1;
-                const baseQty = Math.round(qty * factor);
-                
-                if (factor !== 1 && qty > 0) {
-                    baseQtyDisplay.textContent = baseQty;
-                    qtyHint.style.display = 'block';
-                } else {
-                    qtyHint.style.display = 'none';
+            // 2. Type Select Logic
+            function updateWarehouseGroup() {
+                const isTransfer = typeSelect.value === 'transfer';
+                warehouseGroup.classList.toggle('visible', isTransfer);
+                if (toWarehouseSelect) {
+                    toWarehouseSelect.required = isTransfer;
+                    if (!isTransfer) toWarehouseSelect.value = '';
                 }
             }
+            typeSelect.addEventListener('change', updateWarehouseGroup);
+            updateWarehouseGroup(); // Initial call
 
-            if(form && submitBtn) {
+            // 3. Form Submit Logic
+            if (form && submitBtn) {
                 form.addEventListener('submit', function () {
-                    // Beri jeda sedikit agar HTML5 Validation tetap berjalan
                     setTimeout(() => {
                         submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<span class="tr-spinner"></span> Mengirim...';
+                        submitBtn.innerHTML = '<span class="spinner"></span> Mengirim...';
                     }, 10);
                 });
             }
-
-            function refreshType() {
-                if (!typeSelect || !warehouseToGroup) return;
-                const isTransfer = (typeSelect.value || '') === 'transfer';
-                
-                if (isTransfer) {
-                    warehouseToGroup.style.display = 'block';
-                    // Optional: Make it required via JS when visible
-                    if(toWarehouseSelect) toWarehouseSelect.required = true;
-                } else {
-                    warehouseToGroup.style.display = 'none';
-                    if(toWarehouseSelect) {
-                        toWarehouseSelect.required = false;
-                        toWarehouseSelect.value = ''; // Reset value if hidden
-                    }
-                }
-            }
-
-            if (typeSelect) {
-                typeSelect.addEventListener('change', refreshType);
-                refreshType(); // Initialize on page load
-            }
-
-            // Initialize qty hint on page load
-            updateQtyHint();
         });
     </script>
-    @endpush
-
-    @push('styles')
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-        :root {
-            --tr-bg: #f8fafc;
-            --tr-surface: #ffffff;
-            --tr-border: #e2e8f0;
-            --tr-border-light: #f1f5f9;
-            --tr-text-main: #0f172a;
-            --tr-text-muted: #64748b;
-            --tr-text-light: #94a3b8;
-            --tr-primary: #4f46e5;
-            --tr-primary-hover: #4338ca;
-            --tr-primary-bg: #e0e7ff;
-            --tr-danger: #ef4444;
-            --tr-danger-light: #fef2f2;
-            --tr-radius-lg: 16px;
-            --tr-radius-md: 8px;
-            --tr-shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-        }
-
-        .tr-page-wrapper { background-color: var(--tr-bg); min-height: 100vh; padding-bottom: 4rem; }
-        .tr-form-container {
-            max-width: 680px; /* Ukuran compact yang pas untuk baca */
-            margin: 0 auto;
-            padding: 3rem 1.5rem;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            color: var(--tr-text-main);
-        }
-
-        /* ── BACK LINK ── */
-        .tr-back-link {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 0.85rem; font-weight: 600; color: var(--tr-text-muted);
-            text-decoration: none; margin-bottom: 1.25rem; transition: color 0.2s;
-        }
-        .tr-back-link:hover { color: var(--tr-text-main); }
-
-        /* ── PAPER (MAIN CARD) ── */
-        .tr-paper {
-            background: var(--tr-surface);
-            border-radius: var(--tr-radius-lg);
-            border: 1px solid var(--tr-border);
-            box-shadow: var(--tr-shadow-sm);
-            overflow: hidden;
-        }
-
-        /* HEADER */
-        .tr-paper-header {
-            display: flex; align-items: flex-start; gap: 1.25rem;
-            padding: 2rem;
-            border-bottom: 1px solid var(--tr-border-light);
-            background: #ffffff;
-        }
-        .tr-header-icon {
-            width: 52px; height: 52px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
-        .tr-header-icon.bg-indigo { background: var(--tr-primary-bg); color: var(--tr-primary); }
-        
-        .tr-title { font-size: 1.35rem; font-weight: 800; margin: 0 0 0.4rem 0; letter-spacing: -0.01em; line-height: 1.2; }
-        .tr-subtitle { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0; font-weight: 500; line-height: 1.5; }
-
-        /* ALERTS */
-        .tr-paper-alerts { padding: 1.5rem 2rem 0 2rem; display: flex; flex-direction: column; gap: 1rem; }
-        .tr-alert { 
-            display: flex; align-items: flex-start; gap: 12px; 
-            padding: 1rem 1.25rem; border-radius: var(--tr-radius-md); 
-            font-size: 0.85rem; line-height: 1.5; border: 1px solid transparent; 
-        }
-        .tr-alert-danger { background: var(--tr-danger-light); color: #b91c1c; border-color: #fecaca; }
-        
-        .tr-alert-block { flex-direction: column; gap: 8px; }
-        .tr-alert-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
-        .tr-alert ul { margin: 0; padding-left: 2rem; }
-        .tr-alert-icon { flex-shrink: 0; margin-top: 1px; }
-
-        /* ── FIELDSETS & FORM STACK ── */
-        .tr-fieldset { padding: 2rem; margin: 0; border: none; border-bottom: 1px dashed var(--tr-border); }
-        .tr-fieldset-last { border-bottom: none; }
-        .tr-form-stack { display: flex; flex-direction: column; gap: 1.5rem; }
-        
-        .tr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-        .tr-col-half { grid-column: span 1; }
-        
-        .tr-form-group { display: flex; flex-direction: column; gap: 6px; }
-        
-        /* ── INPUTS ── */
-        .tr-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--tr-text-main); margin-bottom: 2px; }
-        .tr-req { color: var(--tr-danger); }
-        .font-normal { font-weight: 400; }
-        
-        .tr-input, .tr-select, .tr-textarea {
-            width: 100%; padding: 0.7rem 0.85rem;
-            border: 1px solid var(--tr-border);
-            border-radius: var(--tr-radius-md);
-            font-family: inherit; font-size: 0.9rem; color: var(--tr-text-main);
-            background: #f8fafc; outline: none; transition: all 0.2s;
-            appearance: none;
-        }
-        select.tr-select {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-size: 16px; background-position: right 12px center; background-repeat: no-repeat;
-            padding-right: 2.5rem; cursor: pointer;
-        }
-        .tr-input:focus, .tr-select:focus, .tr-textarea:focus { border-color: var(--tr-primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
-        
-        .tr-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
-        .tr-input-hint { font-size: 0.75rem; color: var(--tr-text-muted); line-height: 1.4; }
-        
-        .is-invalid { border-color: var(--tr-danger) !important; background: var(--tr-danger-light) !important; }
-        .tr-error { font-size: 0.75rem; color: var(--tr-danger); font-weight: 600; margin-top: 4px; }
-
-        /* Custom Select Wrapper for native dropdown styling */
-        .tr-select-wrapper { position: relative; }
-        .tr-select-wrapper::after {
-            content: ''; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-            width: 10px; height: 10px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-            background-size: contain; background-repeat: no-space; pointer-events: none;
-        }
-
-        /* ── FOOTER ACTIONS ── */
-        .tr-form-footer {
-            display: flex; justify-content: flex-end; align-items: center; gap: 1rem;
-            padding: 1.5rem 2rem; background: #f8fafc; border-top: 1px solid var(--tr-border);
-        }
-        .tr-btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 0.7rem 1.4rem; border-radius: var(--tr-radius-md); font-size: 0.9rem; 
-            font-family: inherit; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
-        }
-        .tr-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-        
-        .tr-btn-light { background: transparent; color: var(--tr-text-muted); }
-        .tr-btn-light:hover { color: var(--tr-text-main); background: #e2e8f0; }
-        .tr-btn-primary { background: var(--tr-primary); color: #ffffff; box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2); }
-        .tr-btn-primary:hover:not(:disabled) { background: var(--tr-primary-hover); transform: translateY(-1px); box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3); }
-
-        /* Spinner */
-        .tr-spinner { width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: tr-spin 0.8s linear infinite; }
-        @keyframes tr-spin { to { transform: rotate(360deg); } }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 640px) {
-            .tr-form-container { padding: 1.5rem 1rem; }
-            .tr-paper-header { padding: 1.5rem; flex-direction: column; align-items: flex-start; gap: 1rem; }
-            .tr-paper-alerts { padding: 1.5rem 1.5rem 0 1.5rem; }
-            .tr-fieldset { padding: 1.5rem; }
-            .tr-grid { grid-template-columns: 1fr; gap: 1.5rem; }
-            .tr-form-footer { flex-direction: column-reverse; padding: 1.5rem; }
-            .tr-form-footer .tr-btn { width: 100%; justify-content: center; }
-        }
-    </style>
-    @endpush
 </x-app-layout>

@@ -56,17 +56,17 @@
     <div class="hr-stats">
         <div class="hr-stat">
             <div class="hr-stat-label">Total Karyawan</div>
-            <div class="hr-stat-value">{{ $karyawan->total() }}</div>
+            <div class="hr-stat-value">{{ $stats['totalFiltered'] }}</div>
             <div class="hr-stat-change">Aktif & Non-aktif</div>
         </div>
         <div class="hr-stat">
             <div class="hr-stat-label">Dengan Akun Login</div>
-            <div class="hr-stat-value">{{ $karyawan->where('user_id', '!=', null)->count() }}</div>
+            <div class="hr-stat-value">{{ $stats['withAccount'] }}</div>
             <div class="hr-stat-change positive">Terhubung sistem</div>
         </div>
         <div class="hr-stat">
             <div class="hr-stat-label">Belum Punya Akun</div>
-            <div class="hr-stat-value">{{ $karyawan->where('user_id', null)->count() }}</div>
+            <div class="hr-stat-value">{{ $stats['withoutAccount'] }}</div>
             <div class="hr-stat-change negative">Perlu dibuatkan</div>
         </div>
     </div>

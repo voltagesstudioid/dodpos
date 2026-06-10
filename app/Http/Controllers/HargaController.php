@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Category;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 
 class HargaController extends Controller
@@ -13,9 +14,11 @@ class HargaController extends Controller
         $query = Product::with(['category', 'unitConversions.unit']);
 
         if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('sku', 'like', '%' . $request->search . '%');
+            $sanitized = SearchSanitizer::sanitize($request->search);
+            $query->where(function ($q) use ($sanitized) {
+                $q->where('name', 'like', "%{$sanitized}%")
+                  ->orWhere('sku', 'like', "%{$sanitized}%")
+                  ->orWhere('barcode', 'like', "%{$sanitized}%");
             });
         }
         if ($request->category_id) {
@@ -24,7 +27,8 @@ class HargaController extends Controller
 
         $products   = $query->orderBy('name')->get();
         $categories = Category::orderBy('name')->get();
+        $totalCount = $products->count();
 
-        return view('harga.index', compact('products', 'categories'));
+        return view('harga.index', compact('products', 'categories', 'totalCount'));
     }
 }

@@ -17,18 +17,18 @@ class PrintController extends Controller
     public function printReceipt(Transaction $transaction)
     {
         // Load main transaction with details
-        $transaction->load(['details.product', 'user', 'customer', 'additionalTransactions.details.product']);
+        $transaction->load(['details.product', 'details.warehouse', 'user', 'customer', 'additionalTransactions.details.product']);
 
         // Get root transaction (if this is an additional transaction, get the parent)
         $rootTransaction = $transaction->parent_transaction_id
-            ? Transaction::with(['details.product', 'user', 'customer', 'additionalTransactions.details.product'])->find($transaction->parent_transaction_id)
+            ? Transaction::with(['details.product', 'details.warehouse', 'user', 'customer', 'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy', 'additionalTransactions.details.product'])->find($transaction->parent_transaction_id)
             : $transaction;
 
         // Increment print count
         $rootTransaction->increment('print_count');
         $rootTransaction->update(['last_printed_at' => now()]);
 
-        // Jika transaksi grosir, redirect ke faktur grosir 3 rangkap
+        // Jika transaksi grosir, redirect ke faktur grosir
         if ($rootTransaction->sale_type === 'grosir') {
             return $this->printFakturGrosir($rootTransaction);
         }
@@ -39,11 +39,11 @@ class PrintController extends Controller
     }
 
     /**
-     * Cetak Faktur Penjualan Grosir (A4 — 3 Rangkap)
+     * Cetak Faktur Penjualan Grosir (A4)
      */
     public function printFakturGrosir(Transaction $transaction)
     {
-        $transaction->load(['details.product', 'user', 'customer']);
+        $transaction->load(['details.product', 'details.warehouse', 'user', 'customer', 'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy']);
         $storeSetting = StoreSetting::current();
 
         return view('print.faktur_grosir', compact('transaction', 'storeSetting'));

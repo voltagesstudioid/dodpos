@@ -23,8 +23,27 @@ class OpnameSessionController extends Controller
 
         $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
 
+        // Base query for stats (before search/status filter)
+        $baseQuery = StockOpnameSession::query();
+        if ($allowedWarehouseId !== null) {
+            $baseQuery->where('warehouse_id', $allowedWarehouseId);
+        }
+
+        // Stats from full dataset (unfiltered)
+        $totalSessions = (clone $baseQuery)->count();
+        $draftCount = (clone $baseQuery)->where('status', 'draft')->count();
+        $submittedCount = (clone $baseQuery)->where('status', 'submitted')->count();
+        $approvedCount = (clone $baseQuery)->where('status', 'approved')->count();
+        $rejectedCount = (clone $baseQuery)->where('status', 'rejected')->count();
+
+        // Sortable columns
+        $allowedSorts = ['created_at', 'warehouse_id', 'status', 'reference_number'];
+        $sort = in_array($request->input('sort'), $allowedSorts, true) ? $request->input('sort') : 'created_at';
+        $dir = $request->input('dir') === 'asc' ? 'asc' : 'desc';
+
+        // Main query with filters
         $query = StockOpnameSession::with(['warehouse', 'creator', 'approver'])
-            ->orderByDesc('created_at');
+            ->orderBy($sort, $dir);
 
         if ($allowedWarehouseId !== null) {
             $query->where('warehouse_id', $allowedWarehouseId);
@@ -47,7 +66,9 @@ class OpnameSessionController extends Controller
 
         $sessions = $query->paginate(15)->withQueryString();
 
-        return view('gudang.opname_sessions.index', compact('sessions', 'role'));
+        return view('gudang.opname_sessions.index', compact(
+            'sessions', 'role', 'totalSessions', 'draftCount', 'submittedCount', 'approvedCount', 'rejectedCount', 'sort', 'dir'
+        ));
     }
 
     public function create()
@@ -70,6 +91,7 @@ class OpnameSessionController extends Controller
         $request->validate([
             'warehouse_id' => 'required|exists:warehouses,id',
             'notes' => 'nullable|string|max:2000',
+            'deadline_at' => 'nullable|date|after:today',
         ]);
 
         $user = Auth::user();
@@ -80,11 +102,23 @@ class OpnameSessionController extends Controller
             return back()->withInput()->with('error', 'Anda tidak memiliki akses untuk melakukan opname di gudang ini.');
         }
 
+        // Cegah duplikat: cek apakah ada sesi draft di gudang yang sama oleh user ini
+        $existingDraft = StockOpnameSession::where('warehouse_id', $warehouseId)
+            ->where('created_by', Auth::id())
+            ->where('status', 'draft')
+            ->first();
+
+        if ($existingDraft) {
+            return back()->withInput()->with('error', 'Anda sudah memiliki sesi draft di gudang ini. Silakan lanjutkan sesi yang sudah ada atau batalkan terlebih dahulu.')
+                ->with('existing_session_id', $existingDraft->id);
+        }
+
         $session = StockOpnameSession::create([
             'warehouse_id' => $warehouseId,
             'created_by' => Auth::id(),
             'status' => 'draft',
             'notes' => $request->notes,
+            'deadline_at' => $request->deadline_at,
         ]);
 
         return redirect()->route('gudang.opname_sessions.edit', $session)->with('success', 'Sesi opname dibuat. Silakan input item.');
@@ -94,8 +128,8 @@ class OpnameSessionController extends Controller
     {
         $this->authorizeSessionAccess($session);
 
-        $session->load(['warehouse', 'creator', 'approver', 'items.product']);
-        $products = Product::orderBy('name')->get();
+        $session->load(['warehouse', 'creator', 'approver', 'items.product.unitConversions.unit']);
+        $products = Product::with(['unitConversions.unit'])->orderBy('name')->get();
 
         $systemQtyMap = ProductStock::query()
             ->where('warehouse_id', $session->warehouse_id)
@@ -103,20 +137,42 @@ class OpnameSessionController extends Controller
             ->groupBy('product_id')
             ->pluck('qty', 'product_id');
 
-        return view('gudang.opname_sessions.edit', compact('session', 'products', 'systemQtyMap'));
+        // Produk yang belum dihitung di sesi ini
+        $countedProductIds = $session->items->pluck('product_id')->toArray();
+        $uncountedProducts = $products->filter(function ($p) use ($countedProductIds) {
+            return !in_array($p->id, $countedProductIds);
+        })->values();
+
+        // Build map konversi satuan per produk (untuk JS)
+        $unitMap = [];
+        foreach ($products as $p) {
+            $conversions = [];
+            foreach ($p->unitConversions as $uc) {
+                $conversions[] = [
+                    'unit_name' => $uc->unit?->abbreviation ?? $uc->unit?->name ?? '-',
+                    'factor' => (float) $uc->conversion_factor,
+                    'is_base' => (bool) $uc->is_base_unit,
+                ];
+            }
+            $unitMap[$p->id] = $conversions;
+        }
+
+        return view('gudang.opname_sessions.edit', compact('session', 'products', 'systemQtyMap', 'uncountedProducts', 'unitMap'));
     }
 
     public function addItem(Request $request, StockOpnameSession $session)
     {
         $this->authorizeSessionAccess($session);
-        if ($session->status !== 'draft') {
+        if (!in_array($session->status, ['draft', 'rejected'])) {
             return back()->with('error', 'Sesi ini sudah dikirim / diproses dan tidak bisa diubah.');
         }
 
         $request->validate([
             'product_id' => 'nullable|exists:products,id',
             'scan_code' => 'nullable|string|max:120',
-            'physical_qty' => 'required|integer|min:0',
+            'physical_qty' => 'required|numeric|min:0',
+            'counted_unit' => 'nullable|string|max:50',
+            'counted_qty' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -134,12 +190,33 @@ class OpnameSessionController extends Controller
         }
 
         $productId = (int) $productId;
-        $physicalQty = (int) $request->physical_qty;
+
+        // Konversi dari satuan yang diinput ke base unit
+        $enteredQty = (float) $request->physical_qty; // qty yang diinput admin (dalam satuan yang dipilih)
+        $countedUnit = $request->counted_unit;
+        $countedQty = $request->counted_qty ? (float) $request->counted_qty : $enteredQty;
+
+        $conversionFactor = 1;
+        if ($countedUnit) {
+            $product = Product::with('unitConversions.unit')->find($productId);
+            if ($product) {
+                foreach ($product->unitConversions as $uc) {
+                    $unitName = $uc->unit?->abbreviation ?? $uc->unit?->name ?? '';
+                    if (strcasecmp($unitName, $countedUnit) === 0 || strcasecmp($uc->unit?->name ?? '', $countedUnit) === 0) {
+                        $conversionFactor = (float) $uc->conversion_factor;
+                        break;
+                    }
+                }
+            }
+        }
+
+        $physicalQtyBase = (int) round($enteredQty * $conversionFactor); // Qty dalam base unit
+
         $systemQty = (int) ProductStock::query()
             ->where('product_id', $productId)
             ->where('warehouse_id', $session->warehouse_id)
             ->sum('stock');
-        $diff = $physicalQty - $systemQty;
+        $diff = $physicalQtyBase - $systemQty;
 
         try {
             DB::beginTransaction();
@@ -152,18 +229,24 @@ class OpnameSessionController extends Controller
 
             if ($item) {
                 $item->system_qty = $systemQty;
-                $item->physical_qty = $physicalQty;
+                $item->physical_qty = $physicalQtyBase;
+                $item->counted_unit = $countedUnit;
+                $item->counted_qty = $countedQty;
                 $item->difference_qty = $diff;
                 $item->notes = $request->notes;
+                $item->counted_at = now();
                 $item->save();
             } else {
                 StockOpnameItem::create([
                     'session_id' => $session->id,
                     'product_id' => $productId,
                     'system_qty' => $systemQty,
-                    'physical_qty' => $physicalQty,
+                    'physical_qty' => $physicalQtyBase,
+                    'counted_unit' => $countedUnit,
+                    'counted_qty' => $countedQty,
                     'difference_qty' => $diff,
                     'notes' => $request->notes,
+                    'counted_at' => now(),
                 ]);
             }
 
@@ -180,7 +263,7 @@ class OpnameSessionController extends Controller
     public function deleteItem(StockOpnameSession $session, StockOpnameItem $item)
     {
         $this->authorizeSessionAccess($session);
-        if ($session->status !== 'draft') {
+        if (!in_array($session->status, ['draft', 'rejected'])) {
             return back()->with('error', 'Sesi ini sudah dikirim / diproses dan tidak bisa diubah.');
         }
         if ((int) $item->session_id !== (int) $session->id) {
@@ -195,7 +278,7 @@ class OpnameSessionController extends Controller
     public function submit(StockOpnameSession $session)
     {
         $this->authorizeSessionAccess($session);
-        if ($session->status !== 'draft') {
+        if (!in_array($session->status, ['draft', 'rejected'])) {
             return back()->with('error', 'Sesi ini sudah dikirim / diproses.');
         }
         if ($session->items()->count() === 0) {
@@ -206,7 +289,7 @@ class OpnameSessionController extends Controller
             DB::beginTransaction();
 
             $session = StockOpnameSession::whereKey($session->id)->lockForUpdate()->first();
-            if (! $session || $session->status !== 'draft') {
+            if (! $session || !in_array($session->status, ['draft', 'rejected'])) {
                 DB::rollBack();
 
                 return back()->with('error', 'Sesi sudah diproses oleh user lain.');
@@ -237,6 +320,53 @@ class OpnameSessionController extends Controller
         }
 
         return redirect()->route('gudang.opname_sessions.index')->with('success', 'Sesi opname berhasil dikirim untuk approval Supervisor.');
+    }
+
+    public function reviseToDraft(StockOpnameSession $session)
+    {
+        $this->authorizeSessionAccess($session);
+        if ($session->status !== 'rejected') {
+            return back()->with('error', 'Hanya sesi yang ditolak (rejected) yang bisa direvisi.');
+        }
+
+        $session->status = 'draft';
+        $session->submitted_at = null;
+        $session->approved_by = null;
+        $session->approved_at = null;
+        $session->approval_notes = null;
+        $session->save();
+
+        return redirect()->route('gudang.opname_sessions.edit', $session)
+            ->with('success', 'Sesi opname dikembalikan ke draft. Silakan revisi dan submit ulang.');
+    }
+
+    public function cancel(StockOpnameSession $session)
+    {
+        $this->authorizeSessionAccess($session);
+        if (!in_array($session->status, ['draft', 'rejected'])) {
+            return back()->with('error', 'Hanya sesi draft atau rejected yang bisa dibatalkan.');
+        }
+
+        $session->status = 'cancelled';
+        $session->save();
+
+        return redirect()->route('gudang.opname_sessions.index')
+            ->with('success', 'Sesi opname dibatalkan.');
+    }
+
+    public function print(StockOpnameSession $session)
+    {
+        $this->authorizeSessionAccess($session);
+
+        $session->load(['warehouse', 'creator', 'approver', 'items.product.unitConversions.unit']);
+
+        $systemQtyMap = ProductStock::query()
+            ->where('warehouse_id', $session->warehouse_id)
+            ->selectRaw('product_id, SUM(stock) as qty')
+            ->groupBy('product_id')
+            ->pluck('qty', 'product_id');
+
+        return view('gudang.opname_sessions.print', compact('session', 'systemQtyMap'));
     }
 
     private function authorizeSessionAccess(StockOpnameSession $session): void

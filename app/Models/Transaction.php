@@ -104,6 +104,16 @@ class Transaction extends Model
         return $this->hasMany(Transaction::class, 'parent_transaction_id');
     }
 
+    public function returns()
+    {
+        return $this->hasMany(PosReturn::class, 'transaction_id');
+    }
+
+    public function hasReturns(): bool
+    {
+        return $this->returns->where('status', 'completed')->isNotEmpty();
+    }
+
     public function isAdditional(): bool
     {
         return $this->transaction_type === 'additional';
@@ -111,7 +121,7 @@ class Transaction extends Model
 
     public function hasAdditionalItems(): bool
     {
-        return $this->additionalTransactions()->exists();
+        return $this->additionalTransactions->isNotEmpty();
     }
 
     public function getAllDetailsAttribute()
@@ -126,13 +136,13 @@ class Transaction extends Model
 
     public function getGrandTotalAttribute(): float
     {
-        $additionalTotal = $this->additionalTransactions()->sum('total_amount');
+        $additionalTotal = $this->additionalTransactions->sum('total_amount');
         return (float) $this->total_amount + $additionalTotal;
     }
 
     public function getTotalPaidAttribute(): float
     {
-        $additionalPaid = $this->additionalTransactions()->sum('paid_amount');
+        $additionalPaid = $this->additionalTransactions->sum('paid_amount');
         return (float) $this->paid_amount + $additionalPaid;
     }
 }

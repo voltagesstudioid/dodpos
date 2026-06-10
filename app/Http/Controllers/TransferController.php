@@ -9,6 +9,7 @@ use App\Models\StockMovement;
 use App\Services\ReferenceNumberService;
 use App\Support\Roles;
 use App\Support\SearchSanitizer;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -176,8 +177,8 @@ class TransferController extends Controller
             return back()->with('error', 'Permintaan transfer ini sudah diproses menjadi dokumen transfer.');
         }
 
-        $fromWarehouseId = (int) ($productRequest->from_warehouse_id ?: 1);
-        $toWarehouseId = (int) ($productRequest->to_warehouse_id ?: 2);
+        $fromWarehouseId = (int) ($productRequest->from_warehouse_id ?: WarehouseConfig::getMainId());
+        $toWarehouseId = (int) ($productRequest->to_warehouse_id ?: WarehouseConfig::getBranchId());
 
         // Handle unit conversion
         $conversionFactor = (float) ($productRequest->conversion_factor ?: 1);
@@ -217,6 +218,7 @@ class TransferController extends Controller
 
             $remainingQty = $qtyToTransfer;
             $firstOut = null;
+            $totalDeducted = 0;
 
             /** @var \App\Models\ProductStock $stock */
             foreach ($availableStocks as $stock) {
@@ -227,6 +229,8 @@ class TransferController extends Controller
                 $deductQty = min($stock->stock, $remainingQty);
                 $stock->stock -= $deductQty;
                 $stock->save();
+
+                $totalDeducted += $deductQty;
 
                 $out = StockMovement::create([
                     'product_id' => $productRequest->product_id,
@@ -273,6 +277,11 @@ class TransferController extends Controller
 
             $productRequest->transfer_reference = $referenceNumber;
             $productRequest->save();
+
+            // Keep products.stock in sync with SUM(product_stocks.stock)
+            if ($totalDeducted > 0) {
+                Product::where('id', $productRequest->product_id)->decrement('stock', $totalDeducted);
+            }
 
             DB::commit();
 
@@ -415,7 +424,15 @@ class TransferController extends Controller
             ProductRequest::where('transfer_reference', $refNumber)
                 ->update(['transfer_reference' => null, 'status' => 'approved']);
 
-            // Note: Global product stock remains unchanged during transfer
+            // Keep products.stock in sync — restore global stock when cancelling transfer
+            $outTotal = $movements->where('type', 'transfer_out')->sum('quantity');
+            if ($outTotal > 0) {
+                $firstProduct = $movements->firstWhere('type', 'transfer_out');
+                if ($firstProduct) {
+                    Product::where('id', $firstProduct->product_id)->increment('stock', $outTotal);
+                }
+            }
+
             DB::commit();
 
             return redirect()->route('gudang.transfer')->with('success', 'Transfer stok berhasil dihapus dan dikembalikan ke posisi semula.');

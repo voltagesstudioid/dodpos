@@ -39,6 +39,10 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                         Buka Sesi (Edit)
                     </a>
+                    <a href="{{ route('gudang.opname_sessions.print', $session) }}" class="tr-btn tr-btn-outline" target="_blank">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        Cetak
+                    </a>
                 </div>
             </div>
 
@@ -65,8 +69,10 @@
                                 <th>Item Produk Terdata</th>
                                 <th class="r">Qty Sistem</th>
                                 <th class="r">Qty Fisik</th>
+                                <th class="c">Satuan</th>
                                 <th class="c">Selisih</th>
                                 <th>Catatan Penyesuaian</th>
+                                <th class="c">Waktu Hitung</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -80,7 +86,19 @@
                                         <div class="tr-prod-sku">SKU: <span class="tr-font-mono">{{ $it->product?->sku ?? '-' }}</span></div>
                                     </td>
                                     <td class="r tr-qty-col tr-text-muted">{{ (int) $it->system_qty }}</td>
-                                    <td class="r tr-qty-col tr-text-main">{{ (int) $it->physical_qty }}</td>
+                                    <td class="r tr-qty-col tr-text-main">
+                                        {{ (int) $it->physical_qty }}
+                                        @if($it->counted_unit && $it->counted_qty)
+                                        <div style="font-size:0.7rem;color:var(--tr-info, #0ea5e9);font-weight:600;margin-top:2px;">{{ number_format((float)$it->counted_qty, 0) }} {{ $it->counted_unit }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="c">
+                                        @if($it->counted_unit)
+                                        <span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.7rem;font-weight:700;background:#e0f2fe;color:#0ea5e9;border:1px solid #bae6fd;">{{ $it->counted_unit }}</span>
+                                        @else
+                                        <span style="font-size:0.7rem;color:var(--tr-text-light);">base</span>
+                                        @endif
+                                    </td>
                                     <td class="c">
                                         @if($diff > 0)
                                             <span class="tr-diff-badge plus">+{{ $diff }}</span>
@@ -95,10 +113,17 @@
                                             {{ $it->notes ?: '-' }}
                                         </div>
                                     </td>
+                                    <td class="c">
+                                        @if($it->counted_at)
+                                        <span style="font-size:0.7rem;color:var(--tr-text-muted);font-family:monospace;">{{ $it->counted_at->format('d/m H:i') }}</span>
+                                        @else
+                                        <span style="font-size:0.7rem;color:var(--tr-text-light);">-</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5">
+                                    <td colspan="7">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">
                                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -126,6 +151,9 @@
                             <h3 class="tr-approval-title">Keputusan Supervisor</h3>
                         </div>
                         <p class="tr-approval-desc">Berikan catatan khusus untuk Admin Gudang (opsional jika Approve, <strong>wajib jika Reject</strong>).</p>
+                        <p class="tr-approval-desc" style="font-size:0.75rem;color:var(--tr-info);">
+                            <strong>Catatan:</strong> Item dengan selisih 0 (sesuai sistem) otomatis dilewati. Hanya item dengan selisih yang akan disesuaikan stoknya.
+                        </p>
                         
                         <textarea id="approvalNotes" class="tr-textarea" placeholder="Ketikan catatan review di sini..."></textarea>
                     </div>
@@ -151,6 +179,47 @@
                         </form>
                     </div>
 
+                </div>
+            </div>
+            @endif
+
+            {{-- REVERSAL AREA (for approved sessions) --}}
+            @if($session->status === 'approved' && !$session->reversed_at)
+            <div class="tr-approval-box" style="margin-top:1.5rem;border-color:var(--tr-danger-border, #fecaca);">
+                <div class="tr-approval-grid">
+                    <div class="tr-approval-form">
+                        <div class="tr-approval-head">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--tr-danger)" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                            <h3 class="tr-approval-title" style="color:var(--tr-danger);">Reversal (Batalkan Adjustment)</h3>
+                        </div>
+                        <p class="tr-approval-desc">Jika ada kesalahan pada hasil approval, Anda bisa membatalkan semua adjustment stok. Stok akan dikembalikan ke kondisi sebelum opname. <strong>Catatan WAJIB diisi.</strong></p>
+                        <textarea id="reversalNotes" class="tr-textarea" placeholder="Alasan reversal..."></textarea>
+                    </div>
+                    <div class="tr-approval-actions">
+                        <form id="reverseForm" method="POST" action="{{ route('gudang.opname_approval.reverse', $session) }}" onsubmit="return confirm('PERINGATAN: Semua adjustment stok dari opname ini akan dibatalkan. Yakin?');" class="tr-action-form">
+                            @csrf
+                            <input type="hidden" name="reversal_notes" id="reversalNotesField">
+                            <button type="submit" class="tr-btn-massive tr-btn-danger">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                Reversal Adjustment
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            @if($session->reversed_at)
+            <div class="tr-alert" style="background:var(--tr-danger-bg);color:var(--tr-danger-text);border:1px solid var(--tr-danger-border, #fecaca);padding:1rem 1.25rem;border-radius:var(--tr-radius-md);margin-top:1.5rem;font-size:0.85rem;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <div>
+                    <strong>Reversal dilakukan pada {{ $session->reversed_at->format('d M Y H:i') }}</strong>
+                    @if($session->reversal_notes)
+                    <br>Alasan: <em>{{ $session->reversal_notes }}</em>
+                    @endif
+                    @if($session->reverser)
+                    <br>Oleh: {{ $session->reverser->name }}
+                    @endif
                 </div>
             </div>
             @endif
@@ -200,6 +269,27 @@
                         const btn = approveForm.querySelector('button');
                         if(btn) { btn.disabled = true; btn.innerHTML = 'Menyimpan...'; }
                     }, 10);
+                });
+            }
+
+            // Reversal form handler
+            const reverseForm = document.getElementById('reverseForm');
+            const reversalNotes = document.getElementById('reversalNotes');
+            const reversalNotesField = document.getElementById('reversalNotesField');
+            if (reversalNotes && reversalNotesField) {
+                reversalNotes.addEventListener('input', function() { reversalNotesField.value = this.value; });
+            }
+            if (reverseForm) {
+                reverseForm.addEventListener('submit', function(e) {
+                    const v = (reversalNotes ? reversalNotes.value : '').trim();
+                    if (!v) {
+                        e.preventDefault();
+                        alert('Catatan alasan reversal WAJIB diisi.');
+                        if(reversalNotes) reversalNotes.focus();
+                    } else {
+                        const btn = reverseForm.querySelector('button');
+                        if(btn) { btn.disabled = true; btn.innerHTML = 'Memproses...'; }
+                    }
                 });
             }
         });

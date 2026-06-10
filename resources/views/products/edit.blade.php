@@ -9,7 +9,7 @@
                 <div class="tr-header-left">
                     <a href="{{ route('products.index') }}" class="tr-btn-ghost">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                        Kembali ke Daftar
+                        Kembali
                     </a>
                     <div class="tr-title-wrap">
                         <div class="tr-eyebrow">Katalog & Inventori</div>
@@ -22,6 +22,20 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                         Simpan Perubahan
                     </button>
+                </div>
+            </div>
+
+            {{-- ─── STEPS ─── --}}
+            <div style="display:flex;gap:0;margin-bottom:1.75rem;">
+                <div style="flex:1;text-align:center;padding-bottom:0.75rem;position:relative;">
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:#10b981;border-radius:2px;"></div>
+                    <div style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;background:#ecfdf5;color:#10b981;border:2px solid #10b981;margin-bottom:0.25rem;">✓</div>
+                    <div style="font-size:0.75rem;font-weight:700;color:#10b981;">Identitas Produk</div>
+                </div>
+                <div style="flex:1;text-align:center;padding-bottom:0.75rem;position:relative;">
+                    <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#4f46e5,#6366f1);border-radius:2px;"></div>
+                    <div style="width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;background:#eef2ff;color:#4f46e5;border:2px solid #4f46e5;margin-bottom:0.25rem;">2</div>
+                    <div style="font-size:0.75rem;font-weight:700;color:#4f46e5;">Satuan & Harga</div>
                 </div>
             </div>
 
@@ -89,9 +103,11 @@
                                 @error('category_id') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
                             <div class="tr-form-group">
-                                <label class="tr-label">SKU Produk <span class="tr-req">*</span></label>
-                                <input type="text" name="sku" value="{{ old('sku', $product->sku) }}" class="tr-input tr-font-mono @error('sku') is-invalid @enderror" placeholder="Contoh: GL-50KG-P" required>
-                                @error('sku') <div class="tr-error-msg">{{ $message }}</div> @enderror
+                                <label class="tr-label">Kode SKU</label>
+                                <div style="position:relative;">
+                                    <input type="text" name="sku" value="{{ old('sku', $product->sku) }}" class="tr-input tr-font-mono tr-disabled-input" readonly tabindex="-1" style="padding-right:55px;cursor:not-allowed;">
+                                    <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#eef2ff;color:#4f46e5;font-size:0.625rem;font-weight:800;padding:0.2rem 0.5rem;border-radius:5px;text-transform:uppercase;letter-spacing:0.05em;pointer-events:none;">AUTO</span>
+                                </div>
                             </div>
                         </div>
 
@@ -236,13 +252,13 @@
                 <div class="tr-sticky-footer">
                     <div class="footer-content">
                         <div class="footer-hint">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                            Perubahan pada produk ini belum tersimpan.
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            Satuan aktif: <span id="unit-count" style="background:#eef2ff;color:#4f46e5;font-weight:800;padding:0.125rem 0.5rem;border-radius:5px;font-size:0.75rem;">0</span>
                         </div>
                         <div class="footer-actions">
-                            <a href="{{ route('products.index') }}" class="tr-btn tr-btn-ghost">Batalkan</a>
+                            <a href="{{ route('products.index') }}" class="tr-btn tr-btn-ghost">Batal</a>
                             <button type="submit" class="tr-btn tr-btn-primary">
-                                Simpan Perubahan Produk
+                                Simpan Perubahan
                             </button>
                         </div>
                     </div>
@@ -487,6 +503,41 @@
         if (priceHidden && ecer) priceHidden.value = String(num(ecer.value));
         if (purchaseHidden && modal) purchaseHidden.value = String(num(modal.value));
     }
+
+    /* ── Auto-propagate ALL prices to other units based on conversion factor ── */
+    const PRICE_KEYS = ['purchase_price','sell_price_ecer','sell_price_grosir','sell_price_jual1','sell_price_jual2','sell_price_jual3','sell_price_minimal'];
+    function syncAllPrices() {
+        const base = getBaseRowEl();
+        if (!base) return;
+        const baseFactor = num(base.querySelector('input[name$="[conversion_factor]"]')?.value || 1);
+        if (baseFactor <= 0) return;
+        document.querySelectorAll('.unit-row').forEach(row => {
+            if (row === base) return;
+            const factor = num(row.querySelector('input[name$="[conversion_factor]"]')?.value || 1);
+            const ratio = factor / baseFactor;
+            PRICE_KEYS.forEach(k => {
+                const baseVal = getHidden(base, k);
+                const newVal = Math.round(baseVal * ratio);
+                setHidden(row, k, newVal);
+                const vis = row.querySelector(`input[data-visible="${k}"]`);
+                if (vis) { vis.style.transition = 'background .3s'; vis.style.background = '#ecfdf5'; setTimeout(() => { vis.style.background = ''; }, 600); }
+            });
+        });
+    }
+    function syncRowPrices(row) {
+        const base = getBaseRowEl();
+        if (!base || row === base) return;
+        const baseFactor = num(base.querySelector('input[name$="[conversion_factor]"]')?.value || 1);
+        const factor = num(row.querySelector('input[name$="[conversion_factor]"]')?.value || 1);
+        if (baseFactor <= 0) return;
+        const ratio = factor / baseFactor;
+        PRICE_KEYS.forEach(k => {
+            const baseVal = getHidden(base, k);
+            setHidden(row, k, Math.round(baseVal * ratio));
+            const vis = row.querySelector(`input[data-visible="${k}"]`);
+            if (vis) { vis.style.transition = 'background .3s'; vis.style.background = '#ecfdf5'; setTimeout(() => { vis.style.background = ''; }, 600); }
+        });
+    }
     function updateAllRowStyles() {
         document.querySelectorAll('.unit-row').forEach(row => {
             const cb = row.querySelector('input[name$="[is_base_unit]"]');
@@ -511,12 +562,17 @@
         updateAllRowStyles();
         syncMasterFromBase();
     }
+    function updateUnitCount() {
+        const c = document.querySelectorAll('.unit-row').length;
+        const el = document.getElementById('unit-count');
+        if (el) el.textContent = c;
+    }
     function removeUnitRow(idx) {
         document.getElementById(`unit-row-${idx}`)?.remove();
         if (!document.querySelectorAll('.unit-row').length) {
             document.getElementById('no-units-msg').style.display = 'block';
         }
-        syncMasterFromBase();
+        syncMasterFromBase(); updateUnitCount();
     }
     function baseDefaults() {
         const base = getBaseRowEl();
@@ -589,7 +645,7 @@
         const idx = unitRowIdx++;
         const d = data || {};
         const isBase = !!d.is_base_unit;
-        const factor = Math.max(1, Math.floor(num(d.conversion_factor || 1)));
+        const factor = Math.max(0.0001, num(d.conversion_factor || 1));
         const base = baseDefaults();
 
         const unitOptions = allUnits.map(u => `<option value="${u.id}" ${u.id == (d.unit_id || '') ? 'selected' : ''}>${u.name}</option>`).join('');
@@ -611,7 +667,7 @@
             </div>
             <div class="unit-cell">
                 <div class="unit-label-mobile">Konversi</div>
-                <input type="number" name="units[${idx}][conversion_factor]" value="${factor}" min="1" class="tr-input" style="text-align:center; font-weight:800;" required>
+                <input type="number" name="units[${idx}][conversion_factor]" value="${factor}" min="0.0001" step="any" class="tr-input" style="text-align:center; font-weight:800;" required>
             </div>
             <div class="unit-cell">
                 <div class="unit-label-mobile">Harga Modal</div>
@@ -666,6 +722,7 @@
         ['purchase_price','sell_price_ecer','sell_price_grosir','sell_price_jual1','sell_price_jual2','sell_price_jual3','sell_price_minimal'].forEach(k => wireMoneyInput(row, k));
         updateAllRowStyles();
         syncMasterFromBase();
+        updateUnitCount();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -677,11 +734,19 @@
         document.getElementById('unit-rows-container')?.addEventListener('input', (e) => {
             const base = getBaseRowEl();
             if (!base) return;
-            if (base.contains(e.target)) syncMasterFromBase();
+            const isPriceField = PRICE_KEYS.some(k => e.target.matches(`input[data-hidden="${k}"]`) || e.target.matches(`input[data-visible="${k}"]`));
+            const isConvField = e.target.matches('input[name$="[conversion_factor]"]');
+            if (base.contains(e.target)) {
+                syncMasterFromBase();
+                if (isPriceField || isConvField) syncAllPrices();
+            } else if (isConvField) {
+                const row = e.target.closest('.unit-row');
+                if (row) syncRowPrices(row);
+            }
         });
         document.getElementById('btnApplyMarkup')?.addEventListener('click', applyMarkup);
         document.getElementById('product-form')?.addEventListener('submit', () => { syncMasterFromBase(); });
-        syncMasterFromBase();
+        syncMasterFromBase(); updateUnitCount();
     });
     </script>
     @endpush

@@ -50,17 +50,24 @@ class KasirController extends Controller
             ->sum('paid_amount');
     }
 
+    /**
+     * Public wrapper for getExpectedCash — used by sidebar modal.
+     */
+    public static function calcExpectedCash(\App\Models\PosSession $session): float
+    {
+        $instance = new self();
+        return $instance->getExpectedCash($session);
+    }
+
     private function getExpectedCash(\App\Models\PosSession $session): float
     {
-        // Load transactions to use grand_total accessor (includes additional transactions)
-        $cashTransactions = Transaction::query()
+        // Sum actual cash received (paid_amount) from ALL cash transactions
+        // including additional/child transactions that may have different payment method
+        $cashRevenue = Transaction::query()
             ->where('status', 'completed')
             ->whereIn('payment_method', ['cash', 'tunai'])
             ->where('created_at', '>=', $session->created_at)
-            ->whereNull('parent_transaction_id')
-            ->get();
-
-        $cashRevenue = $cashTransactions->sum(fn ($t) => $t->grand_total);
+            ->sum('paid_amount');
 
         $creditDp = $this->getCreditDpTotal($session);
         $cashIn = $this->getCashInTotal($session->id);
@@ -71,92 +78,116 @@ class KasirController extends Controller
 
     public function index()
     {
-        $activeSession = \App\Models\PosSession::where('status', 'open')
+        // Query both session types — always show the mode selection page
+        $eceranSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'eceran')
             ->latest()
             ->first();
 
-        if (! $activeSession) {
-            return view('kasir.closed', ['type' => 'eceran']);
+        $grosirSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'grosir')
+            ->latest()
+            ->first();
+
+        $eceranRevenue = 0;
+        $grosirRevenue = 0;
+
+        if ($eceranSession) {
+            $eceranRevenue = Transaction::where('status', 'completed')
+                ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('created_at', '>=', $eceranSession->created_at)
+                ->sum('paid_amount');
         }
 
-        // Load root transactions to use grand_total accessor (includes additional transactions)
-        $cashTransactions = Transaction::where('status', 'completed')
-            ->whereIn('payment_method', ['cash', 'tunai'])
-            ->where('created_at', '>=', $activeSession->created_at)
-            ->whereNull('parent_transaction_id')
-            ->get();
+        if ($grosirSession) {
+            $grosirRevenue = Transaction::where('status', 'completed')
+                ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('created_at', '>=', $grosirSession->created_at)
+                ->sum('paid_amount');
+        }
 
-        $cashRevenue = $cashTransactions->sum(fn ($t) => $t->grand_total);
-        $expectedCash = $this->getExpectedCash($activeSession);
+        $eceranExpected = $eceranSession ? $this->getExpectedCash($eceranSession) : 0;
+        $grosirExpected = $grosirSession ? $this->getExpectedCash($grosirSession) : 0;
 
-        return view('kasir.index', compact('activeSession', 'cashRevenue', 'expectedCash'));
+        return view('kasir.index', compact(
+            'eceranSession', 'grosirSession',
+            'eceranRevenue', 'grosirRevenue',
+            'eceranExpected', 'grosirExpected'
+        ));
     }
 
     public function session()
     {
-        $activeSession = \App\Models\PosSession::with('user')
+        // Query both session types independently
+        $eceranSession = \App\Models\PosSession::with('user')
             ->where('status', 'open')
             ->where('type', 'eceran')
             ->latest()
             ->first();
 
-        if (! $activeSession) {
-            return view('kasir.session', [
-                'activeSession' => null,
-            ]);
-        }
-
-        // Load root transactions to use grand_total accessor
-        $rootTransactions = Transaction::where('status', 'completed')
-            ->where('created_at', '>=', $activeSession->created_at)
-            ->whereNull('parent_transaction_id')
-            ->get();
-
-        $cashRevenue = $rootTransactions
-            ->whereIn('payment_method', ['cash', 'tunai'])
-            ->sum(fn ($t) => $t->grand_total);
-
-        $creditDp = $this->getCreditDpTotal($activeSession);
-        $cashIn = $this->getCashInTotal($activeSession->id);
-        $cashOut = $this->getCashOutTotal($activeSession->id);
-
-        $nonCashRevenue = $rootTransactions
-            ->whereNotIn('payment_method', ['cash', 'tunai'])
-            ->sum(fn ($t) => $t->grand_total);
-
-        $totalRevenue = $rootTransactions->sum(fn ($t) => $t->grand_total);
-
-        $cashTransactions = Transaction::where('status', 'completed')
-            ->whereIn('payment_method', ['cash', 'tunai'])
-            ->where('created_at', '>=', $activeSession->created_at)
-            ->count();
-
-        $totalTransactions = Transaction::where('status', 'completed')
-            ->where('created_at', '>=', $activeSession->created_at)
-            ->count();
-
-        $expectedCash = $this->getExpectedCash($activeSession);
-
-        $cashMovements = PosCashMovement::query()
-            ->with('user')
-            ->where('pos_session_id', $activeSession->id)
+        $grosirSession = \App\Models\PosSession::with('user')
+            ->where('status', 'open')
+            ->where('type', 'grosir')
             ->latest()
-            ->limit(25)
-            ->get();
+            ->first();
+
+        // Helper: calculate stats for a given session
+        $calcStats = function ($session) {
+            if (! $session) {
+                return null;
+            }
+
+            $cashRevenue = Transaction::where('status', 'completed')
+                ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('created_at', '>=', $session->created_at)
+                ->sum('paid_amount');
+
+            $creditDp = $this->getCreditDpTotal($session);
+            $cashIn = $this->getCashInTotal($session->id);
+            $cashOut = $this->getCashOutTotal($session->id);
+
+            $nonCashRevenue = Transaction::where('status', 'completed')
+                ->whereNotIn('payment_method', ['cash', 'tunai'])
+                ->where('created_at', '>=', $session->created_at)
+                ->sum('paid_amount');
+
+            $totalRevenue = Transaction::where('status', 'completed')
+                ->where('created_at', '>=', $session->created_at)
+                ->sum('paid_amount');
+
+            $cashTransactions = Transaction::where('status', 'completed')
+                ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('created_at', '>=', $session->created_at)
+                ->count();
+
+            $totalTransactions = Transaction::where('status', 'completed')
+                ->where('created_at', '>=', $session->created_at)
+                ->whereNull('parent_transaction_id')
+                ->count();
+
+            $expectedCash = $this->getExpectedCash($session);
+
+            $cashMovements = PosCashMovement::query()
+                ->with('user')
+                ->where('pos_session_id', $session->id)
+                ->latest()
+                ->limit(25)
+                ->get();
+
+            return compact(
+                'cashRevenue', 'creditDp', 'cashIn', 'cashOut',
+                'nonCashRevenue', 'totalRevenue',
+                'cashTransactions', 'totalTransactions',
+                'expectedCash', 'cashMovements'
+            );
+        };
+
+        $eceranStats = $calcStats($eceranSession);
+        $grosirStats = $calcStats($grosirSession);
 
         return view('kasir.session', compact(
-            'activeSession',
-            'cashRevenue',
-            'creditDp',
-            'cashIn',
-            'cashOut',
-            'nonCashRevenue',
-            'totalRevenue',
-            'cashTransactions',
-            'totalTransactions',
-            'expectedCash',
-            'cashMovements'
+            'eceranSession', 'grosirSession',
+            'eceranStats', 'grosirStats'
         ));
     }
 
@@ -282,7 +313,6 @@ class KasirController extends Controller
 
         $request->validate([
             'opening_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|string',
             'notes' => 'nullable|string',
         ]);
 
@@ -295,11 +325,12 @@ class KasirController extends Controller
             return back()->with('error', 'Sesi kasir eceran sudah aktif.');
         }
 
+        // Modal awal selalu tunai (uang fisik di laci)
         \App\Models\PosSession::create([
             'user_id' => Auth::id(),
             'type' => 'eceran',
             'opening_amount' => $request->opening_amount,
-            'payment_method' => $request->payment_method,
+            'payment_method' => 'Tunai',
             'notes' => $request->notes,
             'status' => 'open',
         ]);
@@ -310,14 +341,8 @@ class KasirController extends Controller
     public function openSessionGrosir(Request $request)
     {
         if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.grosir')->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir.');
+            return redirect()->route('kasir.index')->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir.');
         }
-
-        $request->validate([
-            'opening_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|string',
-            'notes' => 'nullable|string',
-        ]);
 
         // Cek jika sudah ada sesi kasir grosir aktif
         $activeSession = \App\Models\PosSession::where('status', 'open')
@@ -328,16 +353,16 @@ class KasirController extends Controller
             return back()->with('error', 'Sesi kasir grosir sudah aktif.');
         }
 
+        // Grosir tidak memerlukan modal awal — langsung buka
         \App\Models\PosSession::create([
             'user_id' => Auth::id(),
             'type' => 'grosir',
-            'opening_amount' => $request->opening_amount,
-            'payment_method' => $request->payment_method,
-            'notes' => $request->notes,
+            'opening_amount' => 0,
+            'payment_method' => 'Tunai',
             'status' => 'open',
         ]);
 
-        return redirect()->route('kasir.grosir')->with('success', 'Sesi Kasir Grosir berhasil dibuka dengan Modal Awal: Rp '.number_format($request->opening_amount, 0, ',', '.'));
+        return redirect()->route('kasir.index')->with('success', 'Sesi Kasir Grosir berhasil dibuka.');
     }
 
     public function closeSession(Request $request)
@@ -374,7 +399,7 @@ class KasirController extends Controller
             'notes' => $request->notes ?: $activeSession->notes,
         ]);
 
-        return redirect()->route('dashboard')->with('success', 'Sesi Kasir berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
+        return redirect()->route('kasir.session')->with('success', 'Sesi Kasir Eceran berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
     }
 
     public function closeSessionGrosir(Request $request)
@@ -411,7 +436,7 @@ class KasirController extends Controller
             'notes' => $request->notes ?: $activeSession->notes,
         ]);
 
-        return redirect()->route('dashboard')->with('success', 'Sesi Kasir Grosir berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
+        return redirect()->route('kasir.session')->with('success', 'Sesi Kasir Grosir berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
     }
 
     public function addCashMovement(Request $request)
@@ -422,16 +447,18 @@ class KasirController extends Controller
 
         $request->validate([
             'type' => 'required|in:in,out',
+            'session_type' => 'required|in:eceran,grosir',
             'amount' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string|max:500',
         ]);
 
+        $sessionType = $request->session_type;
         $activeSession = \App\Models\PosSession::where('status', 'open')
-            ->where('type', 'eceran')
+            ->where('type', $sessionType)
             ->latest()
             ->first();
         if (! $activeSession) {
-            return back()->with('error', 'Tidak ada sesi kasir eceran yang sedang aktif.');
+            return back()->with('error', 'Tidak ada sesi kasir '.$sessionType.' yang sedang aktif.');
         }
 
         PosCashMovement::create([
@@ -563,21 +590,24 @@ class KasirController extends Controller
                     'subtotal' => $item['subtotal'],
                 ]);
 
-                // Deduct stock
+                // Deduct global stock
                 $product = \App\Models\Product::find($item['product_id']);
                 $product->stock -= $item['quantity'];
                 $product->save();
+
+                // Deduct per-warehouse stock (FIFO)
+                $this->deductWarehouseStock($item['product_id'], $item['quantity'], $additionalTransaction->id);
 
                 // Record stock movement
                 \App\Models\StockMovement::create([
                     'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'],
                     'type' => 'out',
+                    'source_type' => 'pos_transaction',
+                    'reference_number' => 'TRX-' . $additionalTransaction->id,
                     'quantity' => $item['quantity'],
-                    'reference_type' => 'Transaction',
-                    'reference_id' => $additionalTransaction->id,
                     'notes' => 'Tambahan item untuk transaksi #' . $transaction->invoice_number,
-                    'created_by' => Auth::id(),
+                    'user_id' => Auth::id(),
                 ]);
             }
 

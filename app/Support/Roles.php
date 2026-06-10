@@ -17,6 +17,7 @@ class Roles
     public const KASIR = 'kasir';
     public const GUDANG = 'gudang';
     public const SALES = 'sales';
+    public const SALES_PASGAR = 'sales_pasgar';
     public const PENDING = 'pending';
 
     /**
@@ -58,6 +59,8 @@ class Roles
             self::KASIR,
             self::GUDANG,
             self::SALES,
+            self::PASGAR,
+            self::SALES_PASGAR,
             self::PENDING,
         ];
     }

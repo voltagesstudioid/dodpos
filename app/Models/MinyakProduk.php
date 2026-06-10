@@ -31,6 +31,29 @@ class MinyakProduk extends Model
         return $this->hasMany(MinyakPenjualan::class, 'produk_id');
     }
 
+    public function regionalHarga()
+    {
+        return $this->hasMany(MinyakRegionalHarga::class, 'produk_id');
+    }
+
+    /**
+     * Get harga jual for a specific regional.
+     * Falls back to default harga_jual if not set for regional.
+     */
+    public function getHargaForRegional(?int $regionalId): float
+    {
+        if (!$regionalId) {
+            return (float) $this->harga_jual;
+        }
+
+        $harga = $this->regionalHarga()->where('regional_id', $regionalId)->first();
+        if ($harga && $harga->harga_jual > 0) {
+            return (float) $harga->harga_jual;
+        }
+
+        return (float) $this->harga_jual;
+    }
+
     public static function generateKode()
     {
         $prefix = 'PRD';

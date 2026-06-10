@@ -34,7 +34,7 @@ class OutboundController extends Controller
     {
         $search = $request->input('search');
 
-        $movements = StockMovement::with(['product', 'warehouse', 'location', 'user'])
+        $movements = StockMovement::with(['product.unit', 'warehouse', 'location', 'user', 'unit'])
             ->where('type', 'out')
             ->when($search, function ($query, $search) {
                 return $query->where('reference_number', 'like', "%{$search}%")
@@ -168,7 +168,7 @@ class OutboundController extends Controller
     public function show(StockMovement $outbound)
     {
         abort_if($outbound->type !== 'out', 404);
-        $outbound->load(['product', 'warehouse', 'location', 'user']);
+        $outbound->load(['product.unit', 'warehouse', 'location', 'user', 'unit']);
         return view('gudang.pengeluaran.show', compact('outbound'));
     }
 
@@ -195,7 +195,7 @@ class OutboundController extends Controller
                 $query->whereNull('expired_date');
             }
 
-            $stockRecord = $query->first();
+            $stockRecord = $query->lockForUpdate()->first();
 
             if ($stockRecord) {
                 $stockRecord->stock += $outbound->quantity;

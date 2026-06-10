@@ -164,7 +164,8 @@ class WarehouseReceiptController extends Controller
                     $item->save();
 
                     // 2. Calculate real base stock quantity using the conversion factor
-                    $baseQty = $qtyInt * max(1, (int) $item->conversion_factor);
+                    //    Use float cast to preserve decimals (e.g. 1.5), minimum 0.0001 to avoid zero
+                    $baseQty = (int) round($qtyInt * max(0.0001, (float) $item->conversion_factor));
 
                     // 3. Add base stock to warehouse specifically
                     $productStock = ProductStock::firstOrNew([

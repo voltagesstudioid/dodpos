@@ -18,6 +18,7 @@ class OpnameApprovalController extends Controller
         $this->ensureSupervisor();
 
         $query = StockOpnameSession::with(['warehouse', 'creator'])
+            ->withCount('items')
             ->where('status', 'submitted')
             ->orderByDesc('submitted_at')
             ->orderByDesc('created_at');
@@ -44,7 +45,7 @@ class OpnameApprovalController extends Controller
     {
         $this->ensureSupervisor();
 
-        $session->load(['warehouse', 'creator', 'items.product']);
+        $session->load(['warehouse', 'creator', 'approver', 'reverser', 'items.product.unitConversions.unit']);
 
         return view('gudang.opname_approval.show', compact('session'));
     }
@@ -214,6 +215,125 @@ class OpnameApprovalController extends Controller
         $session->save();
 
         return redirect()->route('gudang.opname_sessions.index')->with('success', 'Sesi opname ditolak.');
+    }
+
+    public function reverse(Request $request, StockOpnameSession $session)
+    {
+        $this->ensureSupervisor();
+
+        $request->validate([
+            'reversal_notes' => 'required|string|max:2000',
+        ]);
+
+        if ($session->status !== 'approved') {
+            return back()->with('error', 'Hanya sesi yang sudah di-approve yang bisa di-reversal.');
+        }
+
+        if ($session->reversed_at) {
+            return back()->with('error', 'Sesi ini sudah pernah di-reversal sebelumnya.');
+        }
+
+        $session->load(['items', 'warehouse']);
+
+        try {
+            DB::beginTransaction();
+
+            $referenceNumber = $session->reference_number ?: $this->generateRef('OPN-REV');
+
+            // Balikkan setiap adjustment
+            $items = $session->items()->with('product')->lockForUpdate()->get();
+            foreach ($items as $item) {
+                $diff = (int) $item->difference_qty;
+                if ($diff === 0) {
+                    continue;
+                }
+
+                $product = Product::whereKey($item->product_id)->lockForUpdate()->first();
+                if (! $product) {
+                    DB::rollBack();
+                    return back()->with('error', 'Produk tidak ditemukan untuk salah satu item.');
+                }
+
+                $warehouseId = (int) $session->warehouse_id;
+                $reversedDiff = -$diff; // Balik arah adjustment
+
+                if ($reversedDiff > 0) {
+                    // Stok ditambah (reversal dari pengurangan sebelumnya)
+                    $stock = ProductStock::firstOrCreate([
+                        'product_id' => $product->id,
+                        'warehouse_id' => $warehouseId,
+                        'location_id' => null,
+                        'batch_number' => null,
+                        'expired_date' => null,
+                    ], ['stock' => 0]);
+                    $stock->stock += $reversedDiff;
+                    $stock->save();
+
+                    $product->stock += $reversedDiff;
+                    $product->save();
+                } else {
+                    // Stok dikurangi (reversal dari penambahan sebelumnya)
+                    $qtyToRemove = abs($reversedDiff);
+                    $stockRecords = ProductStock::where('product_id', $product->id)
+                        ->where('warehouse_id', $warehouseId)
+                        ->where('stock', '>', 0)
+                        ->orderBy('expired_date', 'asc')
+                        ->orderBy('created_at', 'asc')
+                        ->lockForUpdate()
+                        ->get();
+
+                    $totalAvailable = (int) $stockRecords->sum('stock');
+                    if ($totalAvailable < $qtyToRemove) {
+                        DB::rollBack();
+                        return back()->with('error', "Stok {$product->sku} tidak mencukupi untuk reversal. Tersedia: {$totalAvailable}.");
+                    }
+
+                    $remaining = $qtyToRemove;
+                    foreach ($stockRecords as $stock) {
+                        if ($remaining <= 0) break;
+                        $deduct = min($stock->stock, $remaining);
+                        $stock->stock -= $deduct;
+                        $stock->save();
+                        $remaining -= $deduct;
+                    }
+
+                    $product->stock += $reversedDiff;
+                    if ($product->stock < 0) {
+                        DB::rollBack();
+                        return back()->with('error', 'Reversal dibatalkan karena stok global menjadi minus.');
+                    }
+                    $product->save();
+                }
+
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'warehouse_id' => $warehouseId,
+                    'location_id' => null,
+                    'type' => 'adjustment',
+                    'status' => 'completed',
+                    'source_type' => 'opname_session',
+                    'reference_number' => $referenceNumber,
+                    'batch_number' => null,
+                    'expired_date' => null,
+                    'quantity' => $reversedDiff,
+                    'balance' => (int) ProductStock::where('product_id', $product->id)->where('warehouse_id', $warehouseId)->sum('stock'),
+                    'notes' => "[REVERSAL] Opname Session #{$session->id} | Adjustment sebelumnya: " . ($diff > 0 ? "+{$diff}" : $diff) . " | Reversal: " . ($reversedDiff > 0 ? "+{$reversedDiff}" : $reversedDiff),
+                    'user_id' => Auth::id(),
+                ]);
+            }
+
+            $session->reversed_at = now();
+            $session->reversed_by = Auth::id();
+            $session->reversal_notes = $request->reversal_notes;
+            $session->save();
+
+            DB::commit();
+
+            return redirect()->route('gudang.opname_sessions.index')->with('success', 'Reversal berhasil. Stok dikembalikan ke kondisi sebelum opname.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan sistem: '.$e->getMessage());
+        }
     }
 
     private function ensureSupervisor(): void

@@ -27,13 +27,37 @@ class PenggajianController extends Controller
         $currentUserId = Auth::id();
         $isSupervisor = strtolower((string) (Auth::user()?->role ?? '')) === 'supervisor';
 
-        $payrolls = SdmPayroll::with('user')
+        $payrolls = SdmPayroll::with('user.employee')
             ->where('period_year', $year)
             ->where('period_month', $m)
             ->when(! $isSupervisor && $currentUserId, fn ($q) => $q->where('user_id', $currentUserId))
+            ->orderBy('net_salary', 'desc')
             ->get();
 
-        return view('sdm.penggajian.index', compact('payrolls', 'month'));
+        $setting = StoreSetting::current();
+        $workingDates = $this->workingDates(
+            (int) $year,
+            (int) $m,
+            (string) ($setting->sdm_working_days_mode ?? 'mon_sat'),
+            (string) ($setting->sdm_calendar_mode ?? 'auto')
+        );
+        $workingDaysCount = count($workingDates);
+
+        $stats = [
+            'total' => $payrolls->count(),
+            'draft' => $payrolls->whereNull('locked_at')->count(),
+            'locked' => $payrolls->whereNotNull('locked_at')->count(),
+            'total_net' => $payrolls->sum('net_salary'),
+            'total_basic' => $payrolls->sum('total_basic_salary'),
+            'total_deductions' => $payrolls->sum(fn ($p) => ($p->total_deductions ?? 0) + ($p->absence_deduction ?? 0)),
+            'working_days' => $workingDaysCount,
+        ];
+
+        $monthLabel = Carbon::createFromDate((int) $year, (int) $m, 1)->translatedFormat('F Y');
+
+        $setting = StoreSetting::current();
+
+        return view('sdm.penggajian.index', compact('payrolls', 'month', 'monthLabel', 'stats', 'workingDaysCount', 'setting'));
     }
 
     public function selfIndex(Request $request)
