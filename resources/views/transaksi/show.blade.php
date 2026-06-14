@@ -347,6 +347,7 @@
                             </a>
                         @endcan
 
+                        @can('edit_transaksi')
                         @if(!$hasReturns)
                             <form action="{{ route('transaksi.void', $transaksi) }}" method="POST" class="tr-form-block"
                                   onsubmit="return confirm('PERINGATAN!\n\nVoid transaksi akan membatalkan struk ini secara permanen dan mengembalikan stok barang ke sistem.\n\nLanjutkan?')">
@@ -362,6 +363,7 @@
                                 <span>Void tidak tersedia — transaksi ini memiliki retur.</span>
                             </div>
                         @endif
+                        @endcan
 
                     @elseif($transaksi->status === 'voided')
                         <div class="tr-void-notice">

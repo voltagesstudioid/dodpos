@@ -47,7 +47,52 @@ class OpnameApprovalController extends Controller
 
         $session->load(['warehouse', 'creator', 'approver', 'reverser', 'items.product.unitConversions.unit']);
 
-        return view('gudang.opname_approval.show', compact('session'));
+        // Calculate suspicious items and summary
+        $suspiciousItems = collect();
+        $totalItems = $session->items->count();
+        $totalSystem = 0;
+        $totalPhysical = 0;
+        $countPlus = 0;
+        $countMinus = 0;
+        $countZero = 0;
+        $suspiciousCount = 0;
+
+        foreach ($session->items as $item) {
+            $diff = (int) $item->difference_qty;
+            $sysQty = (int) $item->system_qty;
+            $totalSystem += $sysQty;
+            $totalPhysical += (int) $item->physical_qty;
+
+            if ($diff > 0) {
+                $countPlus++;
+            } elseif ($diff < 0) {
+                $countMinus++;
+            } else {
+                $countZero++;
+            }
+
+            // Flag suspicious: diff percentage > 5% (minimum 5 unit difference)
+            if ($sysQty > 0 && abs($diff) >= 5) {
+                $diffPercent = round(($diff / $sysQty) * 100, 1);
+                if (abs($diffPercent) > 5) {
+                    $item->suspicious_diff_percent = $diffPercent;
+                    $suspiciousItems->push($item);
+                    $suspiciousCount++;
+                }
+            }
+        }
+
+        $summary = (object) [
+            'totalItems' => $totalItems,
+            'totalSystem' => $totalSystem,
+            'totalPhysical' => $totalPhysical,
+            'countPlus' => $countPlus,
+            'countMinus' => $countMinus,
+            'countZero' => $countZero,
+            'suspiciousCount' => $suspiciousCount,
+        ];
+
+        return view('gudang.opname_approval.show', compact('session', 'suspiciousItems', 'summary'));
     }
 
     public function approve(Request $request, StockOpnameSession $session)

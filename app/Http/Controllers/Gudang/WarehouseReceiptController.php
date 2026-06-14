@@ -12,6 +12,7 @@ use App\Models\PurchaseOrderShortageReport;
 use App\Models\StockMovement;
 use App\Models\SupplierDebt;
 use App\Models\Warehouse;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,25 +22,54 @@ use Illuminate\Support\Facades\Storage;
 class WarehouseReceiptController extends Controller
 {
     /**
+     * Only admin3 (Gudang Utama) and supervisor can receive PO goods.
+     * PO goods MUST be received into Gudang Utama.
+     */
+    private function guardPoReceipt(): void
+    {
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if (! in_array($role, ['supervisor', 'admin3'], true)) {
+            abort(403, 'Hanya Admin Gudang Utama (Admin3) dan Supervisor yang dapat menerima barang PO.');
+        }
+    }
+
+    /**
      * Display a listing of pending POs for warehouse receipt.
      */
     public function index(Request $request)
     {
+        $this->guardPoReceipt();
         $search = $request->input('search');
+        $status = $request->input('status', 'pending');
 
-        $orders = PurchaseOrder::with(['supplier'])
-            ->whereIn('status', ['ordered', 'partial'])
+        $baseQuery = PurchaseOrder::with(['supplier'])
+            ->whereIn('status', ['ordered', 'partial', 'received'])
             ->when($search, function ($query) use ($search) {
-                $query->where('po_number', 'like', "%{$search}%")
-                    ->orWhereHas('supplier', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
-            })
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+                $query->where(function($q) use ($search) {
+                    $q->where('po_number', 'like', "%{$search}%")
+                        ->orWhereHas('supplier', function ($sq) use ($search) {
+                            $sq->where('name', 'like', "%{$search}%");
+                        });
+                });
+            });
 
-        return view('gudang.terima_po.index', compact('orders'));
+        $totalCount = (clone $baseQuery)->count();
+        $pendingCount = (clone $baseQuery)->where('status', 'ordered')->count();
+        $partialCount = (clone $baseQuery)->where('status', 'partial')->count();
+        $receivedCount = (clone $baseQuery)->where('status', 'received')->count();
+
+        $query = clone $baseQuery;
+        if ($status === 'pending') {
+            $query->whereIn('status', ['ordered', 'partial']);
+        } elseif ($status === 'received') {
+            $query->where('status', 'received');
+        }
+
+        $orders = $query->latest()->paginate(15)->withQueryString();
+
+        return view('gudang.terima_po.index', compact(
+            'orders', 'totalCount', 'pendingCount', 'partialCount', 'receivedCount', 'status'
+        ));
     }
 
     /**
@@ -47,6 +77,8 @@ class WarehouseReceiptController extends Controller
      */
     public function show(PurchaseOrder $order)
     {
+        $this->guardPoReceipt();
+
         // Only allow receiving if it's ordered or partially received
         abort_if(! in_array($order->status, ['ordered', 'partial']), 404);
 
@@ -60,7 +92,14 @@ class WarehouseReceiptController extends Controller
         }
         $order->load($relations);
 
-        $warehouses = Warehouse::where('active', true)->orderBy('name')->get();
+        // Admin3: auto-assign Gudang Utama as the only warehouse option
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if ($role === 'admin3') {
+            $mainWhId = WarehouseConfig::getMainId();
+            $warehouses = Warehouse::where('id', $mainWhId)->where('active', true)->get();
+        } else {
+            $warehouses = Warehouse::where('active', true)->orderBy('name')->get();
+        }
 
         return view('gudang.terima_po.show', compact('order', 'warehouses'));
     }
@@ -70,6 +109,8 @@ class WarehouseReceiptController extends Controller
      */
     public function store(Request $request, PurchaseOrder $order)
     {
+        $this->guardPoReceipt();
+
         abort_if(! in_array($order->status, ['ordered', 'partial']), 403, 'PO tidak dapat diproses (Status: '.$order->status.').');
 
         $request->validate([

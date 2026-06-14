@@ -24,27 +24,9 @@ class LaporanController extends Controller
     {
         $user = auth()->user();
         $role = strtolower((string) ($user?->role ?? ''));
-        if (! in_array($role, ['admin3', 'admin4'], true)) {
-            return false;
-        }
-        if (! Schema::hasTable('stock_opname_sessions')) {
-            return false;
-        }
-        if (! class_exists(StockOpnameSession::class)) {
-            return false;
-        }
 
-        $start = now()->startOfDay();
-        $end = now()->endOfDay();
-
-        return ! StockOpnameSession::query()
-            ->whereIn('status', ['submitted', 'approved'])
-            ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('submitted_at', [$start, $end])
-                    ->orWhereBetween('approved_at', [$start, $end])
-                    ->orWhereBetween('created_at', [$start, $end]);
-            })
-            ->exists();
+        // Admin3 dan admin4 selalu di-mask untuk mencegah manipulasi saat opname
+        return in_array($role, ['admin3', 'admin4'], true);
     }
 
     public function pembelian(Request $request)

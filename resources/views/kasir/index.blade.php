@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Kasir / POS</x-slot>
+    <x-slot name="header">Kasir / Penjualan</x-slot>
 
     <div class="k-page">
 
@@ -66,8 +66,9 @@
                         <span>Sesi belum dibuka</span>
                         @if(auth()->user()->role === 'supervisor')
                             <button type="button" class="k-open-btn" onclick="document.getElementById('modal-eceran').style.display='flex'">Buka Sesi Eceran</button>
+                            <a href="{{ route('kasir.rekap_harian') }}" style="font-size:0.7rem;color:#4f46e5;margin-top:4px;text-decoration:none;font-weight:600;">Kelola sesi admin1/admin2 →</a>
                         @else
-                            <span class="k-need-super">Hubungi Supervisor untuk membuka sesi</span>
+                            <span class="k-need-super">Menunggu Supervisor memasukkan modal awal</span>
                         @endif
                     </div>
                 @endif
@@ -83,28 +84,25 @@
                         <div class="k-card-label">GROSIR</div>
                         <div class="k-card-name">Kasir Wholesale</div>
                     </div>
-                    @if($grosirSession)
+                    @if($eceranSession)
                         <span class="k-status k-status-active"><span class="k-dot"></span> Aktif</span>
                     @else
-                        <span class="k-status k-status-inactive">Nonaktif</span>
+                        <span class="k-status k-status-locked"><span class="k-dot"></span> Terkunci</span>
                     @endif
                 </div>
 
                 <p class="k-card-desc">Transaksi reseller &amp; pembelian besar. Mendukung harga bertingkat dan multi-satuan.</p>
 
-                @if($grosirSession)
+                @if($eceranSession)
+                    {{-- Eceran session aktif — grosir bisa digunakan --}}
                     <div class="k-stats">
                         <div class="k-stat">
-                            <span class="k-stat-label">Pendapatan Kas</span>
+                            <span class="k-stat-label">Pendapatan Hari Ini</span>
                             <span class="k-stat-value k-highlight">Rp {{ number_format($grosirRevenue, 0, ',', '.') }}</span>
                         </div>
                         <div class="k-stat">
                             <span class="k-stat-label">Total Kas</span>
                             <span class="k-stat-value">Rp {{ number_format($grosirExpected, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="k-stat">
-                            <span class="k-stat-label">Dibuka</span>
-                            <span class="k-stat-value">{{ $grosirSession->created_at->format('H:i') }}</span>
                         </div>
                     </div>
                     <a href="{{ route('kasir.grosir') }}" class="k-card-action k-action-grosir">
@@ -112,17 +110,11 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                     </a>
                 @else
+                    {{-- Eceran session belum dibuka — grosir terkunci --}}
                     <div class="k-card-empty">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        <span>Sesi belum dibuka</span>
-                        @if(auth()->user()->role === 'supervisor')
-                            <form action="{{ route('kasir.open_session_grosir') }}" method="POST" style="margin:0;">
-                                @csrf
-                                <button type="submit" class="k-open-btn">Buka Sesi Grosir</button>
-                            </form>
-                        @else
-                            <span class="k-need-super">Hubungi Supervisor untuk membuka sesi</span>
-                        @endif
+                        <span>Sesi grosir menunggu eceran dibuka</span>
+                        <span class="k-need-super">Grosir aktif setelah sesi eceran memiliki modal awal</span>
                     </div>
                 @endif
             </div>
@@ -137,7 +129,7 @@
 
     </div>
 
-    {{-- ═══ MODAL: BUKA SESI ECERAN ═══ --}}
+    {{-- ═══ MODAL: BUKA SESI ECERAN (Supervisor) ═══ --}}
     @if(auth()->user()->role === 'supervisor' && !$eceranSession)
     <div id="modal-eceran" class="k-modal-overlay" style="display:none;">
         <div class="k-modal">
@@ -197,6 +189,7 @@
         .k-status { margin-left: auto; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.03em; display: inline-flex; align-items: center; gap: 5px; }
         .k-status-active { background: #dcfce7; color: #166534; }
         .k-status-inactive { background: #f1f5f9; color: #94a3b8; }
+        .k-status-locked { background: #fef3c7; color: #92400e; }
         .k-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; animation: k-pulse 1.5s infinite; }
 
         /* ── STATS GRID ── */

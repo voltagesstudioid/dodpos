@@ -11,6 +11,7 @@ use App\Http\Controllers\Gudang\OpnameSessionController;
 use App\Http\Controllers\Gudang\OpnameApprovalController;
 use App\Http\Controllers\Gudang\PenerimaanTransferController;
 use App\Http\Controllers\Gudang\WarehouseReceiptController;
+use App\Http\Controllers\Gudang\PosPickOrderController;
 use App\Http\Controllers\Reports\StockInOutController;
 
 // =========================================================
@@ -31,7 +32,14 @@ Route::middleware('can:view_stok_gudang')->group(function () {
     Route::get('/gudang/request', [ProductRequestController::class, 'index'])->name('gudang.request.index');
     Route::get('/gudang/request/create', [ProductRequestController::class, 'create'])->name('gudang.request.create');
     Route::post('/gudang/request', [ProductRequestController::class, 'store'])->name('gudang.request.store');
-    Route::put('/gudang/request/{productRequest}/status', [ProductRequestController::class, 'updateStatus'])->name('gudang.request.update_status');
+    Route::delete('/gudang/request/{productRequest}', [ProductRequestController::class, 'destroy'])->name('gudang.request.destroy');
+
+    // Persiapan Barang (Pick Orders from POS)
+    Route::get('/gudang/persiapan', [PosPickOrderController::class, 'index'])->name('gudang.pos_pick.index');
+    Route::get('/gudang/persiapan/{pickOrder}', [PosPickOrderController::class, 'show'])->name('gudang.pos_pick.show');
+    Route::patch('/gudang/persiapan/{pickOrder}/process', [PosPickOrderController::class, 'process'])->name('gudang.pos_pick.process');
+    Route::patch('/gudang/persiapan/{pickOrder}/ready', [PosPickOrderController::class, 'markReady'])->name('gudang.pos_pick.ready');
+    Route::patch('/gudang/persiapan/{pickOrder}/complete', [PosPickOrderController::class, 'complete'])->name('gudang.pos_pick.complete');
 });
 
 Route::middleware('can:view_penerimaan_barang')->group(function () {
@@ -52,6 +60,13 @@ Route::middleware('can:view_penerimaan_barang')->group(function () {
     Route::get('/gudang/terima-po', [WarehouseReceiptController::class, 'index'])->name('gudang.terimapo.index');
     Route::get('/gudang/terima-po/{order}', [WarehouseReceiptController::class, 'show'])->name('gudang.terimapo.show');
     Route::post('/gudang/terima-po/{order}', [WarehouseReceiptController::class, 'store'])->name('gudang.terimapo.store');
+});
+
+// Penyesuaian Stok (Stock Adjustment) — supervisor only
+Route::middleware('can:view_penyesuaian_stok')->group(function () {
+    Route::get('/gudang/stock-adjustment', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'index'])->name('gudang.stock-adjustment.index');
+    Route::get('/gudang/stock-adjustment/create', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'create'])->name('gudang.stock-adjustment.create');
+    Route::post('/gudang/stock-adjustment', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'store'])->name('gudang.stock-adjustment.store');
 });
 
 // Opname Stok (Sesi + Approval Supervisor)

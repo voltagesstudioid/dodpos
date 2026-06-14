@@ -106,7 +106,7 @@
                                         @php
                                             $defaultReceived = $item->status === 'completed'
                                                 ? 0
-                                                : (int) $item->quantity;
+                                                : (float) $item->quantity;
                                         @endphp
                                         <tr>
                                             <td>
@@ -135,19 +135,28 @@
                                             </td>
                                             <td class="r">
                                                 <span class="tr-qty-static">{{ number_format($item->quantity) }}</span>
+                                                @if($item->conversion_factor && $item->conversion_factor > 1 && $item->unit)
+                                                    <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">
+                                                        ({{ number_format($item->quantity_in_unit ?? ($item->quantity / $item->conversion_factor), 2, ',', '.') }} {{ $item->unit->name }})
+                                                    </div>
+                                                @endif
                                             </td>
                                             <td class="r">
                                                 @if($isPending)
                                                     <input
                                                         type="number"
                                                         min="0"
-                                                        max="{{ (int) $item->quantity }}"
+                                                        max="{{ $item->quantity }}"
+                                                        step="any"
                                                         name="items[{{ $item->id }}][received_qty]"
                                                         value="{{ old("items.{$item->id}.received_qty", $defaultReceived) }}"
                                                         class="tr-qty-input js-received"
-                                                        data-expected="{{ (int) $item->quantity }}"
+                                                        data-expected="{{ $item->quantity }}"
                                                         required
                                                     >
+                                                    @if($item->conversion_factor && $item->conversion_factor > 1 && $item->unit)
+                                                        <div style="font-size:0.75rem;color:#94a3b8;margin-top:2px;">satuan dasar</div>
+                                                    @endif
                                                 @else
                                                     <span class="tr-qty-static tr-qty-done">
                                                         {{ number_format((int) $item->quantity) }}

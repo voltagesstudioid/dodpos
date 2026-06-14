@@ -11,6 +11,7 @@ use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Unit;
 use App\Models\ProductUnitConversion;
+use App\Support\WarehouseConfig;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -32,21 +33,52 @@ class OutboundController extends Controller
     }
     public function index(Request $request)
     {
-        $search = $request->input('search');
+        $search = trim((string) $request->input('search'));
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        $userWhId = WarehouseConfig::getAllowedId($role);
 
-        $movements = StockMovement::with(['product.unit', 'warehouse', 'location', 'user', 'unit'])
-            ->where('type', 'out')
-            ->when($search, function ($query, $search) {
-                return $query->where('reference_number', 'like', "%{$search}%")
-                             ->orWhereHas('product', function($q) use ($search) {
-                                 $q->where('name', 'like', "%{$search}%");
-                             });
-            })
-            ->latest()
-            ->paginate(15)
-            ->withQueryString();
+        $query = StockMovement::with(['product.unit', 'warehouse', 'location', 'user', 'unit'])
+            ->where('type', 'out');
 
-        return view('gudang.pengeluaran.index', compact('movements'));
+        if ($role !== 'supervisor') {
+            if (!$userWhId) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('warehouse_id', $userWhId);
+            }
+        }
+
+        // KPI Stats
+        $startOfMonth = now()->startOfMonth();
+        $today = now()->startOfDay();
+
+        $kpiQuery = StockMovement::where('type', 'out');
+        if ($role !== 'supervisor') {
+            if ($userWhId) {
+                $kpiQuery->where('warehouse_id', $userWhId);
+            } else {
+                $kpiQuery->whereRaw('1 = 0');
+            }
+        }
+
+        $totalPengeluaranBulanIni = (clone $kpiQuery)->where('created_at', '>=', $startOfMonth)->count();
+        $totalQtyBulanIni = (clone $kpiQuery)->where('created_at', '>=', $startOfMonth)->sum('quantity');
+        $transaksiHariIni = (clone $kpiQuery)->where('created_at', '>=', $today)->count();
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('reference_number', 'like', "%{$search}%")
+                  ->orWhereHas('product', function($p) use ($search) {
+                      $p->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $movements = $query->latest()->paginate(15)->withQueryString();
+
+        return view('gudang.pengeluaran.index', compact(
+            'movements', 'totalPengeluaranBulanIni', 'totalQtyBulanIni', 'transaksiHariIni'
+        ));
     }
 
     public function create()
@@ -70,6 +102,15 @@ class OutboundController extends Controller
             'quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string'
         ]);
+
+        // Restrict admin3/admin4 to their own warehouse
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if ($role !== 'supervisor') {
+            $allowedWh = WarehouseConfig::getAllowedId($role);
+            if ($allowedWh && (int) $request->warehouse_id !== $allowedWh) {
+                return back()->withInput()->with('error', 'Anda hanya dapat mengeluarkan barang dari gudang tempat Anda bertugas.');
+            }
+        }
 
         try {
             DB::beginTransaction();

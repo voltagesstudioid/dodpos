@@ -42,6 +42,46 @@
                 @endif
             </div>
 
+            {{-- STATS CARDS --}}
+            <div class="tr-stats-grid-4" style="margin-bottom: 1.5rem;">
+                <div class="tr-stat-card border-indigo">
+                    <div class="tr-stat-icon bg-indigo">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Transfer In</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-orange">
+                    <div class="tr-stat-icon bg-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($pendingCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Menunggu Cross-Check</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-purple">
+                    <div class="tr-stat-icon bg-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($partialCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Parsial / Selisih</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-green">
+                    <div class="tr-stat-icon bg-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($completedCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Selesai Diterima</div>
+                    </div>
+                </div>
+            </div>
+
             {{-- MAIN CARD --}}
             <div class="tr-card">
                 <div class="tr-card-header">
@@ -51,12 +91,23 @@
                         </div>
                         Daftar Pengiriman
                     </div>
-                    <form action="{{ route('gudang.terima_transfer.index') }}" method="GET" class="tr-search-form">
+                    <form action="{{ route('gudang.terima_transfer.index') }}" method="GET" class="tr-search-form" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <div class="tr-search">
                             <svg class="tr-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                            <input type="text" name="search" placeholder="Cari referensi..."
-                                   value="{{ request('search') }}">
+                            <input type="text" name="search" placeholder="Cari referensi..." value="{{ request('search') }}">
                         </div>
+                        
+                        <select name="status" class="tr-select">
+                            <option value="all" {{ request('status') === 'all' ? 'selected' : '' }}>Semua Status</option>
+                            <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Menunggu Cross-Check</option>
+                            <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Parsial / Selisih</option>
+                            <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Selesai</option>
+                        </select>
+
+                        <button type="submit" class="tr-btn tr-btn-primary">Filter</button>
+                        @if(request('search') || request('status'))
+                            <a href="{{ route('gudang.terima_transfer.index') }}" class="tr-btn tr-btn-outline" style="color:var(--tr-danger-text); border-color:var(--tr-danger-border);">Reset</a>
+                        @endif
                     </form>
                 </div>
 
@@ -245,6 +296,26 @@
         .tr-tab-item:hover { color: var(--tr-text-main); }
         .tr-tab-item.active { color: var(--tr-primary); border-bottom-color: var(--tr-primary); }
 
+        /* Stats Grid 4 */
+        .tr-stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 992px) { .tr-stats-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 576px) { .tr-stats-grid-4 { grid-template-columns: 1fr; } }
+
+        .tr-stat-card { background: var(--tr-surface); border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); }
+        .tr-stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .tr-stat-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); line-height: 1; }
+        .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
+
+        /* Colors */
+        .bg-green { background: #10b981; }
+        .bg-indigo { background: #4f46e5; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-orange { background: #f59e0b; }
+        .border-green { border-left: 4px solid #10b981; }
+        .border-indigo { border-left: 4px solid #4f46e5; }
+        .border-purple { border-left: 4px solid #8b5cf6; }
+        .border-orange { border-left: 4px solid #f59e0b; }
+
         /* ── MAIN CARD ── */
         .tr-card {
             background: var(--tr-surface);
@@ -305,6 +376,7 @@
             width: 100%;
         }
         .tr-search input::placeholder { color: var(--tr-text-light); }
+        .tr-select { padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--tr-border); font-size: 0.8rem; background: white; font-family: inherit; color: var(--tr-text-main); height: 36px; }
 
         /* ── TABLE RESPONSIVE WRAPPER ── */
         .table-responsive {

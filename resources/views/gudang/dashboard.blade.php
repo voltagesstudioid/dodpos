@@ -60,7 +60,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     </div>
                     <div>
-                        <div class="tr-stat-value">Rp {{ number_format($totalStockValue, 0, ',', '.') }}</div>
+                        <div class="tr-stat-value">{{ ($hideFinancial ?? false) ? '***' : 'Rp ' . number_format($totalStockValue, 0, ',', '.') }}</div>
                         <div class="tr-stat-label">Nilai Stok</div>
                     </div>
                 </div>
@@ -348,7 +348,7 @@
         .tr-activity-meta { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
 
         /* Opname Stats */
-        .tr-opname-stats { display: flex; gap: 1rem; }
+        .tr-opname-stats { display: flex; gap: 1rem; flex-wrap: wrap; }
         .tr-opname-stat { display: flex; align-items: center; gap: 0.75rem; flex: 1; padding: 1rem; background: #f8fafc; border-radius: 10px; }
         .tr-opname-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; }
         .tr-opname-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); }

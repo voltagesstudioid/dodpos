@@ -30,13 +30,15 @@ class KasirGrosirController extends Controller
 
     public function index()
     {
-        $activeSession = \App\Models\PosSession::where('status', 'open')
-            ->where('type', 'grosir')
-            ->latest()
+        // Grosir memerlukan sesi eceran yang aktif (modal awal sudah dimasukkan)
+        $eceranSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'eceran')
+            ->where('user_id', Auth::id())
             ->first();
 
-        if (! $activeSession) {
-            return view('kasir.closed', ['type' => 'grosir']);
+        if (!$eceranSession) {
+            return redirect()->route('kasir.index')
+                ->with('error', 'Sesi grosir tidak dapat diakses. Sesi eceran harus dibuka dengan modal awal terlebih dahulu.');
         }
 
         // Load products for grosir POS
@@ -77,6 +79,19 @@ class KasirGrosirController extends Controller
 
     public function store(Request $request)
     {
+        // Verifikasi sesi eceran aktif sebelum menyimpan transaksi grosir
+        $eceranSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'eceran')
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if (!$eceranSession) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi eceran belum dibuka. Grosir tidak dapat digunakan.',
+            ], 403);
+        }
+
         $request->validate([
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -95,8 +110,7 @@ class KasirGrosirController extends Controller
         try {
             DB::beginTransaction();
 
-            // Validate POS session
-            $this->transactionService->validatePosSession('grosir');
+            // Grosir tidak perlu sesi sendiri — mengikuti sesi eceran
 
             // Lock and load products
             $productIds = collect($request->items)->pluck('product_id')->unique()->values()->toArray();

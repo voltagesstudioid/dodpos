@@ -133,9 +133,14 @@
         .quick-btn:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent-dark)}
         .quick-btn.pas{background:var(--green-light);border-color:#86efac;color:var(--green-dark);font-weight:800}
         .quick-btn.pas:hover{background:#bbf7d0;border-color:var(--green)}
-        .debt-box{background:var(--red-light);border-radius:10px;padding:0.75rem;text-align:center;margin:0.75rem 0;border:1px solid #fecaca}
+        .debt-box{background:var(--red-light);border-radius:10px;padding:0.75rem;margin:0.75rem 0;border:1px solid #fecaca}
         .debt-label{font-size:0.65rem;color:#991b1b;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
         .debt-amount{font-size:1.4rem;font-weight:900;color:var(--red);font-family:ui-monospace,monospace;margin-top:2px}
+        .debt-detail{margin-top:0.5rem;padding-top:0.5rem;border-top:1px dashed #fecaca;font-size:0.72rem}
+        .debt-row{display:flex;justify-content:space-between;padding:2px 0;color:#7f1d1d}
+        .debt-row .dlabel{font-weight:600}
+        .debt-row .dval{font-weight:800;font-family:ui-monospace,monospace}
+        .debt-row.dtotal{border-top:1px solid #fecaca;margin-top:3px;padding-top:5px;font-size:0.8rem;color:#991b1b}
         .modal-actions{display:flex;gap:0.625rem;margin-top:1rem}
         .btn-confirm{flex:2;background:var(--accent);border:none;color:#fff;padding:0.8rem;border-radius:10px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;transition:0.15s}
         .btn-confirm:hover{background:var(--accent-dark)}
@@ -287,8 +292,14 @@
             <div class="change-amount" id="changeDisplay">Rp 0</div>
         </div>
         <div class="debt-box" id="debtBox" style="display:none">
-            <div class="debt-label">Sisa Hutang</div>
+            <div class="debt-label">Hutang Transaksi Ini</div>
             <div class="debt-amount" id="debtDisplay">Rp 0</div>
+            <div class="debt-detail" id="debtDetail">
+                <div class="debt-row"><span class="dlabel">Hutang Sebelumnya</span><span class="dval" id="debtPrev">Rp 0</span></div>
+                <div class="debt-row"><span class="dlabel">Hutang Transaksi Ini</span><span class="dval" id="debtNew">Rp 0</span></div>
+                <div class="debt-row dtotal"><span class="dlabel"><b>Total Hutang</b></span><span class="dval" id="debtTotal"><b>Rp 0</b></span></div>
+                <div class="debt-row" style="margin-top:3px"><span class="dlabel">Limit Kredit</span><span class="dval" id="debtLimit">Rp 0</span></div>
+            </div>
         </div>
         <div class="modal-actions">
             <button class="btn-cancel" onclick="closePay()">Batal</button>
@@ -304,6 +315,11 @@
         <div class="success-title">Transaksi Selesai!</div>
         <div class="success-change-label" id="successLabel">Kembalian</div>
         <div class="success-change-amount" id="successChange">Rp 0</div>
+        <div id="successDebtInfo" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:0.65rem;margin-bottom:0.75rem;font-size:0.78rem;text-align:left">
+            <div style="display:flex;justify-content:space-between;padding:2px 0;color:#7f1d1d"><span style="font-weight:600">Hutang Sebelumnya</span><span style="font-weight:800;font-family:ui-monospace,monospace" id="sucDebtPrev">Rp 0</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0;color:#7f1d1d"><span style="font-weight:600">Hutang Transaksi Ini</span><span style="font-weight:800;font-family:ui-monospace,monospace" id="sucDebtNew">Rp 0</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0 2px;border-top:1px dashed #fecaca;margin-top:3px;color:#991b1b;font-size:0.85rem"><span style="font-weight:800">Total Hutang</span><span style="font-weight:900;font-family:ui-monospace,monospace" id="sucDebtTotal">Rp 0</span></div>
+        </div>
         <button class="btn-success btn-print" id="btnCetakFaktur" onclick="printFaktur()">Cetak Faktur Grosir</button>
         <button class="btn-success btn-new" onclick="newTrx()">+ Transaksi Baru</button>
     </div>
@@ -379,6 +395,8 @@ document.getElementById('customerId').addEventListener('change', function() {
         document.getElementById('cRem').textContent = 'Rp ' + fmt(rem);
         info.style.display = 'block';
     } else { info.style.display = 'none'; }
+    // Recalculate debt if kredit payment is active
+    if(method === 'kredit') calcDebt();
 });
 
 function render(){
@@ -559,10 +577,21 @@ function calcChange(){
 function calcDebt(){
     const total = getTotal(), dp = parseFloat(document.getElementById('paidInput').value) || 0;
     const box = document.getElementById('debtBox');
-    if(dp >= total) {
+    const newDebt = Math.max(0, total - dp);
+    if(dp >= total || !document.getElementById('customerId').value) {
         box.style.display = 'none';
     } else {
-        document.getElementById('debtDisplay').textContent = 'Rp ' + fmt(total - dp);
+        // Get customer current debt from loaded data
+        const custId = document.getElementById('customerId').value;
+        const c = CUSTOMERS.find(x => x.id == custId);
+        const prevDebt = parseFloat(c?.current_debt) || 0;
+        const limit = parseFloat(c?.credit_limit) || 0;
+        const totalDebt = prevDebt + newDebt;
+        document.getElementById('debtDisplay').textContent = 'Rp ' + fmt(newDebt);
+        document.getElementById('debtPrev').textContent = 'Rp ' + fmt(prevDebt);
+        document.getElementById('debtNew').textContent = 'Rp ' + fmt(newDebt);
+        document.getElementById('debtTotal').innerHTML = '<b>Rp ' + fmt(totalDebt) + '</b>';
+        document.getElementById('debtLimit').textContent = 'Rp ' + fmt(limit);
         box.style.display = 'block';
     }
 }
@@ -598,22 +627,37 @@ function doPayment(){
             closePay();
             const label = document.getElementById('successLabel');
             const amtEl = document.getElementById('successChange');
+            const debtInfo = document.getElementById('successDebtInfo');
             if(method === 'kredit') {
-                label.textContent = 'Sisa Hutang';
                 const debt = Math.max(0, total - paid);
+                const custId = document.getElementById('customerId').value;
+                const c = CUSTOMERS.find(x => x.id == custId);
+                const prevDebt = parseFloat(c?.current_debt) || 0;
+                const totalDebt = prevDebt + debt;
+                label.textContent = 'Sisa Hutang Transaksi Ini';
                 amtEl.textContent = debt > 0 ? 'Rp ' + fmt(debt) : 'Lunas';
                 amtEl.style.color = debt > 0 ? 'var(--red)' : 'var(--green)';
+                // Show debt breakdown
+                if(debt > 0) {
+                    document.getElementById('sucDebtPrev').textContent = 'Rp ' + fmt(prevDebt);
+                    document.getElementById('sucDebtNew').textContent = 'Rp ' + fmt(debt);
+                    document.getElementById('sucDebtTotal').textContent = 'Rp ' + fmt(totalDebt);
+                    debtInfo.style.display = 'block';
+                } else {
+                    debtInfo.style.display = 'none';
+                }
             } else {
                 label.textContent = 'Kembalian';
                 amtEl.textContent = 'Rp ' + fmt(change);
                 amtEl.style.color = 'var(--amber)';
+                debtInfo.style.display = 'none';
             }
             document.getElementById('successOverlay').classList.add('show');
         } else alert('Gagal: ' + d.message);
     }).catch(() => alert('Gagal menghubungi server.')).finally(() => { btn.disabled = false; btn.textContent = 'Konfirmasi'; });
 }
 
-function newTrx(){ cart=[]; method='cash'; document.getElementById('priceTier').value='grosir'; priceTier='grosir'; document.getElementById('customerId').value=''; document.getElementById('customerInfo').style.display='none'; renderCart(); render(); document.getElementById('successOverlay').classList.remove('show'); }
+function newTrx(){ cart=[]; method='cash'; document.getElementById('priceTier').value='grosir'; priceTier='grosir'; document.getElementById('customerId').value=''; document.getElementById('customerInfo').style.display='none'; renderCart(); document.getElementById('successOverlay').classList.remove('show'); fetchProducts(document.querySelector('.search-input').value); }
 function fmt(n){ return Math.round(n).toLocaleString('id-ID'); }
 </script>
 </body>

@@ -23,34 +23,78 @@ class PenerimaanTransferController extends Controller
     {
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
+        $userWhId = WarehouseConfig::getAllowedId($role);
 
-        // Get branch warehouse ID dynamically from config
-        $warehouseId = WarehouseConfig::getBranchId();
-
-        // Only allow Admin 4, Admin with access, or Supervisor
-        if (! WarehouseConfig::canAccess($role, $warehouseId)) {
-            abort(403, 'Anda tidak memiliki akses ke Penerimaan Transfer cabang.');
+        if (! in_array($role, ['supervisor', 'admin3', 'admin4', 'gudang'], true)) {
+            abort(403, 'Anda tidak memiliki akses ke Penerimaan Transfer.');
         }
 
         $search = trim((string) $request->input('search'));
         $status = trim((string) $request->input('status'));
         $sanitizedSearch = SearchSanitizer::sanitize($search);
 
+        // Calculate KPI Stats
+        $statsQuery = StockMovement::query()
+            ->where('type', 'transfer_in')
+            ->whereIn('status', ['pending', 'partial', 'completed']);
+        
+        if ($role !== 'supervisor') {
+            if (!$userWhId) {
+                $statsQuery->whereRaw('1 = 0');
+            } else {
+                $statsQuery->where('warehouse_id', $userWhId);
+            }
+        }
+        
+        $stats = $statsQuery->selectRaw('reference_number, MIN(status) as min_status, MAX(status) as max_status')
+            ->groupBy('reference_number')
+            ->get();
+            
+        $totalCount = $stats->count();
+        $pendingCount = 0;
+        $partialCount = 0;
+        $completedCount = 0;
+        
+        foreach ($stats as $st) {
+            if ($st->min_status === 'completed' && $st->max_status === 'completed') {
+                $completedCount++;
+            } elseif ($st->min_status === 'pending' && $st->max_status === 'pending') {
+                $pendingCount++;
+            } else {
+                $partialCount++; // mixed or partial
+            }
+        }
+
         // Ambil semua dokumen transfer yang masuk ke gudang ini
         $referenceQuery = StockMovement::query()
             ->where('type', 'transfer_in')
-            ->where('warehouse_id', $warehouseId)
-            ->whereIn('status', ['pending', 'partial', 'completed'])
-            ->when($status !== '' && in_array($status, ['pending', 'partial', 'completed'], true), function ($query) use ($status) {
-                $query->where('status', $status);
-            })
+            ->whereIn('status', ['pending', 'partial', 'completed']);
+            
+        if ($role !== 'supervisor') {
+            if (!$userWhId) {
+                $referenceQuery->whereRaw('1 = 0');
+            } else {
+                $referenceQuery->where('warehouse_id', $userWhId);
+            }
+        }
+
+        // Apply filters
+        if ($status === 'pending') {
+            $referenceQuery->havingRaw("MIN(status) = 'pending' AND MAX(status) = 'pending'");
+        } elseif ($status === 'completed') {
+            $referenceQuery->havingRaw("MIN(status) = 'completed' AND MAX(status) = 'completed'");
+        } elseif ($status === 'partial') {
+            $referenceQuery->havingRaw("MIN(status) != MAX(status) OR (MIN(status) = 'partial' OR MAX(status) = 'partial')");
+        }
+
+        $referenceQuery
             ->when($search !== '', function ($query) use ($sanitizedSearch) {
                 $query->where(function ($q) use ($sanitizedSearch) {
                     $q->where('reference_number', 'like', "%{$sanitizedSearch}%")
                         ->orWhere('notes', 'like', "%{$sanitizedSearch}%");
                 });
             })
-            ->selectRaw('reference_number, MAX(created_at) as latest_created_at, MAX(status) as current_status')
+            ->selectRaw('reference_number, MAX(created_at) as latest_created_at, MIN(status) as min_status, MAX(status) as max_status')
             ->groupBy('reference_number')
             ->orderByDesc('latest_created_at');
 
@@ -69,11 +113,15 @@ class PenerimaanTransferController extends Controller
             ->get()
             ->groupBy('reference_number');
 
-        $receiptLatest = TransferReceipt::query()
-            ->where('warehouse_id', $warehouseId)
+        $receiptLatestQuery = TransferReceipt::query()
             ->whereIn('reference_number', $referenceNumbers)
-            ->orderByDesc('id')
-            ->get()
+            ->orderByDesc('id');
+            
+        if ($role !== 'supervisor' && isset($userWhId) && $userWhId) {
+            $receiptLatestQuery->where('warehouse_id', $userWhId);
+        }
+            
+        $receiptLatest = $receiptLatestQuery->get()
             ->groupBy('reference_number')
             ->map(fn ($rows) => $rows->first());
 
@@ -126,13 +174,15 @@ class PenerimaanTransferController extends Controller
         // Stats untuk badge tab (hindari query di Blade)
         $pendingReqCount = \App\Models\ProductRequest::where('status', 'approved')->count();
         $pendingTransferQuery = StockMovement::where('type', 'transfer_in')->where('status', 'pending');
-        $userWhId = auth()->user()->employee?->warehouse_id;
         if ($userWhId) {
             $pendingTransferQuery->where('warehouse_id', $userWhId);
         }
         $pendingTransferCount = $pendingTransferQuery->count();
 
-        return view('gudang.terima_transfer.index', compact('transfers', 'pendingReqCount', 'pendingTransferCount'));
+        return view('gudang.terima_transfer.index', compact(
+            'transfers', 'pendingReqCount', 'pendingTransferCount', 
+            'totalCount', 'pendingCount', 'partialCount', 'completedCount'
+        ));
     }
 
     /**
@@ -140,19 +190,29 @@ class PenerimaanTransferController extends Controller
      */
     public function show($reference_number)
     {
-        $warehouseId = WarehouseConfig::getBranchId(); // Gudang Cabang
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        $userWhId = WarehouseConfig::getAllowedId($role);
 
-        $ins = StockMovement::with(['product', 'warehouse', 'location', 'unit'])
+        $query = StockMovement::with(['product', 'warehouse', 'location', 'unit'])
             ->where('reference_number', $reference_number)
             ->where('type', 'transfer_in')
-            ->where('warehouse_id', $warehouseId)
             ->whereIn('status', ['pending', 'partial', 'completed'])
-            ->orderBy('created_at')
-            ->get();
+            ->orderBy('created_at');
+
+        if ($role !== 'supervisor') {
+            if (!$userWhId) {
+                abort(403, 'Anda tidak berhak melihat data transfer ini.');
+            }
+            $query->where('warehouse_id', $userWhId);
+        }
+
+        $ins = $query->get();
 
         if ($ins->isEmpty()) {
-            abort(404, 'Data Transfer tidak ditemukan.');
+            abort(404, 'Data Transfer tidak ditemukan atau Anda tidak memiliki akses.');
         }
+        
+        $warehouseId = $ins->first()->warehouse_id;
 
         $firstIn = $ins->first();
         $isPending = $ins->every(fn ($m) => $m->status === 'pending');
@@ -183,12 +243,13 @@ class PenerimaanTransferController extends Controller
      */
     public function receive(Request $request, $reference_number)
     {
-        $warehouseId = WarehouseConfig::getBranchId();
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        $userWhId = WarehouseConfig::getAllowedId($role);
 
         $request->validate([
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
-            'items.*.received_qty' => 'required|integer|min:0',
+            'items.*.received_qty' => 'required|numeric|min:0',
             'items.*.quality_ok' => 'nullable|boolean',
             'items.*.spec_ok' => 'nullable|boolean',
             'items.*.packaging_ok' => 'nullable|boolean',
@@ -198,18 +259,27 @@ class PenerimaanTransferController extends Controller
         try {
             DB::beginTransaction();
 
-            $movementsIn = StockMovement::where('reference_number', $reference_number)
+            $query = StockMovement::where('reference_number', $reference_number)
                 ->where('type', 'transfer_in')
-                ->where('warehouse_id', $warehouseId)
                 ->where('status', 'pending')
-                ->lockForUpdate()
-                ->get();
+                ->lockForUpdate();
+
+            if ($role !== 'supervisor') {
+                if (!$userWhId) {
+                    throw new \Exception('Anda tidak berhak menerima transfer ini.');
+                }
+                $query->where('warehouse_id', $userWhId);
+            }
+
+            $movementsIn = $query->get();
 
             if ($movementsIn->isEmpty()) {
                 DB::rollBack();
 
                 return redirect()->back()->with('error', 'Transfer ini sudah diterima atau tidak valid.');
             }
+            
+            $warehouseId = $movementsIn->first()->warehouse_id;
 
             $payloadItems = $request->input('items', []);
             $payloadById = collect($payloadItems)->mapWithKeys(function ($row, $key) {
@@ -231,8 +301,8 @@ class PenerimaanTransferController extends Controller
             /** @var \App\Models\StockMovement $movIn */
             foreach ($movementsIn as $movIn) {
                 $row = (array) ($payloadById->get((int) $movIn->id) ?? []);
-                $expected = (int) $movIn->quantity;
-                $received = (int) ($row['received_qty'] ?? 0);
+                $expected = (float) $movIn->quantity;
+                $received = (float) ($row['received_qty'] ?? 0);
 
                 if ($received > $expected) {
                     DB::rollBack();
@@ -241,7 +311,7 @@ class PenerimaanTransferController extends Controller
                 }
 
                 $rejected = $expected - $received;
-                $qtyOk = $rejected === 0;
+                $qtyOk = abs($rejected) < 0.001;
                 if (! $qtyOk) {
                     $anyPartial = true;
                 }

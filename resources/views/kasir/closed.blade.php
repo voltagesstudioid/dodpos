@@ -7,7 +7,7 @@
 @endphp
 
 <x-app-layout>
-    <x-slot name="header">POS / Kasir</x-slot>
+    <x-slot name="header">Penjualan / Kasir</x-slot>
 
     <div class="page-container" style="max-width:980px;">
         <div class="card" style="padding:1.5rem;">
@@ -30,6 +30,9 @@
                 <div style="font-size:0.9rem;font-weight:900;color:#0f172a;margin-bottom:0.25rem;">Buka {{ $kasirLabel }} Sekarang</div>
                 <div style="font-size:0.85rem;color:#64748b;margin-bottom:1rem;line-height:1.6;">
                     Isi jumlah modal awal (uang kembalian) yang ada di laci kasir {{ $isEceran ? 'eceran' : 'grosir' }}.
+                    @if($isEceran)
+                        <br><strong>Tip:</strong> Untuk membuka sesi kasir admin1/admin2 dengan modal awal masing-masing, gunakan halaman <a href="{{ route('kasir.rekap_harian') }}" style="color:#4f46e5;">Rekap Harian</a>.
+                    @endif
                 </div>
 
                 <form action="{{ route($routeName) }}" method="POST" style="display:flex;flex-direction:column;gap:0.75rem;">
@@ -66,7 +69,7 @@
             <div class="card" style="padding:1rem;margin-top:1rem;border-left:3px solid #f59e0b;background:#fffbeb;">
                 <div style="font-weight:900;color:#92400e;margin-bottom:0.25rem;">Akses dibatasi</div>
                 <div style="font-size:0.85rem;color:#92400e;line-height:1.6;">
-                    Silakan hubungi Supervisor untuk membuka sesi {{ $kasirLabel }}.
+                    Hanya Supervisor yang dapat membuka sesi {{ $kasirLabel }} dan menentukan modal awal. Silakan hubungi Supervisor Anda.
                 </div>
             </div>
         @endif

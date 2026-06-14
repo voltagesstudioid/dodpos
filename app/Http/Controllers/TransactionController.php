@@ -9,6 +9,7 @@ use App\Models\ProductStock;
 use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Support\SearchSanitizer;
+use App\Support\WarehouseConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +19,21 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+
+        // Admin1/admin2 hanya bisa melihat transaksi mereka sendiri
+        $isOwnOnly = in_array($role, ['admin1', 'admin2'], true);
+
+        // Admin3/Admin4: filter by their warehouse
+        $userWhId = ($role === 'admin3' || $role === 'admin4')
+            ? WarehouseConfig::getAllowedId($role)
+            : null;
+
         // Only show root transactions (not additional/child transactions)
         $query = Transaction::with(['user', 'details.product', 'additionalTransactions', 'customer'])
             ->whereNull('parent_transaction_id')
+            ->when($isOwnOnly, fn ($q) => $q->where('user_id', Auth::id()))
+            ->when($userWhId, fn ($q) => $q->whereHas('details', fn ($d) => $d->where('warehouse_id', $userWhId)))
             ->latest();
 
         // Filters
@@ -29,8 +42,7 @@ class TransactionController extends Controller
             $query->where(function ($q) use ($request, $sanitizedSearch) {
                 $q->where('id', $request->search)
                     ->orWhereHas('user', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"))
-                    ->orWhereHas('customer', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"))
-                    ->orWhere('invoice_number', 'like', "%{$sanitizedSearch}%");
+                    ->orWhereHas('customer', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"));
             });
         }
         if ($request->payment_method) {
@@ -53,12 +65,17 @@ class TransactionController extends Controller
         if ($request->sale_type) {
             $query->where('sale_type', $request->sale_type);
         }
+        // Filter by cashier (supervisor only)
+        if ($request->user_id && ! $isOwnOnly) {
+            $query->where('user_id', $request->user_id);
+        }
 
         $transactions = $query->paginate(25)->withQueryString();
 
         // Summary cards (for current filter scope)
         // Summary only counts root transactions (same scope as main query)
-        $summaryQuery = Transaction::query()->whereNull('parent_transaction_id');
+        $summaryQuery = Transaction::query()->whereNull('parent_transaction_id')
+            ->when($isOwnOnly, fn ($q) => $q->where('user_id', Auth::id()));
         if ($request->date_from) {
             $summaryQuery->whereDate('created_at', '>=', $request->date_from);
         }
@@ -70,6 +87,9 @@ class TransactionController extends Controller
         }
         if ($request->sale_type) {
             $summaryQuery->where('sale_type', $request->sale_type);
+        }
+        if ($request->user_id && ! $isOwnOnly) {
+            $summaryQuery->where('user_id', $request->user_id);
         }
         if ($request->status) {
             $summaryQuery->where('status', $request->status);
@@ -83,16 +103,21 @@ class TransactionController extends Controller
 
         // Today stats: only root transactions, completed only
         $todayRevenue = Transaction::whereNull('parent_transaction_id')
+            ->when($isOwnOnly, fn ($q) => $q->where('user_id', Auth::id()))
             ->whereDate('created_at', today())
             ->where('status', 'completed')
             ->sum('total_amount');
         $todayCount = Transaction::whereNull('parent_transaction_id')
+            ->when($isOwnOnly, fn ($q) => $q->where('user_id', Auth::id()))
             ->whereDate('created_at', today())
             ->where('status', 'completed')
             ->count();
 
+        // Kasir users (for supervisor filter dropdown)
+        $kasirUsers = $isOwnOnly ? collect() : \App\Models\User::whereIn('role', ['supervisor', 'admin1', 'admin2'])->orderBy('name')->get(['id', 'name', 'role']);
+
         return view('transaksi.index', compact(
-            'transactions', 'totalRevenue', 'totalCount', 'todayRevenue', 'todayCount'
+            'transactions', 'totalRevenue', 'totalCount', 'todayRevenue', 'todayCount', 'kasirUsers'
         ));
     }
 
@@ -128,6 +153,12 @@ class TransactionController extends Controller
      */
     public function destroy(Transaction $transaksi)
     {
+        // Admin3/Admin4 are view-only — cannot void transactions
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if (in_array($role, ['admin3', 'admin4'], true)) {
+            abort(403, 'Anda tidak memiliki izin untuk membatalkan transaksi.');
+        }
+
         if ($transaksi->status === 'voided') {
             return back()->with('error', 'Transaksi ini sudah dibatalkan sebelumnya.');
         }
@@ -397,9 +428,23 @@ class TransactionController extends Controller
             // ── 4. Tandai transaksi utama sebagai void ────────────────
             $transaksi->update(['status' => 'voided']);
 
+            // ── 5. Batalkan Pick Order yang terhubung ─────────────────
+            if (class_exists(\App\Models\PosPickOrder::class)) {
+                $pickOrders = \App\Models\PosPickOrder::where('transaction_id', $transaksi->id)
+                    ->whereNotIn('status', ['cancelled'])
+                    ->get();
+                foreach ($pickOrders as $pickOrder) {
+                    $pickOrder->update([
+                        'status' => 'cancelled',
+                        'notes'  => ($pickOrder->notes ? $pickOrder->notes . ' | ' : '') .
+                            '[VOID] Transaksi #' . $transaksi->id . ' dibatalkan oleh ' . Auth::user()->name . ' pada ' . now()->format('d/m/Y H:i'),
+                    ]);
+                }
+            }
+
             DB::commit();
 
-            return back()->with('success', 'Transaksi #'.$transaksi->id.' berhasil dibatalkan (void). Stok dan piutang pelanggan telah dikembalikan.');
+            return back()->with('success', 'Transaksi #' . $transaksi->id . ' berhasil dibatalkan (void). Stok, piutang pelanggan, dan pick order telah diperbarui.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -411,5 +456,96 @@ class TransactionController extends Controller
 
             return back()->with('error', 'Gagal membatalkan transaksi. Silakan coba lagi.');
         }
+    }
+
+    /**
+     * Laporan Barang Terjual — menampilkan detail produk yang terjual dari seluruh transaksi.
+     */
+    public function soldItems(Request $request)
+    {
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+
+        // Admin1/admin2 hanya bisa melihat data penjualan mereka sendiri
+        $isOwnOnly = in_array($role, ['admin1', 'admin2'], true);
+
+        // Admin3/Admin4: filter by their warehouse
+        $userWhId = ($role === 'admin3' || $role === 'admin4')
+            ? WarehouseConfig::getAllowedId($role)
+            : null;
+
+        $query = \App\Models\TransactionDetail::with(['product', 'transaction.user', 'transaction.customer', 'warehouse'])
+            ->whereHas('transaction', function ($q) use ($isOwnOnly) {
+                $q->where('status', 'completed');
+                if ($isOwnOnly) {
+                    $q->where('user_id', Auth::id());
+                }
+            })
+            ->orderBy('transaction_details.created_at', 'desc');
+
+        // Admin3/Admin4: only show sales from their warehouse
+        if ($userWhId) {
+            $query->where('transaction_details.warehouse_id', $userWhId);
+        }
+
+        // Filter tanggal
+        if ($request->date_from) {
+            $query->whereHas('transaction', fn ($q) => $q->whereDate('created_at', '>=', $request->date_from));
+        }
+        if ($request->date_to) {
+            $query->whereHas('transaction', fn ($q) => $q->whereDate('created_at', '<=', $request->date_to));
+        }
+        // Filter jenis penjualan
+        if ($request->sale_type) {
+            $query->whereHas('transaction', fn ($q) => $q->where('sale_type', $request->sale_type));
+        }
+        // Filter kasir (supervisor only)
+        if ($request->user_id && ! $isOwnOnly) {
+            $query->whereHas('transaction', fn ($q) => $q->where('user_id', $request->user_id));
+        }
+        // Pencarian produk
+        if ($request->search) {
+            $sanitizedSearch = SearchSanitizer::sanitize($request->search);
+            $query->where(function ($q) use ($sanitizedSearch) {
+                $q->whereHas('product', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"));
+            });
+        }
+
+        // Summary (sebelum pagination)
+        $summaryQuery = clone $query;
+        $totalQty = (clone $summaryQuery)->sum('quantity');
+        $totalRevenue = (clone $summaryQuery)->sum('subtotal');
+        $totalRows = (clone $summaryQuery)->count();
+
+        $items = $query->paginate(30)->withQueryString();
+
+        // Per-kasir revenue summary (supervisor only)
+        $perKasir = collect();
+        if (! $isOwnOnly) {
+            $baseQ = \App\Models\Transaction::where('status', 'completed')->whereNull('parent_transaction_id');
+            if ($request->date_from) {
+                $baseQ->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->date_to) {
+                $baseQ->whereDate('created_at', '<=', $request->date_to);
+            }
+            if ($request->sale_type) {
+                $baseQ->where('sale_type', $request->sale_type);
+            }
+            $perKasir = (clone $baseQ)
+                ->join('users', 'transactions.user_id', '=', 'users.id')
+                ->select('users.id as user_id', 'users.name', 'users.role',
+                    DB::raw('COUNT(transactions.id) as trx_count'),
+                    DB::raw('SUM(transactions.total_amount) as revenue'))
+                ->groupBy('users.id', 'users.name', 'users.role')
+                ->orderBy('revenue', 'desc')
+                ->get();
+        }
+
+        // Kasir users (for filter dropdown)
+        $kasirUsers = $isOwnOnly ? collect() : \App\Models\User::whereIn('role', ['supervisor', 'admin1', 'admin2'])->orderBy('name')->get(['id', 'name', 'role']);
+
+        return view('transaksi.barang_terjual', compact(
+            'items', 'totalQty', 'totalRevenue', 'totalRows', 'kasirUsers', 'perKasir'
+        ));
     }
 }

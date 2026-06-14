@@ -14,7 +14,7 @@
                         </div>
                         Antrian Transfer Disetujui
                     </h1>
-                    <p class="tr-subtitle">Proses antrian untuk membuat dokumen pemindahan fisik dan diteruskan ke Admin 4.</p>
+                    <p class="tr-subtitle">Proses antrian untuk membuat dokumen pemindahan fisik dan diteruskan ke Gudang Tujuan.</p>
                 </div>
                 <div class="tr-header-actions">
                     <a href="{{ route('gudang.transfer') }}" class="tr-btn tr-btn-outline">
@@ -30,8 +30,7 @@
                 <a href="{{ route('gudang.transfer.requests') }}" class="tr-tab-item {{ request()->routeIs('gudang.transfer.requests') ? 'active' : '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     Permintaan Transfer
-                    @php $pendingReqCount = \App\Models\ProductRequest::where('status','approved')->count(); @endphp
-                    @if($pendingReqCount > 0)
+                    @if(isset($pendingReqCount) && $pendingReqCount > 0)
                         <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingReqCount }}</span>
                     @endif
                 </a>
@@ -45,13 +44,7 @@
                 <a href="{{ route('gudang.terima_transfer.index') }}" class="tr-tab-item {{ request()->routeIs('gudang.terima_transfer.index') ? 'active' : '' }}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
                     Terima Transfer (In)
-                    @php 
-                        $whId = auth()->user()->employee?->warehouse_id;
-                        $query = \App\Models\StockMovement::where('type','transfer_in')->where('status','pending');
-                        if($whId) $query->where('warehouse_id', $whId);
-                        $pendingTransferCount = $query->count();
-                    @endphp
-                    @if($pendingTransferCount > 0)
+                    @if(isset($pendingTransferCount) && $pendingTransferCount > 0)
                         <span style="background:var(--tr-danger-bg);color:var(--tr-danger-text);padding:2px 6px;border-radius:10px;font-size:0.7rem;margin-left:4px;font-weight:700;">{{ $pendingTransferCount }}</span>
                     @endif
                 </a>
@@ -72,20 +65,61 @@
                 </div> 
             @endif
 
+            {{-- STATS CARDS --}}
+            <div class="tr-stats-grid-4" style="margin-bottom: 1.5rem;">
+                <div class="tr-stat-card border-indigo">
+                    <div class="tr-stat-icon bg-indigo">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Persetujuan</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-orange">
+                    <div class="tr-stat-icon bg-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($pendingCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Menunggu Diproses</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-green">
+                    <div class="tr-stat-icon bg-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($processedCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Selesai Diproses</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-purple" style="opacity: 0;">
+                    <!-- Placeholder card -->
+                </div>
+            </div>
+
             {{-- MAIN CARD --}}
             <div class="tr-card">
                 
                 {{-- Filter Bar --}}
                 <div class="tr-card-header tr-filter-bar">
-                    <form method="GET" action="{{ route('gudang.transfer.requests') }}" class="tr-filter-form" id="filterForm">
+                    <form method="GET" action="{{ route('gudang.transfer.requests') }}" class="tr-filter-form" id="filterForm" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
                         <div class="tr-search">
                             <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari produk, SKU, atau pemohon...">
                         </div>
+                        
+                        <select name="status" class="tr-select">
+                            <option value="all" {{ request('status') === 'all' ? 'selected' : '' }}>Semua Status</option>
+                            <option value="pending" {{ request('status', 'pending') === 'pending' ? 'selected' : '' }}>Menunggu Diproses</option>
+                            <option value="processed" {{ request('status') === 'processed' ? 'selected' : '' }}>Selesai Diproses</option>
+                        </select>
+
                         <button type="submit" class="tr-btn tr-btn-primary" id="filterBtn">Filter Data</button>
                         
-                        @if(request()->filled('search'))
-                            <a href="{{ route('gudang.transfer.requests') }}" class="tr-btn tr-btn-danger-outline">Reset</a>
+                        @if(request()->filled('search') || (request()->filled('status') && request('status') !== 'pending'))
+                            <a href="{{ route('gudang.transfer.requests') }}" class="tr-btn tr-btn-outline" style="color:var(--tr-danger-text); border-color:var(--tr-danger-border);">Reset</a>
                         @endif
                     </form>
                 </div>
@@ -140,17 +174,26 @@
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="tr-badge tr-badge-success">Approved</span>
-                                        <div class="tr-status-sub">Siap diproses</div>
+                                        @if(!$req->transfer_reference)
+                                            <span class="tr-badge tr-badge-warning">Menunggu</span>
+                                            <div class="tr-status-sub">Siap diproses</div>
+                                        @else
+                                            <span class="tr-badge tr-badge-success">Selesai</span>
+                                            <div class="tr-status-sub">Ref: {{ $req->transfer_reference }}</div>
+                                        @endif
                                     </td>
                                     <td class="r">
-                                        <form method="POST" action="{{ route('gudang.transfer.process_request', $req) }}" onsubmit="return confirm('Buat dokumen transfer fisik dari permintaan ini?');" style="display:inline;">
-                                            @csrf
-                                            <button type="submit" class="tr-btn tr-btn-primary js-process-btn" style="padding: 0.4rem 0.8rem;">
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
-                                                Proses
-                                            </button>
-                                        </form>
+                                        @if(!$req->transfer_reference)
+                                            <form method="POST" action="{{ route('gudang.transfer.process_request', $req) }}" onsubmit="return confirm('Buat dokumen transfer fisik dari permintaan ini?');" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="tr-btn tr-btn-primary js-process-btn" style="padding: 0.4rem 0.8rem;">
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                                                    Proses
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="tr-text-muted" style="font-size:0.8rem; font-style:italic; white-space:nowrap;">Telah Diproses</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -160,8 +203,8 @@
                                             <div class="tr-empty-icon">
                                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                                             </div>
-                                            <h6>Tidak ada antrian</h6>
-                                            <p>Saat ini tidak ada permintaan transfer baru yang berstatus disetujui (Approved).</p>
+                                            <h6>Tidak ada data antrian</h6>
+                                            <p>Saat ini tidak ada permintaan transfer baru yang berstatus disetujui atau sesuai dengan kriteria filter.</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -197,6 +240,8 @@
             --tr-success-bg: #ecfdf5;
             --tr-success-text: #059669;
             --tr-success-border: #a7f3d0;
+            --tr-warning-bg: #fef3c7;
+            --tr-warning-text: #92400e;
             --tr-danger-bg: #fef2f2;
             --tr-danger-text: #dc2626;
             --tr-danger-border: #fecaca;
@@ -224,6 +269,23 @@
         .tr-tab-item:hover { color: var(--tr-text-main); }
         .tr-tab-item.active { color: var(--tr-primary); border-bottom-color: var(--tr-primary); }
 
+        /* ── STATS GRID ── */
+        .tr-stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 992px) { .tr-stats-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 576px) { .tr-stats-grid-4 { grid-template-columns: 1fr; } }
+        .tr-stat-card { background: var(--tr-surface); border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); }
+        .tr-stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .tr-stat-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); line-height: 1; }
+        .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
+        .bg-green { background: #10b981; }
+        .bg-indigo { background: #4f46e5; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-orange { background: #f59e0b; }
+        .border-green { border-left: 4px solid #10b981; }
+        .border-indigo { border-left: 4px solid #4f46e5; }
+        .border-purple { border-left: 4px solid #8b5cf6; }
+        .border-orange { border-left: 4px solid #f59e0b; }
+
         /* ── ALERTS ── */
         .tr-alert { display: flex; align-items: center; gap: 10px; padding: 1rem 1.25rem; border-radius: var(--tr-radius-md); margin-bottom: 1.25rem; font-size: 0.85rem; font-weight: 500; border: 1px solid transparent; }
         .tr-alert-success { background: var(--tr-success-bg); color: var(--tr-success-text); border-color: var(--tr-success-border); }
@@ -238,12 +300,13 @@
         .tr-search-icon { color: var(--tr-text-light); }
         .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
         .tr-search input::placeholder { color: var(--tr-text-light); }
+        .tr-select { padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid var(--tr-border); font-size: 0.8rem; background: white; font-family: inherit; color: var(--tr-text-main); height: 36px; }
 
         /* ── BUTTONS ── */
         .tr-btn {
             display: inline-flex; align-items: center; justify-content: center; gap: 6px;
             padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-family: inherit; font-weight: 600;
-            cursor: pointer; white-space: nowrap; text-decoration: none; transition: all 0.2s; border: 1px solid transparent;
+            cursor: pointer; white-space: nowrap; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; height: 36px;
         }
         .tr-btn-primary { background: var(--tr-text-main); color: #ffffff; border-color: var(--tr-text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .tr-btn-primary:hover { background: #000000; transform: translateY(-1px); }
@@ -293,6 +356,8 @@
 
         .tr-badge { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
         .tr-badge-success { background: var(--tr-success-bg); color: var(--tr-success-text); }
+        .tr-badge-warning { background: var(--tr-warning-bg); color: var(--tr-warning-text); }
+        .tr-badge-done { background: var(--tr-bg); color: var(--tr-text-main); border: 1px solid var(--tr-border); }
         .tr-status-sub { font-size: 0.7rem; color: var(--tr-text-muted); font-weight: 500; margin-top: 4px; }
 
         /* ── EMPTY STATE ── */

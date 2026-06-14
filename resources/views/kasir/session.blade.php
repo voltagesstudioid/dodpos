@@ -13,7 +13,7 @@
                 @can('view_pos_kasir')
                     <a href="{{ route('kasir.index') }}" class="s-btn-pos">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                        Buka Layar POS
+                        Buka Layar Kasir
                     </a>
                 @endcan
             </div>
@@ -22,75 +22,30 @@
             @if(session('success')) <div class="s-alert s-alert-ok">{{ session('success') }}</div> @endif
             @if(session('error')) <div class="s-alert s-alert-err">{{ session('error') }}</div> @endif
 
-            @if(!$eceranSession && !$grosirSession)
+            @if(!$eceranSession)
                 {{-- ─── NO SESSION AT ALL ─── --}}
                 <div class="s-empty">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     <h2>Belum Ada Sesi Aktif</h2>
-                    <p>Sistem POS terkunci hingga sesi baru dimulai dengan modal awal.</p>
+                    <p>Sistem POS terkunci hingga sesi eceran baru dimulai dengan modal awal.</p>
                     @can('view_pos_kasir')
                         <a href="{{ route('kasir.index') }}" class="s-btn-start">Mulai Sesi Sekarang</a>
                     @endcan
                 </div>
             @else
-                {{-- ─── TAB SWITCHER ─── --}}
-                <div class="s-tabs">
-                    <button class="s-tab active" data-tab="eceran" onclick="switchTab('eceran')">
-                        <span class="s-tab-dot {{ $eceranSession ? 's-dot-on' : 's-dot-off' }}"></span>
-                        Eceran
-                    </button>
-                    <button class="s-tab" data-tab="grosir" onclick="switchTab('grosir')">
-                        <span class="s-tab-dot {{ $grosirSession ? 's-dot-on' : 's-dot-off' }}"></span>
-                        Grosir
-                    </button>
-                </div>
-
                 {{-- ═══════════════════════════════════════ --}}
                 {{-- ═══ ECERAN PANEL ═══ --}}
                 {{-- ═══════════════════════════════════════ --}}
                 <div class="s-panel" id="panel-eceran">
-                    @if(!$eceranSession)
-                        <div class="s-panel-empty">
-                            <p>Sesi kasir eceran belum dibuka.</p>
-                            @can('view_pos_kasir')
-                                <a href="{{ route('kasir.index') }}" class="s-btn-start s-btn-sm">Buka Sesi Eceran</a>
-                            @endcan
-                        </div>
-                    @else
-                        @php
-                            $s = $eceranSession;
-                            $st = $eceranStats;
-                            $type = 'eceran';
-                            $label = 'Eceran';
-                            $closeRoute = 'kasir.close_session';
-                            $accent = '#10b981';
-                        @endphp
-                        @include('kasir._session_panel', compact('s','st','type','label','closeRoute','accent'))
-                    @endif
-                </div>
-
-                {{-- ═══════════════════════════════════════ --}}
-                {{-- ═══ GROSIR PANEL ═══ --}}
-                {{-- ═══════════════════════════════════════ --}}
-                <div class="s-panel" id="panel-grosir" style="display:none;">
-                    @if(!$grosirSession)
-                        <div class="s-panel-empty">
-                            <p>Sesi kasir grosir belum dibuka.</p>
-                            @can('view_pos_kasir')
-                                <a href="{{ route('kasir.index') }}" class="s-btn-start s-btn-sm">Buka Sesi Grosir</a>
-                            @endcan
-                        </div>
-                    @else
-                        @php
-                            $s = $grosirSession;
-                            $st = $grosirStats;
-                            $type = 'grosir';
-                            $label = 'Grosir';
-                            $closeRoute = 'kasir.close_session_grosir';
-                            $accent = '#3b82f6';
-                        @endphp
-                        @include('kasir._session_panel', compact('s','st','type','label','closeRoute','accent'))
-                    @endif
+                    @php
+                        $s = $eceranSession;
+                        $st = $eceranStats;
+                        $type = 'eceran';
+                        $label = 'Eceran';
+                        $closeRoute = 'kasir.close_session';
+                        $accent = '#10b981';
+                    @endphp
+                    @include('kasir._session_panel', compact('s','st','type','label','closeRoute','accent'))
                 </div>
             @endif
 

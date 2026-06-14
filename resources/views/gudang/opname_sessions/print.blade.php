@@ -160,7 +160,7 @@
                         @if($it->counted_unit)
                         <strong>{{ number_format((float)$it->counted_qty, 0) }} {{ $it->counted_unit }}</strong>
                         @else
-                        <span class="diff-zero">base</span>
+                        <span class="diff-zero">{{ $it->product->unit->abbreviation ?? $it->product->unit->name ?? '-' }}</span>
                         @endif
                     </td>
                     <td class="c {{ $diff > 0 ? 'diff-plus' : ($diff < 0 ? 'diff-minus' : 'diff-zero') }}">

@@ -33,7 +33,7 @@ class RoleAbilities
             return false;
         }
 
-        if (in_array($ability, ['view_karyawan', 'create_karyawan', 'edit_karyawan', 'delete_karyawan', 'view_absensi', 'create_absensi', 'edit_absensi', 'view_performa'], true)) {
+        if (in_array($ability, ['view_karyawan', 'create_karyawan', 'edit_karyawan', 'delete_karyawan', 'create_absensi', 'edit_absensi', 'view_performa'], true)) {
             return false;
         }
 
@@ -58,6 +58,7 @@ class RoleAbilities
             return in_array($ability, [
                 'view_pos_kasir',
                 'view_sesi_kasir',
+                'delete_sesi_kasir',
                 'view_transaksi',
                 'edit_transaksi',
                 'view_pelanggan',
@@ -67,6 +68,7 @@ class RoleAbilities
                 'view_sales_order',
                 'view_laporan_penjualan',
                 'view_laporan_pelanggan',
+                'view_absensi',
             ], true);
         }
 
@@ -81,6 +83,7 @@ class RoleAbilities
             return in_array($ability, [
                 'view_pos_kasir',
                 'view_sesi_kasir',
+                'delete_sesi_kasir',
                 'view_transaksi',
                 'edit_transaksi',
                 'view_pelanggan',
@@ -91,6 +94,7 @@ class RoleAbilities
                 'view_laporan_penjualan',
                 'view_laporan_keuangan',
                 'view_laporan_supplier',
+                'view_absensi',
             ], true);
         }
 
@@ -104,28 +108,25 @@ class RoleAbilities
             return in_array($ability, [
                 'view_stok_gudang',
                 'view_penerimaan_barang',
+                'view_pengeluaran_barang',
                 'view_opname_stok',
                 'create_opname_stok',
-                'view_laporan_stok',
                 'view_permintaan_barang',
                 'view_warehouse_orders',
+                'view_absensi',
             ], true);
         }
 
         if ($role === 'admin4') {
             return in_array($ability, [
                 'view_stok_gudang',
+                'view_penerimaan_barang',
                 'view_pengeluaran_barang',
-                'view_retur_pembelian',
-                'view_laporan_pembelian',
-                'view_laporan_stok',
-                'view_laporan_supplier',
                 'view_permintaan_barang',
                 'view_opname_stok',
                 'create_opname_stok',
                 'view_warehouse_orders',
-                'view_pasgar_hutang',
-                'verify_pasgar_hutang',
+                'view_absensi',
             ], true);
         }
 

@@ -29,17 +29,57 @@
 
             {{-- ALERTS --}}
             @if(session('success'))
-                <div class="tr-alert tr-alert-success">
+                <div class="tr-alert tr-alert-success" style="margin-top: 1.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     {{ session('success') }}
                 </div>
             @endif
             @if(session('error')) 
-                <div class="tr-alert tr-alert-danger">
+                <div class="tr-alert tr-alert-danger" style="margin-top: 1.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                     {{ session('error') }}
                 </div> 
             @endif
+
+            {{-- KPI STATS CARDS --}}
+            <div class="tr-stats-grid-4" style="margin-bottom: 1.5rem;">
+                <div class="tr-stat-card border-blue">
+                    <div class="tr-stat-icon bg-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14h6"></path><path d="M9 18h6"></path><path d="M9 10h6"></path></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalOpnameMonth ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Opname (Bulan Ini)</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-green">
+                    <div class="tr-stat-icon bg-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">+{{ number_format($totalPlusMonth ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Selisih Plus</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-danger">
+                    <div class="tr-stat-icon bg-danger">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">-{{ number_format($totalMinusMonth ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Selisih Minus</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-purple">
+                    <div class="tr-stat-icon bg-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalProductsOpname ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Produk Di-opname</div>
+                    </div>
+                </div>
+            </div>
 
             {{-- MAIN CARD --}}
             <div class="tr-card">
@@ -51,9 +91,22 @@
                             <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no. dokumen, SKU, atau nama barang...">
                         </div>
-                        <button type="submit" class="tr-btn tr-btn-dark">Cari Data</button>
                         
-                        @if(request('search'))
+                        @if(\App\Support\WarehouseConfig::getAllowedId(strtolower(auth()->user()->role ?? '')) === null)
+                            <select name="warehouse_id" class="tr-select">
+                                <option value="">Semua Gudang</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ request('warehouse_id') == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="tr-select" placeholder="Dari Tanggal">
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="tr-select" placeholder="Sampai Tanggal">
+
+                        <button type="submit" class="tr-btn tr-btn-dark">Filter</button>
+                        
+                        @if(request('search') || request('warehouse_id') || request('date_from') || request('date_to'))
                             <a href="{{ route('gudang.opname') }}" class="tr-btn tr-btn-danger-outline">Reset Filter</a>
                         @endif
                     </form>
@@ -221,6 +274,27 @@
         .tr-search-icon { color: var(--tr-text-light); }
         .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
         .tr-search input::placeholder { color: var(--tr-text-light); }
+        .tr-select { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--tr-border); font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); background: #ffffff; outline: none; transition: border-color 0.2s; }
+        .tr-select:focus { border-color: var(--tr-warning); }
+
+        /* ── STATS CARDS ── */
+        .tr-stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 992px) { .tr-stats-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 576px) { .tr-stats-grid-4 { grid-template-columns: 1fr; } }
+        .tr-stat-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); }
+        .tr-stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .tr-stat-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); line-height: 1; }
+        .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
+        .bg-green { background: #10b981; }
+        .bg-blue { background: #3b82f6; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-orange { background: #f59e0b; }
+        .bg-danger { background: #ef4444; }
+        .border-green { border-left: 4px solid #10b981; }
+        .border-blue { border-left: 4px solid #3b82f6; }
+        .border-purple { border-left: 4px solid #8b5cf6; }
+        .border-orange { border-left: 4px solid #f59e0b; }
+        .border-danger { border-left: 4px solid #ef4444; }
 
         /* ── BUTTONS ── */
         .tr-btn {

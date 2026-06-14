@@ -61,6 +61,61 @@
             @endif
 
             {{-- TABLE DATA CARD --}}
+
+            {{-- ═══ SUPERVISOR DASHBOARD ═══ --}}
+            @if($summary->totalItems > 0)
+            <div class="tr-summary-grid">
+                <div class="tr-summary-card tr-summary-main">
+                    <div class="tr-summary-val">{{ $summary->totalItems }}</div>
+                    <div class="tr-summary-lbl">Total Item Diaudit</div>
+                </div>
+                <div class="tr-summary-card tr-summary-ok">
+                    <div class="tr-summary-val">{{ $summary->countZero }}</div>
+                    <div class="tr-summary-lbl">Cocok (Tidak Selisih)</div>
+                </div>
+                <div class="tr-summary-card tr-summary-plus">
+                    <div class="tr-summary-val">+{{ $summary->countPlus }}</div>
+                    <div class="tr-summary-lbl">Stok Naik</div>
+                </div>
+                <div class="tr-summary-card tr-summary-minus">
+                    <div class="tr-summary-val">{{ $summary->countMinus }}</div>
+                    <div class="tr-summary-lbl">Stok Turun</div>
+                </div>
+                <div class="tr-summary-card {{ $summary->suspiciousCount > 0 ? 'tr-summary-alert' : 'tr-summary-neutral' }}">
+                    <div class="tr-summary-val">
+                        {{ $summary->suspiciousCount }}
+                        @if($summary->suspiciousCount > 0)
+                        <span class="tr-alert-dot"></span>
+                        @endif
+                    </div>
+                    <div class="tr-summary-lbl">Mencurigakan (&gt;5%)</div>
+                </div>
+            </div>
+
+            {{-- Suspicious items alert --}}
+            @if($suspiciousItems->count() > 0)
+            <div class="tr-alert tr-alert-suspicious">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <div>
+                    <strong>{{ $suspiciousItems->count() }} item dengan selisih besar (&gt;5%) terdeteksi!</strong>
+                    <div class="tr-suspicious-list">
+                        @foreach($suspiciousItems->take(10) as $si)
+                        <span class="tr-suspicious-item">
+                            {{ $si->product?->name ?? '?' }}
+                            <em>({{ $si->suspicious_diff_percent > 0 ? '+' : '' }}{{ $si->suspicious_diff_percent }}%)</em>
+                        </span>
+                        @endforeach
+                        @if($suspiciousItems->count() > 10)
+                        <span class="tr-suspicious-item">+{{ $suspiciousItems->count() - 10 }} lainnya...</span>
+                        @endif
+                    </div>
+                    <div style="font-size:0.75rem;color:#b45309;margin-top:4px;">Pastikan item-item ini sudah diperiksa ulang sebelum approve.</div>
+                </div>
+            </div>
+            @endif
+            @endif
+
+            {{-- TABLE --}}
             <div class="tr-card">
                 <div class="table-responsive">
                     <table class="tr-table">
@@ -71,6 +126,7 @@
                                 <th class="r">Qty Fisik</th>
                                 <th class="c">Satuan</th>
                                 <th class="c">Selisih</th>
+                                <th class="c">Selisih %</th>
                                 <th>Catatan Penyesuaian</th>
                                 <th class="c">Waktu Hitung</th>
                             </tr>
@@ -79,8 +135,11 @@
                             @forelse($session->items as $it)
                                 @php
                                     $diff = (int) $it->difference_qty;
+                                    $sysQty = (int) $it->system_qty;
+                                    $diffPercent = $sysQty > 0 ? round(($diff / $sysQty) * 100, 1) : 0;
+                                    $isSuspicious = $sysQty > 0 && abs($diff) >= 5 && abs($diffPercent) > 5;
                                 @endphp
-                                <tr class="{{ $diff !== 0 ? 'tr-row-highlight' : '' }}">
+                                <tr class="{{ $isSuspicious ? 'tr-row-suspicious' : ($diff !== 0 ? 'tr-row-highlight' : '') }}">
                                     <td>
                                         <div class="tr-prod-name">{{ $it->product?->name ?? 'Produk Dihapus' }}</div>
                                         <div class="tr-prod-sku">SKU: <span class="tr-font-mono">{{ $it->product?->sku ?? '-' }}</span></div>
@@ -108,6 +167,15 @@
                                             <span class="tr-diff-badge zero">±0</span>
                                         @endif
                                     </td>
+                                    <td class="c">
+                                        @if($diff === 0)
+                                            <span style="color:var(--tr-text-light);font-size:0.75rem;">-</span>
+                                        @elseif($isSuspicious)
+                                            <span class="tr-pct-badge suspicious">{{ $diffPercent > 0 ? '+' : '' }}{{ $diffPercent }}%</span>
+                                        @else
+                                            <span class="tr-pct-badge normal">{{ $diffPercent > 0 ? '+' : '' }}{{ $diffPercent }}%</span>
+                                        @endif
+                                    </td>
                                     <td>
                                         <div class="tr-notes-text" title="{{ $it->notes ?? '' }}">
                                             {{ $it->notes ?: '-' }}
@@ -123,7 +191,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">
                                                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
@@ -440,12 +508,50 @@
         .tr-btn-danger { background: var(--tr-surface); color: var(--tr-danger); border: 2px solid var(--tr-danger); box-shadow: none; }
         .tr-btn-danger:hover:not(:disabled) { background: var(--tr-danger-light); transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15); }
 
+        /* ── SUMMARY DASHBOARD ── */
+        .tr-summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
+        .tr-summary-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); padding: 1rem; text-align: center; box-shadow: var(--tr-shadow-sm); }
+        .tr-summary-val { font-size: 1.5rem; font-weight: 900; line-height: 1.2; }
+        .tr-summary-lbl { font-size: 0.7rem; font-weight: 700; color: var(--tr-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.25rem; }
+        .tr-summary-main { background: linear-gradient(135deg, #eff6ff, #dbeafe); border-color: #93c5fd; }
+        .tr-summary-main .tr-summary-val { color: var(--tr-primary); }
+        .tr-summary-ok { background: var(--tr-success-bg); border-color: #a7f3d0; }
+        .tr-summary-ok .tr-summary-val { color: var(--tr-success-text); }
+        .tr-summary-plus { background: #ecfdf5; border-color: #a7f3d0; }
+        .tr-summary-plus .tr-summary-val { color: #047857; }
+        .tr-summary-minus { background: var(--tr-danger-bg); border-color: #fecaca; }
+        .tr-summary-minus .tr-summary-val { color: var(--tr-danger-text); }
+        .tr-summary-alert { background: #fef2f2; border: 2px solid #ef4444; animation: tr-pulse 2s ease-in-out infinite; }
+        .tr-summary-alert .tr-summary-val { color: var(--tr-danger); }
+        .tr-summary-neutral { background: #f8fafc; }
+        .tr-summary-neutral .tr-summary-val { color: var(--tr-text-muted); }
+        @keyframes tr-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.2);} 50%{box-shadow:0 0 0 6px rgba(239,68,68,0);} }
+        .tr-alert-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; margin-left: 4px; animation: tr-blink 1.5s infinite; }
+        @keyframes tr-blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        /* ── SUSPICIOUS ALERT ── */
+        .tr-alert-suspicious { background: #fffbeb; color: #92400e; border: 1.5px solid #f59e0b; margin-bottom: 1.25rem; flex-direction: flex-start; align-items: flex-start; gap: 12px; }
+        .tr-alert-suspicious strong { display: block; margin-bottom: 6px; font-size: 0.9rem; }
+        .tr-suspicious-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .tr-suspicious-item { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .tr-suspicious-item em { font-style: normal; color: #b91c1c; font-weight: 800; }
+
+        /* ── SUSPICIOUS ROW ── */
+        .tr-table tbody tr.tr-row-suspicious td { background: #fef2f2 !important; }
+        .tr-table tbody tr.tr-row-suspicious:hover td { background: #fee2e2 !important; }
+        .tr-table tbody tr.tr-row-suspicious td:first-child { box-shadow: inset 3px 0 0 #ef4444; }
+        .tr-pct-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 800; font-size: 0.75rem; }
+        .tr-pct-badge.suspicious { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .tr-pct-badge.normal { background: #f8fafc; color: var(--tr-text-muted); border: 1px solid var(--tr-border); }
+
         /* ── RESPONSIVE ── */
         @media (max-width: 820px) {
+            .tr-summary-grid { grid-template-columns: repeat(3, 1fr); }
             .tr-approval-grid { grid-template-columns: 1fr; gap: 1.5rem; }
             .tr-approval-actions { flex-direction: row; }
         }
         @media (max-width: 640px) {
+            .tr-summary-grid { grid-template-columns: repeat(2, 1fr); }
             .tr-header { flex-direction: column; align-items: flex-start; }
             .tr-header-actions { width: 100%; }
             .tr-header-actions .tr-btn { width: 100%; justify-content: center; }

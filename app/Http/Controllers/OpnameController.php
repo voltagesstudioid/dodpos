@@ -25,6 +25,11 @@ class OpnameController extends Controller
 
         // Get allowed warehouse based on role (not hardcoded)
         $allowedWarehouseId = WarehouseConfig::getAllowedId($role);
+        $warehouses = Warehouse::where('active', true);
+        if ($allowedWarehouseId !== null) {
+            $warehouses->where('id', $allowedWarehouseId);
+        }
+        $warehouses = $warehouses->orderBy('name')->get();
 
         $query = StockMovement::with(['product', 'warehouse', 'location', 'user'])
             ->where('type', 'adjustment');
@@ -46,9 +51,32 @@ class OpnameController extends Controller
             });
         }
 
-        $adjustments = $query->paginate(15);
+        if ($request->has('warehouse_id') && $request->warehouse_id != '' && $allowedWarehouseId === null) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
 
-        return view('gudang.opname.index', compact('adjustments'));
+        if ($request->has('date_from') && $request->date_from != '') {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to') && $request->date_to != '') {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $adjustments = $query->paginate(15)->withQueryString();
+
+        // Stats untuk KPI cards
+        $startOfMonth = now()->startOfMonth();
+        $statsQuery = StockMovement::where('type', 'adjustment')->where('created_at', '>=', $startOfMonth);
+        if ($allowedWarehouseId !== null) {
+            $statsQuery->where('warehouse_id', $allowedWarehouseId);
+        }
+        $totalOpnameMonth = (clone $statsQuery)->count();
+        $totalPlusMonth = (clone $statsQuery)->where('quantity', '>', 0)->sum('quantity');
+        $totalMinusMonth = abs((clone $statsQuery)->where('quantity', '<', 0)->sum('quantity'));
+        $totalProductsOpname = (clone $statsQuery)->distinct('product_id')->count('product_id');
+
+        return view('gudang.opname.index', compact('adjustments', 'warehouses', 'totalOpnameMonth', 'totalPlusMonth', 'totalMinusMonth', 'totalProductsOpname'));
     }
 
     /**

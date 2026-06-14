@@ -20,7 +20,7 @@ class PosPickOrderService
      * @param string $posType 'eceran' or 'grosir'
      * @return PosPickOrder|null
      */
-    public function createFromTransaction(Transaction $transaction, string $posType = 'eceran'): ?PosPickOrder
+    public function createFromTransaction(Transaction $transaction, string $posType = 'eceran', ?string $parentInvoice = null): ?PosPickOrder
     {
         try {
             DB::beginTransaction();
@@ -36,6 +36,11 @@ class PosPickOrderService
             // Load transaction details with products
             $transaction->load('details.product.unitConversions.unit');
 
+            // Build notes
+            $notes = $parentInvoice
+                ? "[TAMBAHAN] Item tambahan untuk {$parentInvoice} | Transaksi {$transaction->invoice_number} dari POS {$posType}"
+                : "Transaksi {$transaction->invoice_number} dari POS {$posType}";
+
             // Create pick order
             $pickOrder = PosPickOrder::create([
                 'pick_number' => PosPickOrder::generateNumber(),
@@ -44,7 +49,7 @@ class PosPickOrderService
                 'status' => 'pending',
                 'pos_type' => $posType,
                 'requested_by' => Auth::id() ?? $transaction->created_by,
-                'notes' => "Transaksi {$transaction->invoice_number} dari POS {$posType}",
+                'notes' => $notes,
             ]);
 
             // Create pick order items from transaction details

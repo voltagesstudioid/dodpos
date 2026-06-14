@@ -1,269 +1,355 @@
 <x-app-layout>
-    <x-slot name="header">Gudang / Permintaan Dari Kasir</x-slot>
+    <x-slot name="header">Gudang / Persiapan Barang</x-slot>
 
-    <div class="tr-page-wrapper">
-        <div class="tr-container">
-            {{-- ─── HEADER ─── --}}
-            <div class="tr-hero">
-                <div class="tr-hero-text">
-                    <h1 class="tr-title">Permintaan Barang dari Kasir</h1>
-                    <p class="tr-subtitle">Kelola permintaan pengambilan barang dari kasir ke gudang</p>
+    <div class="pk-page">
+        <div class="pk-container">
+
+            {{-- ─── HERO ─── --}}
+            <div class="pk-hero">
+                <div class="pk-hero-left">
+                    <div class="pk-hero-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="pk-title">Persiapan Barang</h1>
+                        <p class="pk-subtitle">
+                            @if($role === 'supervisor')
+                                Pantau persiapan dari semua gudang
+                            @else
+                                Siapkan barang sesuai pesanan dari POS
+                            @endif
+                        </p>
+                    </div>
                 </div>
-                <div class="tr-hero-stats">
-                    <div class="stat-badge bg-warning">
-                        <span class="stat-num">{{ $counts['pending'] }}</span>
-                        <span class="stat-lbl">Menunggu</span>
-                    </div>
-                    <div class="stat-badge bg-info">
-                        <span class="stat-num">{{ $counts['processing'] }}</span>
-                        <span class="stat-lbl">Diproses</span>
-                    </div>
-                    <div class="stat-badge bg-success">
-                        <span class="stat-num">{{ $counts['ready'] }}</span>
-                        <span class="stat-lbl">Siap</span>
-                    </div>
+                <div class="pk-stats">
+                    <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}" class="pk-stat-card pk-stat-warning {{ $status === 'pending' ? 'pk-stat-active' : '' }}">
+                        <div class="pk-stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <span class="pk-stat-num">{{ $counts['pending'] }}</span>
+                        <span class="pk-stat-lbl">Menunggu</span>
+                    </a>
+                    <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => 'processing'])) }}" class="pk-stat-card pk-stat-info {{ $status === 'processing' ? 'pk-stat-active' : '' }}">
+                        <div class="pk-stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                        </div>
+                        <span class="pk-stat-num">{{ $counts['processing'] }}</span>
+                        <span class="pk-stat-lbl">Diproses</span>
+                    </a>
+                    <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => 'ready'])) }}" class="pk-stat-card pk-stat-success {{ $status === 'ready' ? 'pk-stat-active' : '' }}">
+                        <div class="pk-stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <span class="pk-stat-num">{{ $counts['ready'] }}</span>
+                        <span class="pk-stat-lbl">Siap</span>
+                    </a>
+                    <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => 'completed'])) }}" class="pk-stat-card pk-stat-done {{ $status === 'completed' ? 'pk-stat-active' : '' }}">
+                        <div class="pk-stat-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        </div>
+                        <span class="pk-stat-num">{{ $counts['completed'] }}</span>
+                        <span class="pk-stat-lbl">Selesai</span>
+                    </a>
+                    @if(($counts['cancelled'] ?? 0) > 0)
+                    <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => 'cancelled'])) }}" class="pk-stat-card {{ $status === 'cancelled' ? 'pk-stat-active' : '' }}" style="background:#fef2f2; border-color:#fecaca;">
+                        <div class="pk-stat-icon" style="color:#dc2626;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        </div>
+                        <span class="pk-stat-num" style="color:#dc2626;">{{ $counts['cancelled'] }}</span>
+                        <span class="pk-stat-lbl" style="color:#dc2626;">Dibatalkan</span>
+                    </a>
+                    @endif
                 </div>
             </div>
 
-            {{-- ─── FILTER TABS ─── --}}
-            <div class="tr-filter-bar">
-                <div class="filter-tabs">
-                    <a href="{{ route('gudang.pos_pick.index', ['status' => 'pending']) }}"
-                       class="tab-item {{ $status === 'pending' ? 'active' : '' }}">
-                        <span class="tab-dot warning"></span>
-                        Menunggu
-                        @if($counts['pending'] > 0)
-                            <span class="tab-badge">{{ $counts['pending'] }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('gudang.pos_pick.index', ['status' => 'processing']) }}"
-                       class="tab-item {{ $status === 'processing' ? 'active' : '' }}">
-                        <span class="tab-dot info"></span>
-                        Diproses
-                        @if($counts['processing'] > 0)
-                            <span class="tab-badge">{{ $counts['processing'] }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('gudang.pos_pick.index', ['status' => 'ready']) }}"
-                       class="tab-item {{ $status === 'ready' ? 'active' : '' }}">
-                        <span class="tab-dot success"></span>
-                        Siap Diambil
-                        @if($counts['ready'] > 0)
-                            <span class="tab-badge">{{ $counts['ready'] }}</span>
-                        @endif
-                    </a>
-                    <a href="{{ route('gudang.pos_pick.index', ['status' => 'completed']) }}"
-                       class="tab-item {{ $status === 'completed' ? 'active' : '' }}">
-                        <span class="tab-dot secondary"></span>
-                        Selesai
-                    </a>
-                    <a href="{{ route('gudang.pos_pick.index', ['status' => 'all']) }}"
-                       class="tab-item {{ $status === 'all' ? 'active' : '' }}">
-                        Semua
-                    </a>
+            {{-- ─── FILTER + SEARCH ─── --}}
+            <div class="pk-toolbar">
+                <div class="pk-tabs">
+                    @php $tabs = [
+                        'pending'    => ['label' => 'Menunggu',    'color' => '#f59e0b'],
+                        'processing' => ['label' => 'Diproses',    'color' => '#3b82f6'],
+                        'ready'      => ['label' => 'Siap Diambil','color' => '#10b981'],
+                        'completed'  => ['label' => 'Selesai',     'color' => '#94a3b8'],
+                        'cancelled'  => ['label' => 'Dibatalkan',  'color' => '#dc2626'],
+                        'all'        => ['label' => 'Semua',       'color' => '#6366f1'],
+                    ]; @endphp
+                    @foreach($tabs as $key => $tab)
+                        <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except('page'), ['status' => $key])) }}"
+                           class="pk-tab {{ $status === $key ? 'pk-tab-active' : '' }}"
+                           @if($status === $key) style="--tab-color: {{ $tab['color'] }};" @endif>
+                            <span class="pk-tab-dot" style="background:{{ $tab['color'] }};"></span>
+                            {{ $tab['label'] }}
+                            @if($key !== 'all' && $key !== 'completed' && ($counts[$key] ?? 0) > 0)
+                                <span class="pk-tab-badge">{{ $counts[$key] }}</span>
+                            @endif
+                        </a>
+                    @endforeach
                 </div>
-
-                <form class="search-box" method="GET">
-                    <input type="hidden" name="status" value="{{ $status }}">
-                    <input type="text" name="search" placeholder="Cari nomor pick order / invoice..."
-                           value="{{ request('search') }}">
-                    <button type="submit">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="m21 21-4.35-4.35"></path>
-                        </svg>
-                    </button>
-                </form>
+                <div class="pk-toolbar-right">
+                    @if($role === 'supervisor' && $warehouses->count() > 1)
+                        <form method="GET" class="pk-wh-filter">
+                            <input type="hidden" name="status" value="{{ $status }}">
+                            @if(request('search')) <input type="hidden" name="search" value="{{ request('search') }}"> @endif
+                            <select name="warehouse" onchange="this.form.submit()" class="pk-wh-select">
+                                <option value="">Semua Gudang</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ $warehouseFilter == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                @endforeach
+                            </select>
+                        </form>
+                    @endif
+                    <form class="pk-search" method="GET">
+                        <input type="hidden" name="status" value="{{ $status }}">
+                        @if($warehouseFilter) <input type="hidden" name="warehouse" value="{{ $warehouseFilter }}"> @endif
+                        <div class="pk-search-inner">
+                            <svg class="pk-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                            <input type="text" name="search" placeholder="Cari nomor / invoice / nama pembeli..." value="{{ request('search') }}">
+                            @if(request('search'))
+                                <a href="{{ route('gudang.pos_pick.index', array_merge(request()->except(['search', 'page']), ['status' => $status])) }}" class="pk-search-clear" title="Hapus pencarian">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </a>
+                            @endif
+                        </div>
+                    </form>
+                </div>
             </div>
 
             {{-- ─── ALERTS ─── --}}
             @if(session('success'))
-                <div class="tr-alert success">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    {{ session('success') }}
+                <div class="pk-alert pk-alert-success">
+                    <div class="pk-alert-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                    <span>{{ session('success') }}</span>
                 </div>
             @endif
-
             @if(session('error'))
-                <div class="tr-alert danger">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="15" y1="9" x2="9" y2="15"></line>
-                        <line x1="9" y1="9" x2="15" y2="15"></line>
-                    </svg>
-                    {{ session('error') }}
+                <div class="pk-alert pk-alert-danger">
+                    <div class="pk-alert-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+                    <span>{{ session('error') }}</span>
                 </div>
             @endif
 
             {{-- ─── PICK ORDERS LIST ─── --}}
-            <div class="tr-card">
-                @if($pickOrders->count() > 0)
-                    <div class="pick-list">
-                        @foreach($pickOrders as $pick)
-                            <div class="pick-item">
-                                <div class="pick-main">
-                                    <div class="pick-header">
-                                        <span class="pick-number">{{ $pick->pick_number }}</span>
-                                        <span class="status-badge status-{{ $pick->status }}">
-                                            {{ $pick->status_label }}
-                                        </span>
-                                    </div>
-                                    <div class="pick-meta">
-                                        <span class="meta-item">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                                <line x1="16" y1="2" x2="16" y2="6"></line>
-                                                <line x1="8" y1="2" x2="8" y2="6"></line>
-                                                <line x1="3" y1="10" x2="21" y2="10"></line>
-                                            </svg>
-                                            {{ $pick->created_at->format('d M Y, H:i') }}
-                                        </span>
-                                        <span class="meta-item">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                                <circle cx="12" cy="7" r="4"></circle>
-                                            </svg>
-                                            {{ $pick->requester?->name ?? '-' }}
-                                        </span>
-                                        <span class="meta-item">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                                            </svg>
-                                            {{ $pick->warehouse?->name ?? 'Gudang Utama' }}
-                                        </span>
-                                    </div>
-                                    <div class="pick-items-preview">
-                                        @foreach($pick->items->take(3) as $item)
-                                            <span class="item-tag">{{ $item->product?->name }} ({{ $item->unit_qty }} {{ $item->unit_name }})</span>
-                                        @endforeach
-                                        @if($pick->items->count() > 3)
-                                            <span class="item-tag more">+{{ $pick->items->count() - 3 }} lainnya</span>
+            @if($pickOrders->count() > 0)
+                <div class="pk-list">
+                    @foreach($pickOrders as $pick)
+                        @php
+                            $statusColors = [
+                                'pending'    => ['bg' => '#fef3c7', 'fg' => '#92400e', 'ring' => '#fcd34d'],
+                                'processing' => ['bg' => '#dbeafe', 'fg' => '#1e40af', 'ring' => '#93c5fd'],
+                                'ready'      => ['bg' => '#dcfce7', 'fg' => '#166534', 'ring' => '#86efac'],
+                                'completed'  => ['bg' => '#f1f5f9', 'fg' => '#64748b', 'ring' => '#cbd5e1'],
+                                'cancelled'  => ['bg' => '#fef2f2', 'fg' => '#dc2626', 'ring' => '#fca5a5'],
+                            ];
+                            $sc = $statusColors[$pick->status] ?? $statusColors['completed'];
+                        @endphp
+                        <a href="{{ route('gudang.pos_pick.show', $pick) }}" class="pk-card">
+                            {{-- Left accent bar --}}
+                            <div class="pk-card-accent" style="background:{{ $sc['fg'] }};"></div>
+
+                            <div class="pk-card-body">
+                                {{-- Row 1: Number + Status + Time --}}
+                                <div class="pk-card-top">
+                                    <div class="pk-card-id">
+                                        <span class="pk-card-hash">{{ $pick->pick_number }}</span>
+                                        <span class="pk-badge" style="background:{{ $sc['bg'] }};color:{{ $sc['fg'] }};">{{ $pick->status_label }}</span>
+                                        @if(str_contains($pick->notes ?? '', '[TAMBAHAN]'))
+                                            <span class="pk-badge" style="background:#fef3c7;color:#92400e;font-size:10px;">Ada Tambahan</span>
                                         @endif
                                     </div>
+                                    <span class="pk-card-time">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                        {{ $pick->created_at->diffForHumans() }}
+                                    </span>
                                 </div>
-                                <div class="pick-actions">
-                                    <a href="{{ route('gudang.pos_pick.show', $pick) }}" class="btn-detail">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                        </svg>
-                                        Detail
-                                    </a>
+
+                                {{-- Row 2: Meta info --}}
+                                <div class="pk-card-meta">
+                                    <div class="pk-meta-chip">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                        <span class="pk-meta-label">Pembeli</span>
+                                        <span class="pk-meta-value">{{ $pick->transaction?->customer?->name ?? 'Umum' }}</span>
+                                    </div>
+                                    <div class="pk-meta-chip">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        <span class="pk-meta-label">Kasir</span>
+                                        <span class="pk-meta-value">{{ $pick->requester?->name ?? '-' }}</span>
+                                    </div>
+                                    <div class="pk-meta-chip">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                                        <span class="pk-meta-label">POS</span>
+                                        <span class="pk-meta-value">{{ $pick->pos_type === 'eceran' ? 'Eceran' : 'Grosir' }}</span>
+                                    </div>
+                                    <div class="pk-meta-chip">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                        <span class="pk-meta-label">Gudang</span>
+                                        <span class="pk-meta-value">{{ $pick->warehouse?->name ?? 'Utama' }}</span>
+                                    </div>
+                                </div>
+
+                                {{-- Row 3: Items preview --}}
+                                <div class="pk-card-items">
+                                    @foreach($pick->items->take(4) as $item)
+                                        <span class="pk-item-pill">
+                                            <span class="pk-item-dot"></span>
+                                            {{ $item->product?->name ?? '?' }}
+                                            <span class="pk-item-qty">{{ $item->unit_qty }} {{ $item->unit_name }}</span>
+                                        </span>
+                                    @endforeach
+                                    @if($pick->items->count() > 4)
+                                        <span class="pk-item-pill pk-item-more">+{{ $pick->items->count() - 4 }} lainnya</span>
+                                    @endif
                                 </div>
                             </div>
-                        @endforeach
-                    </div>
 
+                            {{-- Arrow --}}
+                            <div class="pk-card-arrow">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            </div>
+                        </a>
+                    @endforeach
+                </div>
+
+                <div class="pk-pagination">
                     {{ $pickOrders->links() }}
-                @else
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"></path>
-                            </svg>
-                        </div>
-                        <h3>Tidak ada permintaan</h3>
-                        <p>Belum ada permintaan pengambilan barang dengan status ini.</p>
+                </div>
+            @else
+                <div class="pk-empty">
+                    <div class="pk-empty-illustration">
+                        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
                     </div>
-                @endif
-            </div>
+                    <h3>Tidak Ada Permintaan</h3>
+                    <p>Belum ada permintaan persiapan barang dengan status ini.</p>
+                </div>
+            @endif
+
         </div>
     </div>
 
     @push('styles')
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        .pk-page { background: #f1f5f9; min-height: 100vh; font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; padding: 1.5rem; }
+        .pk-container { max-width: 1100px; margin: 0 auto; }
 
-        :root {
-            --tr-bg: #f8fafc;
-            --tr-surface: #ffffff;
-            --tr-text: #0f172a;
-            --tr-muted: #64748b;
-            --tr-border: #e2e8f0;
-            --tr-warning: #f59e0b;
-            --tr-info: #3b82f6;
-            --tr-success: #10b981;
-            --tr-danger: #ef4444;
-            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-        }
+        /* ── Hero ── */
+        .pk-hero { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .pk-hero-left { display: flex; align-items: center; gap: 1rem; }
+        .pk-hero-icon { width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(99,102,241,.25); }
+        .pk-title { font-size: 1.6rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.02em; }
+        .pk-subtitle { color: #64748b; margin: 2px 0 0; font-size: 0.9rem; }
 
-        .tr-page-wrapper { background: var(--tr-bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; padding-bottom: 3rem; }
-        .tr-container { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+        /* ── Stat Cards ── */
+        .pk-stats { display: flex; gap: 0.75rem; }
+        .pk-stat-card { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0.7rem 1rem; border-radius: 14px; text-decoration: none; border: 1.5px solid transparent; transition: all .2s ease; min-width: 72px; cursor: pointer; }
+        .pk-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+        .pk-stat-icon { margin-bottom: 2px; opacity: .7; }
+        .pk-stat-num { font-size: 1.4rem; font-weight: 800; line-height: 1; }
+        .pk-stat-lbl { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+        .pk-stat-warning { background: #fffbeb; color: #92400e; }
+        .pk-stat-warning .pk-stat-icon { color: #f59e0b; }
+        .pk-stat-info { background: #eff6ff; color: #1e40af; }
+        .pk-stat-info .pk-stat-icon { color: #3b82f6; }
+        .pk-stat-success { background: #f0fdf4; color: #166534; }
+        .pk-stat-success .pk-stat-icon { color: #10b981; }
+        .pk-stat-done { background: #f8fafc; color: #64748b; }
+        .pk-stat-done .pk-stat-icon { color: #94a3b8; }
+        .pk-stat-active { border-color: currentColor; box-shadow: 0 4px 16px rgba(0,0,0,.1); }
 
-        .tr-hero { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2rem; }
-        .tr-title { font-size: 1.75rem; font-weight: 800; margin: 0 0 0.5rem; }
-        .tr-subtitle { color: var(--tr-muted); margin: 0; }
+        /* ── Toolbar ── */
+        .pk-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; }
+        .pk-toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .pk-tabs { display: flex; gap: 6px; background: #fff; padding: 5px; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .pk-tab { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #64748b; text-decoration: none; transition: all .2s ease; white-space: nowrap; }
+        .pk-tab:hover { background: #f1f5f9; color: #334155; }
+        .pk-tab-active { background: var(--tab-color, #0f172a); color: #fff !important; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+        .pk-tab-active .pk-tab-dot { box-shadow: 0 0 0 2px rgba(255,255,255,.4); }
+        .pk-tab-active .pk-tab-badge { background: rgba(255,255,255,.25); color: #fff; }
+        .pk-tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+        .pk-tab-badge { background: #ef4444; color: #fff; font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 10px; margin-left: 2px; }
 
-        .tr-hero-stats { display: flex; gap: 1rem; }
-        .stat-badge { padding: 0.75rem 1.25rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; min-width: 80px; }
-        .stat-badge.bg-warning { background: #fef3c7; color: #92400e; }
-        .stat-badge.bg-info { background: #dbeafe; color: #1e40af; }
-        .stat-badge.bg-success { background: #dcfce7; color: #166534; }
-        .stat-num { font-size: 1.5rem; font-weight: 800; }
-        .stat-lbl { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        /* ── Warehouse Filter ── */
+        .pk-wh-filter { flex-shrink: 0; }
+        .pk-wh-select { padding: 8px 32px 8px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.82rem; font-weight: 600; font-family: inherit; color: #334155; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 10px center; appearance: none; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+        .pk-wh-select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+        .pk-wh-select:hover { border-color: #cbd5e1; }
 
-        .tr-filter-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
-        .filter-tabs { display: flex; gap: 0.5rem; background: #fff; padding: 0.5rem; border-radius: 12px; border: 1px solid var(--tr-border); }
-        .tab-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: var(--tr-muted); text-decoration: none; transition: 0.2s; }
-        .tab-item:hover { background: #f1f5f9; }
-        .tab-item.active { background: var(--tr-text); color: #fff; }
-        .tab-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .tab-dot.warning { background: var(--tr-warning); }
-        .tab-dot.info { background: var(--tr-info); }
-        .tab-dot.success { background: var(--tr-success); }
-        .tab-dot.secondary { background: var(--tr-muted); }
-        .tab-badge { background: var(--tr-danger); color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; margin-left: 4px; }
+        /* ── Search ── */
+        .pk-search { flex-shrink: 0; }
+        .pk-search-inner { position: relative; display: flex; align-items: center; }
+        .pk-search-icon { position: absolute; left: 12px; color: #94a3b8; pointer-events: none; }
+        .pk-search input { padding: 9px 36px 9px 36px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.85rem; width: 280px; background: #fff; transition: border-color .2s, box-shadow .2s; font-family: inherit; }
+        .pk-search input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+        .pk-search input::placeholder { color: #94a3b8; }
+        .pk-search-clear { position: absolute; right: 10px; color: #94a3b8; display: flex; padding: 2px; border-radius: 4px; transition: color .15s; }
+        .pk-search-clear:hover { color: #475569; }
 
-        .search-box { display: flex; gap: 0.5rem; }
-        .search-box input { padding: 0.6rem 1rem; border: 1px solid var(--tr-border); border-radius: 8px; font-size: 0.875rem; min-width: 250px; }
-        .search-box button { padding: 0.6rem 1rem; background: var(--tr-text); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+        /* ── Alerts ── */
+        .pk-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px; margin-bottom: 1.25rem; font-size: 0.875rem; font-weight: 500; }
+        .pk-alert-icon { display: flex; flex-shrink: 0; }
+        .pk-alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .pk-alert-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
-        .tr-alert { display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; }
-        .tr-alert.success { background: #dcfce7; color: #166534; }
-        .tr-alert.danger { background: #fee2e2; color: #991b1b; }
+        /* ── Pick Order Cards ── */
+        .pk-list { display: flex; flex-direction: column; gap: 10px; }
+        .pk-card { display: flex; align-items: stretch; background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; text-decoration: none; color: inherit; transition: all .2s ease; overflow: hidden; }
+        .pk-card:hover { border-color: #cbd5e1; box-shadow: 0 8px 24px rgba(0,0,0,.06); transform: translateY(-1px); }
+        .pk-card-accent { width: 4px; flex-shrink: 0; border-radius: 4px 0 0 4px; }
+        .pk-card-body { flex: 1; padding: 1rem 1.25rem; min-width: 0; }
+        .pk-card-arrow { display: flex; align-items: center; padding: 0 1rem; color: #cbd5e1; flex-shrink: 0; transition: color .2s; }
+        .pk-card:hover .pk-card-arrow { color: #6366f1; }
 
-        .tr-card { background: #fff; border-radius: 16px; border: 1px solid var(--tr-border); padding: 1.5rem; }
+        .pk-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .pk-card-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .pk-card-hash { font-weight: 700; font-size: 0.95rem; color: #0f172a; white-space: nowrap; }
+        .pk-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+        .pk-card-time { display: flex; align-items: center; gap: 4px; font-size: 0.78rem; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
 
-        .pick-list { display: flex; flex-direction: column; gap: 1rem; }
-        .pick-item { display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border: 1px solid var(--tr-border); border-radius: 12px; transition: 0.2s; }
-        .pick-item:hover { box-shadow: var(--shadow-md); border-color: #cbd5e1; }
-        .pick-main { flex: 1; }
-        .pick-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
-        .pick-number { font-weight: 800; font-size: 1.1rem; color: var(--tr-text); }
-        .status-badge { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-processing { background: #dbeafe; color: #1e40af; }
-        .status-ready { background: #dcfce7; color: #166534; }
-        .status-completed { background: #f1f5f9; color: var(--tr-muted); }
+        .pk-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .pk-meta-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: #f8fafc; border-radius: 8px; font-size: 0.78rem; border: 1px solid #f1f5f9; }
+        .pk-meta-chip svg { color: #94a3b8; flex-shrink: 0; }
+        .pk-meta-label { color: #94a3b8; }
+        .pk-meta-value { font-weight: 600; color: #334155; }
 
-        .pick-meta { display: flex; gap: 1.5rem; margin-bottom: 0.75rem; }
-        .meta-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.875rem; color: var(--tr-muted); }
+        .pk-card-items { display: flex; flex-wrap: wrap; gap: 6px; }
+        .pk-item-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; background: #f0f4ff; border-radius: 20px; font-size: 0.76rem; color: #334155; font-weight: 500; }
+        .pk-item-dot { width: 5px; height: 5px; border-radius: 50%; background: #6366f1; flex-shrink: 0; }
+        .pk-item-qty { color: #6366f1; font-weight: 700; }
+        .pk-item-more { background: #f1f5f9; color: #64748b; }
+        .pk-item-more .pk-item-dot { background: #94a3b8; }
 
-        .pick-items-preview { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .item-tag { background: #f1f5f9; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.8rem; color: var(--tr-text); }
-        .item-tag.more { background: #e2e8f0; color: var(--tr-muted); }
+        /* ── Pagination ── */
+        .pk-pagination { margin-top: 1.5rem; }
+        .pk-pagination nav { display: flex; justify-content: center; }
+        .pk-pagination nav ul { display: flex; gap: 4px; list-style: none; padding: 0; margin: 0; }
+        .pk-pagination nav ul li a, .pk-pagination nav ul li span { padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; border: 1px solid #e2e8f0; color: #64748b; text-decoration: none; transition: all .15s; }
+        .pk-pagination nav ul li a:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .pk-pagination nav ul li span[aria-current="page"] { background: #6366f1; color: #fff; border-color: #6366f1; }
 
-        .pick-actions { display: flex; gap: 0.5rem; }
-        .btn-detail { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; background: var(--tr-text); color: #fff; border-radius: 8px; text-decoration: none; font-size: 0.875rem; font-weight: 600; transition: 0.2s; }
-        .btn-detail:hover { background: #000; }
+        /* ── Empty State ── */
+        .pk-empty { text-align: center; padding: 4rem 2rem; background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; }
+        .pk-empty-illustration { color: #cbd5e1; margin-bottom: 1.25rem; }
+        .pk-empty h3 { font-size: 1.15rem; font-weight: 700; color: #334155; margin: 0 0 6px; }
+        .pk-empty p { color: #94a3b8; margin: 0; font-size: 0.9rem; }
 
-        .empty-state { text-align: center; padding: 4rem 2rem; }
-        .empty-icon { color: var(--tr-muted); margin-bottom: 1rem; }
-        .empty-state h3 { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.5rem; }
-        .empty-state p { color: var(--tr-muted); margin: 0; }
-
+        /* ── Responsive ── */
         @media (max-width: 768px) {
-            .tr-hero { flex-direction: column; align-items: flex-start; }
-            .tr-hero-stats { width: 100%; justify-content: space-between; }
-            .filter-tabs { overflow-x: auto; width: 100%; }
-            .pick-item { flex-direction: column; align-items: flex-start; gap: 1rem; }
-            .pick-actions { width: 100%; }
-            .btn-detail { width: 100%; justify-content: center; }
+            .pk-hero { flex-direction: column; }
+            .pk-stats { width: 100%; overflow-x: auto; padding-bottom: 4px; }
+            .pk-stat-card { min-width: 68px; }
+            .pk-toolbar { flex-direction: column; align-items: stretch; }
+            .pk-toolbar-right { flex-direction: column; }
+            .pk-tabs { overflow-x: auto; }
+            .pk-search input { width: 100%; }
+            .pk-card-meta { flex-direction: column; }
+            .pk-card-items { flex-direction: column; }
+            .pk-wh-select { width: 100%; }
         }
     </style>
     @endpush

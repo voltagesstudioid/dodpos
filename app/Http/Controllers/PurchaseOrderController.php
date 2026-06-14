@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Models\ProductUnitConversion;
 
 class PurchaseOrderController extends Controller
 {
@@ -343,20 +344,20 @@ class PurchaseOrderController extends Controller
                     throw new \RuntimeException('Produk tidak ditemukan.');
                 }
 
-                $baseUnitId = (int) ($product->unitConversions->firstWhere('is_base_unit', true)?->unit_id ?? $product->unit_id ?? 0);
-
                 $unitId = isset($item['unit_id']) && $item['unit_id'] !== null ? (int) $item['unit_id'] : null;
-                if (! $unitId && $baseUnitId) {
-                    $unitId = $baseUnitId;
+                if (! $unitId) {
+                    $unitId = (int) ($product->unitConversions->firstWhere('is_base_unit', true)?->unit_id ?? $product->unit_id ?? 0);
                 }
 
                 $conversionFactor = 1;
-                if ($unitId && $baseUnitId && $unitId !== $baseUnitId) {
+                if ($unitId) {
                     $uc = $product->unitConversions->firstWhere('unit_id', $unitId);
-                    if (! $uc) {
+                    if ($uc) {
+                        $conversionFactor = max(1, (int) $uc->conversion_factor);
+                    } else if ($unitId !== (int) $product->unit_id) {
+                        // Not found in conversions, and not the default product unit.
                         throw new \RuntimeException("Satuan tidak valid untuk produk {$product->name}.");
                     }
-                    $conversionFactor = max(1, (int) $uc->conversion_factor);
                 }
 
                 $subtotal = $qty * $unitPrice;
@@ -571,20 +572,20 @@ class PurchaseOrderController extends Controller
                     throw new \RuntimeException('Produk tidak ditemukan.');
                 }
 
-                $baseUnitId = (int) ($product->unitConversions->firstWhere('is_base_unit', true)?->unit_id ?? $product->unit_id ?? 0);
-
                 $unitId = isset($item['unit_id']) && $item['unit_id'] !== null ? (int) $item['unit_id'] : null;
-                if (! $unitId && $baseUnitId) {
-                    $unitId = $baseUnitId;
+                if (! $unitId) {
+                    $unitId = (int) ($product->unitConversions->firstWhere('is_base_unit', true)?->unit_id ?? $product->unit_id ?? 0);
                 }
 
                 $conversionFactor = 1;
-                if ($unitId && $baseUnitId && $unitId !== $baseUnitId) {
+                if ($unitId) {
                     $uc = $product->unitConversions->firstWhere('unit_id', $unitId);
-                    if (! $uc) {
+                    if ($uc) {
+                        $conversionFactor = max(1, (int) $uc->conversion_factor);
+                    } else if ($unitId !== (int) $product->unit_id) {
+                        // Not found in conversions, and not the default product unit.
                         throw new \RuntimeException("Satuan tidak valid untuk produk {$product->name}.");
                     }
-                    $conversionFactor = max(1, (int) $uc->conversion_factor);
                 }
 
                 $subtotal = $qty * $unitPrice;
@@ -728,10 +729,22 @@ class PurchaseOrderController extends Controller
 
                 // Update item received qty (still in PO unit)
                 $item->qty_received += $receive['qty'];
+                
+                // Recalculate conversion factor just in case it was saved as 1 incorrectly
+                $conversionFactor = $item->conversion_factor;
+                if ($item->unit_id) {
+                    $uc = ProductUnitConversion::where('product_id', $item->product_id)
+                        ->where('unit_id', $item->unit_id)
+                        ->first();
+                    if ($uc && $uc->conversion_factor > 0) {
+                        $conversionFactor = $uc->conversion_factor;
+                        $item->conversion_factor = $conversionFactor;
+                    }
+                }
                 $item->save();
 
                 // Calculate real base stock quantity
-                $baseQty = $receive['qty'] * $item->conversion_factor;
+                $baseQty = $receive['qty'] * $conversionFactor;
 
                 // Add base stock to warehouse (safe under concurrency)
                 $productStock = $this->getOrCreateLockedProductStock(

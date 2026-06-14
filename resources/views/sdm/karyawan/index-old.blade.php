@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">HR & Payroll</x-slot>
+    <x-slot name="header">SDM & Penggajian</x-slot>
 
     <div class="tr-page-wrapper">
         <div class="tr-page">

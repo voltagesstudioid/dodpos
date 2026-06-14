@@ -155,6 +155,69 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- KASBON (Cash Advance) SECTION --}}
+                    <div class="tr-kasbon-section">
+                        <div class="tr-section-title-bar" style="margin-top: 2rem;">
+                            <div class="tr-st-left">
+                                <h3 class="tr-title-text">💸 Kasbon (Cash Advance)</h3>
+                            </div>
+                            @if($kasbonHistory->where('status','pending')->count() > 0)
+                            <span class="tr-pill-pending">{{ $kasbonHistory->where('status','pending')->count() }} Pending</span>
+                            @endif
+                        </div>
+
+                        @if($kasbonHistory->isNotEmpty())
+                        {{-- Summary Mini Cards --}}
+                        <div class="tr-kasbon-stats">
+                            <div class="tr-ks-item">
+                                <span class="ks-label">Total Disetujui</span>
+                                <span class="ks-val ks-approved">Rp{{ number_format($kasbonSummary['approved'], 0, ',', '.') }}</span>
+                            </div>
+                            <div class="tr-ks-item">
+                                <span class="ks-label">Pending</span>
+                                <span class="ks-val ks-pending">Rp{{ number_format($kasbonSummary['pending'], 0, ',', '.') }}</span>
+                            </div>
+                            <div class="tr-ks-item">
+                                <span class="ks-label">Sudah Dilunasi</span>
+                                <span class="ks-val ks-settled">Rp{{ number_format($kasbonSummary['settled'], 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+
+                        {{-- Kasbon History Table --}}
+                        <div class="tr-card-inner">
+                            <div class="tr-inner-header">Riwayat Kasbon</div>
+                            <div class="tr-kasbon-list">
+                                @foreach($kasbonHistory as $kb)
+                                <div class="tr-kb-row">
+                                    <div class="kb-info">
+                                        <span class="kb-date">{{ \Carbon\Carbon::parse($kb->date)->format('d M Y') }}</span>
+                                        <span class="kb-purpose">{{ $kb->purpose }}</span>
+                                    </div>
+                                    <div class="kb-right">
+                                        <span class="kb-amount">Rp{{ number_format($kb->amount, 0, ',', '.') }}</span>
+                                        @if($kb->status === 'pending')
+                                            <span class="kb-status kb-s-pending">Pending</span>
+                                        @elseif($kb->status === 'approved')
+                                            <span class="kb-status kb-s-approved">Disetujui</span>
+                                        @elseif($kb->status === 'settled')
+                                            <span class="kb-status kb-s-settled">Lunas</span>
+                                        @else
+                                            <span class="kb-status kb-s-rejected">Ditolak</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        @else
+                        <div class="tr-card-inner">
+                            <div class="tr-inner-body">
+                                <div class="tr-empty-state-mini">Belum ada riwayat kasbon untuk karyawan ini.</div>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
                 @else
                     <div class="tr-no-account-warning">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -249,9 +312,35 @@
         .tr-empty-state-mini { font-size: 0.85rem; color: var(--tr-text-light); text-align: center; padding: 1.5rem; font-style: italic; }
         .tr-no-account-warning { display: flex; align-items: center; gap: 10px; padding: 1rem; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; color: #9a3412; font-size: 0.85rem; font-weight: 600; }
 
+        /* KASBON */
+        .tr-kasbon-section { margin-top: 1rem; }
+        .tr-pill-pending { background: #f59e0b; color: #fff; padding: 4px 12px; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+        .tr-kasbon-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .tr-ks-item { background: #fff; border: 1px solid var(--tr-border-color); border-radius: 14px; padding: 1rem 1.25rem; }
+        .ks-label { display: block; font-size: 0.68rem; font-weight: 700; color: var(--tr-text-light); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+        .ks-val { font-size: 1.1rem; font-weight: 800; font-family: monospace; }
+        .ks-approved { color: #10b981; }
+        .ks-pending { color: #f59e0b; }
+        .ks-settled { color: #64748b; }
+        .tr-kasbon-list { max-height: 400px; overflow-y: auto; }
+        .tr-kb-row { display: flex; justify-content: space-between; align-items: center; padding: .85rem 1.25rem; border-bottom: 1px solid #f8fafc; transition: background .15s; }
+        .tr-kb-row:hover { background: #f8fafc; }
+        .tr-kb-row:last-child { border-bottom: none; }
+        .kb-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .kb-date { font-size: 0.72rem; color: var(--tr-text-light); font-weight: 600; }
+        .kb-purpose { font-size: 0.85rem; font-weight: 600; color: var(--tr-text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+        .kb-right { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
+        .kb-amount { font-size: 0.95rem; font-weight: 800; font-family: monospace; color: var(--tr-text-dark); }
+        .kb-status { padding: .2rem .6rem; border-radius: 8px; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+        .kb-s-pending { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .kb-s-approved { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+        .kb-s-settled { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .kb-s-rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
         @media (max-width: 900px) {
             .tr-grid-content { grid-template-columns: 1fr; }
             .tr-grid-kpi { grid-template-columns: 1fr 1fr; }
+            .tr-kasbon-stats { grid-template-columns: 1fr; }
         }
         @media (max-width: 600px) {
             .tr-meta-strip { grid-template-columns: 1fr 1fr; }

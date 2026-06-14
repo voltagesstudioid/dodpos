@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\CustomerCredit;
 use App\Models\CustomerCreditPayment;
+use App\Models\Transaction;
 use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -94,7 +95,26 @@ class CustomerController extends Controller
         $pelanggan->load(['credits.payments']);
         $activeDebts   = $pelanggan->credits()->where('type', 'debt')->whereIn('status', ['unpaid', 'partial'])->get();
         $recentCredits = $pelanggan->credits()->latest()->take(20)->get();
-        return view('pelanggan.show', compact('pelanggan', 'activeDebts', 'recentCredits'));
+
+        // Riwayat pembelian dari POS (transaksi pelanggan ini)
+        $purchaseHistory = Transaction::with(['user', 'details.product'])
+            ->where('customer_id', $pelanggan->id)
+            ->whereNull('parent_transaction_id')
+            ->latest()
+            ->take(50)
+            ->get();
+
+        $totalPurchase = Transaction::where('customer_id', $pelanggan->id)
+            ->whereNull('parent_transaction_id')
+            ->where('status', 'completed')
+            ->sum('total_amount');
+
+        $totalTransactions = Transaction::where('customer_id', $pelanggan->id)
+            ->whereNull('parent_transaction_id')
+            ->where('status', 'completed')
+            ->count();
+
+        return view('pelanggan.show', compact('pelanggan', 'activeDebts', 'recentCredits', 'purchaseHistory', 'totalPurchase', 'totalTransactions'));
     }
 
     public function edit(Customer $pelanggan)

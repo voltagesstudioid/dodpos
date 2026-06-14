@@ -130,4 +130,21 @@ Route::prefix('sdm')->name('sdm.')->group(function () {
     Route::get('/potongan-saya', [PotonganGajiController::class, 'selfIndex'])
         ->name('potongan.self_index')
         ->middleware('active');
+
+    // Kasbon
+    Route::middleware('can:view_potongan_gaji')->group(function () {
+        Route::get('/kasbon', [\App\Http\Controllers\Sdm\KasbonController::class, 'index'])->name('kasbon.index');
+    });
+
+    Route::middleware('can:edit_potongan_gaji')->group(function () {
+        Route::post('/kasbon/{kasbon}/approve', [\App\Http\Controllers\Sdm\KasbonController::class, 'approve'])->name('kasbon.approve');
+        Route::post('/kasbon/{kasbon}/reject', [\App\Http\Controllers\Sdm\KasbonController::class, 'reject'])->name('kasbon.reject');
+    });
+
+    Route::get('/kasbon-saya', [\App\Http\Controllers\Sdm\KasbonController::class, 'selfIndex'])
+        ->name('kasbon.self_index')
+        ->middleware('active');
+    Route::post('/kasbon-saya', [\App\Http\Controllers\Sdm\KasbonController::class, 'store'])
+        ->name('kasbon.self_store')
+        ->middleware('active');
 });

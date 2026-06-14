@@ -46,6 +46,8 @@ class KasirController extends Controller
         return (float) Transaction::query()
             ->where('status', 'completed')
             ->where('payment_method', 'kredit')
+            ->where('user_id', $session->user_id)
+            ->where('sale_type', $session->type)
             ->where('created_at', '>=', $session->created_at)
             ->sum('paid_amount');
     }
@@ -66,6 +68,8 @@ class KasirController extends Controller
         $cashRevenue = Transaction::query()
             ->where('status', 'completed')
             ->whereIn('payment_method', ['cash', 'tunai'])
+            ->where('user_id', $session->user_id)
+            ->where('sale_type', $session->type)
             ->where('created_at', '>=', $session->created_at)
             ->sum('paid_amount');
 
@@ -78,39 +82,42 @@ class KasirController extends Controller
 
     public function index()
     {
-        // Query both session types — always show the mode selection page
+        // Eceran session (for modal awal and closing)
         $eceranSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'eceran')
-            ->latest()
-            ->first();
-
-        $grosirSession = \App\Models\PosSession::where('status', 'open')
-            ->where('type', 'grosir')
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
 
         $eceranRevenue = 0;
-        $grosirRevenue = 0;
 
         if ($eceranSession) {
             $eceranRevenue = Transaction::where('status', 'completed')
                 ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('user_id', Auth::id())
+                ->where('sale_type', 'eceran')
                 ->where('created_at', '>=', $eceranSession->created_at)
                 ->sum('paid_amount');
         }
 
-        if ($grosirSession) {
-            $grosirRevenue = Transaction::where('status', 'completed')
-                ->whereIn('payment_method', ['cash', 'tunai'])
-                ->where('created_at', '>=', $grosirSession->created_at)
-                ->sum('paid_amount');
-        }
+        // Grosir berdiri sendiri — revenue dihitung dari transaksi hari ini
+        $grosirRevenue = Transaction::where('status', 'completed')
+            ->whereIn('payment_method', ['cash', 'tunai'])
+            ->where('user_id', Auth::id())
+            ->where('sale_type', 'grosir')
+            ->whereDate('created_at', today())
+            ->sum('paid_amount');
+
+        $grosirExpected = Transaction::where('status', 'completed')
+            ->where('user_id', Auth::id())
+            ->where('sale_type', 'grosir')
+            ->whereDate('created_at', today())
+            ->sum('paid_amount');
 
         $eceranExpected = $eceranSession ? $this->getExpectedCash($eceranSession) : 0;
-        $grosirExpected = $grosirSession ? $this->getExpectedCash($grosirSession) : 0;
 
         return view('kasir.index', compact(
-            'eceranSession', 'grosirSession',
+            'eceranSession',
             'eceranRevenue', 'grosirRevenue',
             'eceranExpected', 'grosirExpected'
         ));
@@ -118,16 +125,11 @@ class KasirController extends Controller
 
     public function session()
     {
-        // Query both session types independently
+        // Grosir mengikuti sesi eceran — hanya eceran yang punya sesi sendiri
         $eceranSession = \App\Models\PosSession::with('user')
             ->where('status', 'open')
             ->where('type', 'eceran')
-            ->latest()
-            ->first();
-
-        $grosirSession = \App\Models\PosSession::with('user')
-            ->where('status', 'open')
-            ->where('type', 'grosir')
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
 
@@ -139,6 +141,8 @@ class KasirController extends Controller
 
             $cashRevenue = Transaction::where('status', 'completed')
                 ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
                 ->where('created_at', '>=', $session->created_at)
                 ->sum('paid_amount');
 
@@ -148,19 +152,27 @@ class KasirController extends Controller
 
             $nonCashRevenue = Transaction::where('status', 'completed')
                 ->whereNotIn('payment_method', ['cash', 'tunai'])
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
                 ->where('created_at', '>=', $session->created_at)
                 ->sum('paid_amount');
 
             $totalRevenue = Transaction::where('status', 'completed')
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
                 ->where('created_at', '>=', $session->created_at)
                 ->sum('paid_amount');
 
             $cashTransactions = Transaction::where('status', 'completed')
                 ->whereIn('payment_method', ['cash', 'tunai'])
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
                 ->where('created_at', '>=', $session->created_at)
                 ->count();
 
             $totalTransactions = Transaction::where('status', 'completed')
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
                 ->where('created_at', '>=', $session->created_at)
                 ->whereNull('parent_transaction_id')
                 ->count();
@@ -183,11 +195,10 @@ class KasirController extends Controller
         };
 
         $eceranStats = $calcStats($eceranSession);
-        $grosirStats = $calcStats($grosirSession);
 
         return view('kasir.session', compact(
-            'eceranSession', 'grosirSession',
-            'eceranStats', 'grosirStats'
+            'eceranSession',
+            'eceranStats'
         ));
     }
 
@@ -307,8 +318,9 @@ class KasirController extends Controller
 
     public function openSession(Request $request)
     {
-        if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.index')->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir.');
+        // Hanya Supervisor yang boleh membuka sesi kasir eceran (mengatur modal awal)
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir eceran dan menentukan modal awal.');
         }
 
         $request->validate([
@@ -316,13 +328,14 @@ class KasirController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        // Cek jika sudah ada sesi kasir eceran aktif
+        // Cek jika sudah ada sesi kasir eceran aktif untuk user ini
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'eceran')
+            ->where('user_id', Auth::id())
             ->first();
 
         if ($activeSession) {
-            return back()->with('error', 'Sesi kasir eceran sudah aktif.');
+            return back()->with('error', 'Sesi kasir eceran Anda sudah aktif.');
         }
 
         // Modal awal selalu tunai (uang fisik di laci)
@@ -338,19 +351,60 @@ class KasirController extends Controller
         return redirect()->route('kasir.index')->with('success', 'Sesi Kasir Eceran berhasil dibuka dengan Modal Awal: Rp '.number_format($request->opening_amount, 0, ',', '.'));
     }
 
-    public function openSessionGrosir(Request $request)
+    /**
+     * Supervisor membuka sesi kasir eceran untuk kasir tertentu (admin1/admin2).
+     */
+    public function openSessionFor(Request $request)
     {
-        if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.index')->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir.');
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Hanya Supervisor yang dapat membuka sesi untuk kasir lain.');
         }
 
-        // Cek jika sudah ada sesi kasir grosir aktif
+        $request->validate([
+            'target_user_id' => 'required|exists:users,id',
+            'opening_amount' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $targetUser = \App\Models\User::find($request->target_user_id);
+
+        // Cek apakah sudah ada sesi eceran aktif untuk user target
+        $existing = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'eceran')
+            ->where('user_id', $request->target_user_id)
+            ->first();
+
+        if ($existing) {
+            return back()->with('error', 'Sesi kasir eceran untuk ' . $targetUser->name . ' sudah aktif.');
+        }
+
+        \App\Models\PosSession::create([
+            'user_id' => $request->target_user_id,
+            'type' => 'eceran',
+            'opening_amount' => $request->opening_amount,
+            'payment_method' => 'Tunai',
+            'notes' => $request->notes ?? ('Modal dibuka oleh Supervisor: ' . Auth::user()->name),
+            'status' => 'open',
+        ]);
+
+        return back()->with('success', 'Sesi Kasir Eceran untuk ' . $targetUser->name . ' berhasil dibuka. Modal: Rp ' . number_format($request->opening_amount, 0, ',', '.'));
+    }
+
+    public function openSessionGrosir(Request $request)
+    {
+        // Hanya Supervisor yang boleh membuka sesi kasir grosir
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Hanya Supervisor yang dapat membuka sesi kasir grosir.');
+        }
+
+        // Cek jika sudah ada sesi kasir grosir aktif untuk user ini
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'grosir')
+            ->where('user_id', Auth::id())
             ->first();
 
         if ($activeSession) {
-            return back()->with('error', 'Sesi kasir grosir sudah aktif.');
+            return back()->with('error', 'Sesi kasir grosir Anda sudah aktif.');
         }
 
         // Grosir tidak memerlukan modal awal — langsung buka
@@ -365,12 +419,44 @@ class KasirController extends Controller
         return redirect()->route('kasir.index')->with('success', 'Sesi Kasir Grosir berhasil dibuka.');
     }
 
-    public function closeSession(Request $request)
+    /**
+     * Supervisor membuka sesi kasir grosir untuk kasir tertentu (admin1/admin2) dari Rekap Harian.
+     */
+    public function openSessionGrosirFor(Request $request)
     {
-        if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.index')->with('error', 'Hanya Supervisor yang dapat menutup sesi kasir.');
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Hanya Supervisor yang dapat membuka sesi grosir untuk kasir lain.');
         }
 
+        $request->validate([
+            'target_user_id' => 'required|exists:users,id',
+        ]);
+
+        $targetUser = \App\Models\User::find($request->target_user_id);
+
+        $existing = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'grosir')
+            ->where('user_id', $request->target_user_id)
+            ->first();
+
+        if ($existing) {
+            return back()->with('error', 'Sesi kasir grosir untuk ' . $targetUser->name . ' sudah aktif.');
+        }
+
+        \App\Models\PosSession::create([
+            'user_id' => $request->target_user_id,
+            'type' => 'grosir',
+            'opening_amount' => 0,
+            'payment_method' => 'Tunai',
+            'notes' => 'Sesi grosir dibuka oleh Supervisor: ' . Auth::user()->name,
+            'status' => 'open',
+        ]);
+
+        return back()->with('success', 'Sesi Kasir Grosir untuk ' . $targetUser->name . ' berhasil dibuka.');
+    }
+
+    public function closeSession(Request $request)
+    {
         $request->validate([
             'actual_cash' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
@@ -378,16 +464,29 @@ class KasirController extends Controller
 
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'eceran')
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
 
         if (! $activeSession) {
-            return back()->with('error', 'Tidak ada sesi kasir eceran yang sedang aktif.');
+            return back()->with('error', 'Anda belum membuka sesi kasir eceran aktif.');
         }
 
         $expectedCash = $this->getExpectedCash($activeSession);
         $actualCash = (float) $request->actual_cash;
         $variance = $actualCash - $expectedCash;
+
+        // Hitung pendapatan grosir selama sesi eceran berjalan
+        $grosirRevenue = Transaction::where('status', 'completed')
+            ->where('user_id', Auth::id())
+            ->where('sale_type', 'grosir')
+            ->where('created_at', '>=', $activeSession->created_at)
+            ->sum('paid_amount');
+
+        $closingNotes = $request->notes ?: $activeSession->notes;
+        if ($grosirRevenue > 0) {
+            $closingNotes = trim($closingNotes . ' | Grosir periode ini: Rp ' . number_format($grosirRevenue, 0, ',', '.'));
+        }
 
         $activeSession->update([
             'status' => 'closed',
@@ -396,55 +495,202 @@ class KasirController extends Controller
             'expected_cash' => $expectedCash,
             'actual_cash' => $actualCash,
             'cash_variance' => $variance,
-            'notes' => $request->notes ?: $activeSession->notes,
+            'notes' => $closingNotes,
         ]);
 
-        return redirect()->route('kasir.session')->with('success', 'Sesi Kasir Eceran berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
+        // Tutup otomatis sesi grosir (jika ada) saat eceran ditutup
+        $grosirSession = \App\Models\PosSession::where('status', 'open')
+            ->where('type', 'grosir')
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($grosirSession) {
+            $grosirSession->update([
+                'status' => 'closed',
+                'closed_at' => now(),
+                'closing_amount' => $grosirRevenue,
+                'expected_cash' => $grosirRevenue,
+                'actual_cash' => $grosirRevenue,
+                'cash_variance' => 0,
+                'notes' => 'Otomatis ditutup bersamaan dengan sesi eceran. Pendapatan grosir: Rp ' . number_format($grosirRevenue, 0, ',', '.'),
+            ]);
+        }
+
+        return redirect()->route('kasir.session')->with('success', 'Sesi Eceran berhasil ditutup. Kas: Rp ' . number_format($actualCash, 0, ',', '.') . ($grosirRevenue > 0 ? ' | Grosir: Rp ' . number_format($grosirRevenue, 0, ',', '.') : ''));
     }
 
+    /**
+     * Deprecated: Grosir tidak lagi memiliki sesi terpisah.
+     * Method ini disimpan untuk kompatibilitas route lama.
+     */
     public function closeSessionGrosir(Request $request)
     {
-        if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.grosir')->with('error', 'Hanya Supervisor yang dapat menutup sesi kasir.');
+        return redirect()->route('kasir.session')->with('info', 'Sesi grosir ditutup otomatis bersamaan dengan sesi eceran.');
+    }
+
+    public function rekapHarian()
+    {
+        if (Auth::user()->role !== 'supervisor') {
+            return redirect()->route('kasir.session')->with('error', 'Akses ditolak. Hanya Supervisor yang dapat melihat Rekap Harian.');
         }
 
-        $request->validate([
-            'actual_cash' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
-        ]);
+        // Ambil sesi ECERAN hari ini ATAU sesi eceran yang masih open (grosir tidak punya sesi terpisah)
+        $sessions = \App\Models\PosSession::with('user')
+            ->where('type', 'eceran')
+            ->where(function ($q) {
+                $q->whereDate('created_at', today())
+                  ->orWhere('status', 'open');
+            })
+            ->latest('created_at')
+            ->get();
 
-        $activeSession = \App\Models\PosSession::where('status', 'open')
-            ->where('type', 'grosir')
-            ->latest()
-            ->first();
+        // Hitung detail per sesi (revenue, expected cash)
+        $totalExpectedCash = 0;
+        $totalActualCash = 0;
+        $totalVariance = 0;
 
-        if (! $activeSession) {
-            return back()->with('error', 'Tidak ada sesi kasir grosir yang sedang aktif.');
+        foreach ($sessions as $session) {
+            $expected = $this->getExpectedCash($session);
+            $session->calculated_expected_cash = $expected;
+
+            $sessionRevenue = Transaction::where('status', 'completed')
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
+                ->where('created_at', '>=', $session->created_at)
+                ->when($session->closed_at, fn ($q) => $q->where('created_at', '<=', $session->closed_at))
+                ->sum('total_amount');
+
+            $sessionTotalTrx = Transaction::where('status', 'completed')
+                ->where('user_id', $session->user_id)
+                ->where('sale_type', $session->type)
+                ->whereNull('parent_transaction_id')
+                ->where('created_at', '>=', $session->created_at)
+                ->when($session->closed_at, fn ($q) => $q->where('created_at', '<=', $session->closed_at))
+                ->count();
+
+            $session->revenue = $sessionRevenue;
+            $session->total_transactions = $sessionTotalTrx;
+
+            $totalExpectedCash += $expected;
+
+            // Actual cash & variance hanya dihitung dari sesi yang sudah ditutup
+            if ($session->status === 'closed') {
+                $totalActualCash += $session->actual_cash ?? 0;
+                $totalVariance += ($session->actual_cash ?? 0) - $expected;
+            }
         }
 
-        $expectedCash = $this->getExpectedCash($activeSession);
-        $actualCash = (float) $request->actual_cash;
-        $variance = $actualCash - $expectedCash;
+        // Omzet & jumlah transaksi hari ini (langsung dari tabel transaksi, bukan dari sesi)
+        $todayRevenue = Transaction::where('status', 'completed')
+            ->whereDate('created_at', today())
+            ->sum('total_amount');
 
-        $activeSession->update([
+        $totalTransactions = Transaction::where('status', 'completed')
+            ->whereNull('parent_transaction_id')
+            ->whereDate('created_at', today())
+            ->count();
+
+        // Rekap pendapatan per kasir (gabungan eceran + grosir)
+        // Grosir revenue dihitung dari transaksi, bukan dari sesi
+        $rekapPerKasir = [];
+        foreach ($sessions as $session) {
+            $kasirName = $session->user->name ?? 'Tidak Diketahui';
+            if (!isset($rekapPerKasir[$kasirName])) {
+                $rekapPerKasir[$kasirName] = ['revenue' => 0, 'revenue_eceran' => 0, 'revenue_grosir' => 0, 'transactions' => 0];
+            }
+            $rekapPerKasir[$kasirName]['revenue'] += $session->revenue;
+            $rekapPerKasir[$kasirName]['revenue_eceran'] += $session->revenue;
+            $rekapPerKasir[$kasirName]['transactions'] += $session->total_transactions;
+        }
+
+        // Tambahkan grosir revenue dari transaksi hari ini (tanpa sesi)
+        $grosirRevenueByUser = Transaction::where('status', 'completed')
+            ->where('sale_type', 'grosir')
+            ->whereDate('created_at', today())
+            ->select('user_id', DB::raw('SUM(total_amount) as total'), DB::raw('COUNT(*) as count'))
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id');
+
+        foreach ($grosirRevenueByUser as $userId => $total) {
+            $user = \App\Models\User::find($userId);
+            $kasirName = $user->name ?? 'Unknown';
+            if (!isset($rekapPerKasir[$kasirName])) {
+                $rekapPerKasir[$kasirName] = ['revenue' => 0, 'revenue_eceran' => 0, 'revenue_grosir' => 0, 'transactions' => 0];
+            }
+            $rekapPerKasir[$kasirName]['revenue_grosir'] += $total;
+            $rekapPerKasir[$kasirName]['revenue'] += $total;
+        }
+
+        // Hitung sesi grosir yatim (orphaned) yang masih open (legacy dari sistem lama)
+        $orphanedGrosirCount = \App\Models\PosSession::where('type', 'grosir')->where('status', 'open')->count();
+
+        // Daftar user admin1/admin2 beserta status sesi eceran mereka
+        $kasirUsers = \App\Models\User::whereIn('role', ['admin1', 'admin2'])->get()->map(function ($user) {
+            $user->eceran_session = \App\Models\PosSession::where('user_id', $user->id)->where('type', 'eceran')->where('status', 'open')->first();
+            return $user;
+        });
+
+        return view('kasir.rekap_harian', compact(
+            'sessions', 'todayRevenue', 'totalExpectedCash', 'totalActualCash', 'totalVariance',
+            'totalTransactions', 'rekapPerKasir', 'kasirUsers', 'orphanedGrosirCount'
+        ));
+    }
+
+    /**
+     * Bersihkan sesi grosir yatim (orphaned) yang masih open dari sistem lama.
+     */
+    public function cleanupOrphanedGrosirSessions()
+    {
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Akses ditolak.');
+        }
+
+        $orphaned = \App\Models\PosSession::where('type', 'grosir')->where('status', 'open')->get();
+
+        foreach ($orphaned as $session) {
+            $expectedCash = $this->getExpectedCash($session);
+            $session->update([
+                'status' => 'closed',
+                'closed_at' => now(),
+                'closing_amount' => $expectedCash,
+                'expected_cash' => $expectedCash,
+                'actual_cash' => $expectedCash,
+                'cash_variance' => 0,
+                'notes' => 'Otomatis dibersihkan oleh Supervisor (sesi legacy)',
+            ]);
+        }
+
+        return back()->with('success', count($orphaned) . ' sesi grosir lama berhasil dibersihkan.');
+    }
+
+    public function forceCloseSession(Request $request, \App\Models\PosSession $session)
+    {
+        if (Auth::user()->role !== 'supervisor') {
+            return back()->with('error', 'Akses ditolak.');
+        }
+
+        if ($session->status !== 'open') {
+            return back()->with('error', 'Sesi sudah ditutup.');
+        }
+
+        $expectedCash = $this->getExpectedCash($session);
+        $actualCash = $expectedCash; // Force close assumes actual = expected (0 variance)
+
+        $session->update([
             'status' => 'closed',
             'closed_at' => now(),
             'closing_amount' => $actualCash,
             'expected_cash' => $expectedCash,
             'actual_cash' => $actualCash,
-            'cash_variance' => $variance,
-            'notes' => $request->notes ?: $activeSession->notes,
+            'cash_variance' => 0,
+            'notes' => 'Ditutup paksa oleh Supervisor',
         ]);
 
-        return redirect()->route('kasir.session')->with('success', 'Sesi Kasir Grosir berhasil ditutup. Total kas: Rp '.number_format($actualCash, 0, ',', '.'));
+        return back()->with('success', 'Sesi kasir ' . ($session->user->name ?? '') . ' berhasil ditutup secara paksa.');
     }
 
     public function addCashMovement(Request $request)
     {
-        if (! Auth::user() || Auth::user()->role !== 'supervisor') {
-            return redirect()->route('kasir.index')->with('error', 'Hanya Supervisor yang dapat mencatat cash in/out.');
-        }
-
         $request->validate([
             'type' => 'required|in:in,out',
             'session_type' => 'required|in:eceran,grosir',
@@ -455,10 +701,12 @@ class KasirController extends Controller
         $sessionType = $request->session_type;
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', $sessionType)
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
+            
         if (! $activeSession) {
-            return back()->with('error', 'Tidak ada sesi kasir '.$sessionType.' yang sedang aktif.');
+            return back()->with('error', 'Anda belum membuka sesi kasir '.$sessionType.' aktif.');
         }
 
         PosCashMovement::create([
@@ -469,7 +717,7 @@ class KasirController extends Controller
             'user_id' => Auth::id(),
         ]);
 
-        return back()->with('success', 'Cash '.($request->type === 'in' ? 'In' : 'Out').' berhasil dicatat.');
+        return back()->with('success', 'Cash '.($request->type === 'in' ? 'In' : 'Out').' berhasil dicatat untuk laci Anda.');
     }
 
     public function storeTransaksi(Request $request)
@@ -497,9 +745,10 @@ class KasirController extends Controller
         $productService = app(\App\Services\ProductSearchService::class);
         $products = \App\Models\Product::with(['unitConversions.unit', 'category', 'productStocks.warehouse'])
             ->orderBy('name')
-            ->limit(50)
             ->get()
-            ->map(fn($p) => $productService->formatProductEceran($p))
+            ->map(fn($p) => $transaction->sale_type === 'grosir'
+                ? $productService->formatProductGrosir($p)
+                : $productService->formatProductEceran($p))
             ->values();
 
         $warehouses = \App\Models\Warehouse::where('active', true)->get(['id', 'name']);
@@ -522,6 +771,8 @@ class KasirController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'items.*.warehouse_id' => 'required|exists:warehouses,id',
+            'items.*.unit_name' => 'nullable|string',
+            'items.*.unit_id' => 'nullable|integer',
             'additional_payment' => 'required|numeric|min:0',
             'payment_method' => 'nullable|in:cash,transfer,qris',
             'payment_reference' => 'nullable|string|max:100',
@@ -538,22 +789,44 @@ class KasirController extends Controller
             foreach ($request->items as $item) {
                 $product = \App\Models\Product::find($item['product_id']);
 
-                // Check stock
+                // Resolve unit conversion
+                $unitName = $item['unit_name'] ?? null;
+                $unitId = $item['unit_id'] ?? null;
+                $unitConversion = null;
+                $conversionFactor = 1;
+
+                if ($unitId) {
+                    $unitConversion = \App\Models\ProductUnitConversion::where('product_id', $item['product_id'])
+                        ->where('unit_id', $unitId)
+                        ->first();
+                    if ($unitConversion) {
+                        $conversionFactor = $unitConversion->conversion_factor ?: 1;
+                        $unitName = $unitConversion->unit?->name ?? $unitName;
+                    }
+                }
+
+                $unitQty = $item['quantity']; // display qty in selected unit
+                $baseQty = $unitQty * $conversionFactor; // base unit qty for stock deduction
+
+                // Check stock (base unit)
                 $warehouseStock = \App\Models\ProductStock::where('product_id', $item['product_id'])
                     ->where('warehouse_id', $item['warehouse_id'])
                     ->sum('stock');
 
-                if ($warehouseStock < $item['quantity']) {
+                if ($warehouseStock < $baseQty) {
                     throw new \Exception("Stok {$product->name} tidak mencukupi. Tersedia: {$warehouseStock}");
                 }
 
-                $subtotal = round($item['price'] * $item['quantity'], 2);
+                $subtotal = round($item['price'] * $unitQty, 2);
                 $totalAmount += $subtotal;
 
                 $resolvedItems[] = [
                     'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'],
-                    'quantity' => $item['quantity'],
+                    'quantity' => $baseQty,
+                    'unit_qty' => $unitQty,
+                    'unit_name' => $unitName,
+                    'unit_conversion_id' => $unitConversion?->id,
                     'price' => $item['price'],
                     'subtotal' => $subtotal,
                     'product_name' => $product->name,
@@ -586,6 +859,9 @@ class KasirController extends Controller
                     'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'],
                     'quantity' => $item['quantity'],
+                    'unit_qty' => $item['unit_qty'],
+                    'unit_name' => $item['unit_name'],
+                    'unit_conversion_id' => $item['unit_conversion_id'],
                     'price' => $item['price'],
                     'subtotal' => $item['subtotal'],
                 ]);
@@ -611,9 +887,51 @@ class KasirController extends Controller
                 ]);
             }
 
-            // Create pick order for additional items
-            $pickOrderService = app(\App\Services\PosPickOrderService::class);
-            $pickOrder = $pickOrderService->createFromTransaction($additionalTransaction, 'eceran');
+            // Add items to the ORIGINAL pick order (not a new one)
+            $originalPickOrder = \App\Models\PosPickOrder::where('transaction_id', $transaction->id)
+                ->where('status', '!=', 'cancelled')
+                ->latest()
+                ->first();
+
+            $pickOrderNumber = null;
+            if ($originalPickOrder) {
+                // Add new items to existing pick order with is_additional flag
+                foreach ($additionalTransaction->details as $detail) {
+                    $product = \App\Models\Product::find($detail->product_id);
+                    $unitQty = $detail->unit_qty ?? $detail->quantity;
+                    $unitName = $detail->unit_name ?? 'pcs';
+
+                    \App\Models\PosPickOrderItem::create([
+                        'pick_order_id'         => $originalPickOrder->id,
+                        'transaction_detail_id' => $detail->id,
+                        'product_id'            => $detail->product_id,
+                        'quantity'              => $detail->quantity,
+                        'unit_qty'              => $unitQty,
+                        'unit_name'             => $unitName,
+                        'is_additional'         => true,
+                    ]);
+                }
+
+                // Reset to pending if already completed, so admin3 re-processes
+                if (in_array($originalPickOrder->status, ['completed', 'ready'])) {
+                    $originalPickOrder->update([
+                        'status' => 'pending',
+                        'notes'  => ($originalPickOrder->notes ? $originalPickOrder->notes . ' | ' : '') .
+                            '[TAMBAHAN] Item baru ditambahkan untuk ' . $transaction->invoice_number,
+                    ]);
+                } else {
+                    $originalPickOrder->update([
+                        'notes' => ($originalPickOrder->notes ? $originalPickOrder->notes . ' | ' : '') .
+                            '[TAMBAHAN] Item baru ditambahkan untuk ' . $transaction->invoice_number,
+                    ]);
+                }
+                $pickOrderNumber = $originalPickOrder->pick_number;
+            } else {
+                // Fallback: create new pick order if no original found
+                $pickOrderService = app(\App\Services\PosPickOrderService::class);
+                $newPickOrder = $pickOrderService->createFromTransaction($additionalTransaction, $transaction->sale_type ?? 'eceran', $transaction->invoice_number);
+                $pickOrderNumber = $newPickOrder ? $newPickOrder->pick_number : null;
+            }
 
             DB::commit();
 
@@ -622,7 +940,7 @@ class KasirController extends Controller
                 'message' => 'Item berhasil ditambahkan!',
                 'additional_transaction_id' => $additionalTransaction->id,
                 'grand_total' => $transaction->grand_total,
-                'pick_order' => $pickOrder ? $pickOrder->pick_number : null,
+                'pick_order' => $pickOrderNumber,
             ]);
 
         } catch (\Exception $e) {

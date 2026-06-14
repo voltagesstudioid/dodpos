@@ -1,229 +1,200 @@
 <x-app-layout>
-    <x-slot name="header">Permintaan Barang (PO / Transfer)</x-slot>
+    <x-slot name="header">Permintaan Barang</x-slot>
 
-    <div class="pr-page">
+    <div class="rq-page">
 
-        {{-- ══════════ HEADER ══════════ --}}
-        <div class="pr-header">
-            <div class="pr-header-left">
-                <div class="pr-icon-box">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                </div>
-                <div>
-                    <div class="pr-eyebrow">Approval Workflow</div>
-                    <h1 class="pr-title">Permintaan Barang Masuk</h1>
-                    <p class="pr-subtitle">Pantau pengajuan Purchase Order baru dan Transfer Cabang dari tim Gudang.</p>
-                </div>
+        {{-- HEADER --}}
+        <div class="rq-header">
+            <div>
+                <span class="rq-eyebrow">Manajemen Permintaan</span>
+                <h1 class="rq-title">Permintaan Barang</h1>
+                <p class="rq-sub">Kelola permintaan Purchase Order dan Transfer Cabang.</p>
             </div>
-            <a href="{{ route('gudang.request.create') }}" class="pr-btn pr-btn-primary">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Buat Permintaan Baru
+            @if($role !== 'supervisor')
+            <a href="{{ route('gudang.request.create') }}" class="rq-btn rq-btn-primary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Buat Permintaan
             </a>
+            @endif
         </div>
 
-        {{-- ══════════ ALERTS ══════════ --}}
+        {{-- ALERTS --}}
         @if(session('success'))
-        <div class="pr-alert pr-alert-success">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            {{ session('success') }}
-        </div>
+            <div class="rq-alert rq-alert-ok">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                {{ session('success') }}
+            </div>
         @endif
         @if(session('error'))
-        <div class="pr-alert pr-alert-danger">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-            {{ session('error') }}
-        </div>
+            <div class="rq-alert rq-alert-err">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                {{ session('error') }}
+            </div>
         @endif
 
-        {{-- ══════════ KPI CARDS ══════════ --}}
-        <div class="pr-kpi">
-            <div class="pr-kpi-card pr-kpi-total">
-                <div class="pr-kpi-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                </div>
-                <div class="pr-kpi-info">
-                    <span class="pr-kpi-label">Total Permintaan</span>
-                    <span class="pr-kpi-value">{{ $totalCount }}</span>
-                </div>
-            </div>
-            <div class="pr-kpi-card pr-kpi-pending">
-                <div class="pr-kpi-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <div class="pr-kpi-info">
-                    <span class="pr-kpi-label">Menunggu</span>
-                    <span class="pr-kpi-value">{{ $pendingCount }}</span>
-                </div>
-            </div>
-            <div class="pr-kpi-card pr-kpi-approved">
-                <div class="pr-kpi-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <div class="pr-kpi-info">
-                    <span class="pr-kpi-label">Disetujui</span>
-                    <span class="pr-kpi-value">{{ $approvedCount }}</span>
-                </div>
-            </div>
-            <div class="pr-kpi-card pr-kpi-rejected">
-                <div class="pr-kpi-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                </div>
-                <div class="pr-kpi-info">
-                    <span class="pr-kpi-label">Ditolak</span>
-                    <span class="pr-kpi-value">{{ $rejectedCount }}</span>
-                </div>
-            </div>
-            <div class="pr-kpi-card pr-kpi-completed">
-                <div class="pr-kpi-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                </div>
-                <div class="pr-kpi-info">
-                    <span class="pr-kpi-label">Selesai</span>
-                    <span class="pr-kpi-value">{{ $completedCount }}</span>
-                </div>
-            </div>
+        {{-- STATS --}}
+        <div class="rq-stats">
+            @php
+                $cur = request('status');
+                $items = [
+                    [null,      $totalCount,     'Total',     'linear-gradient(135deg,#6366f1,#8b5cf6)', '#fff', true],
+                    ['pending',  $pendingCount,   'Menunggu',  '#fff', '#f59e0b', false],
+                    ['approved', $approvedCount,  'Disetujui', '#fff', '#10b981', false],
+                    ['rejected', $rejectedCount,  'Ditolak',   '#fff', '#ef4444', false],
+                    ['completed',$completedCount, 'Selesai',   '#fff', '#64748b', false],
+                ];
+            @endphp
+            @foreach($items as $i)
+                @php
+                    $active = $cur === $i[0] || (is_null($i[0]) && !$cur);
+                    $url = route('gudang.request.index', array_merge(request()->except('status','page'), $i[0] ? ['status'=>$i[0]] : []));
+                @endphp
+                <a href="{{ $url }}" class="rq-stat {{ $active ? 'rq-stat-on' : '' }} {{ $i[5] ? 'rq-stat-hero' : '' }}"
+                   style="--dot: {{ $i[4] }};">
+                    <div class="rq-stat-n" {{ $i[5] && $active ? 'style="color:#fff"' : '' }}>{{ number_format($i[1]) }}</div>
+                    <div class="rq-stat-l" {{ $i[5] && $active ? 'style="color:rgba(255,255,255,.8)"' : '' }}>{{ $i[2] }}</div>
+                    @if($active && !$i[5])
+                        <span class="rq-stat-dot"></span>
+                    @endif
+                </a>
+            @endforeach
         </div>
 
-        {{-- ══════════ MAIN CARD ══════════ --}}
-        <div class="pr-card">
+        {{-- MAIN CARD --}}
+        <div class="rq-card">
 
-            {{-- FILTER --}}
-            <div class="pr-filter">
-                <form method="GET" action="{{ route('gudang.request.index') }}" class="pr-filter-form">
-                    <div class="pr-search-box">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" name="q" value="{{ request('q') }}" placeholder="Cari pemohon, SKU, produk..." class="pr-search-input">
-                    </div>
-                    <select name="status" class="pr-select">
-                        <option value="">Semua Status</option>
-                        <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Approved</option>
-                        <option value="rejected" {{ request('status') === 'rejected' ? 'selected' : '' }}>Rejected</option>
-                        <option value="completed" {{ request('status') === 'completed' ? 'selected' : '' }}>Completed</option>
-                    </select>
-                    <select name="type" class="pr-select">
-                        <option value="">Semua Tipe</option>
-                        <option value="po" {{ request('type') === 'po' ? 'selected' : '' }}>PO Baru</option>
-                        <option value="transfer" {{ request('type') === 'transfer' ? 'selected' : '' }}>Transfer Cabang</option>
-                    </select>
-                    <button type="submit" class="pr-btn pr-btn-dark">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        Filter
-                    </button>
-                    @if(request()->filled('q') || request()->filled('status') || request()->filled('type'))
-                    <a href="{{ route('gudang.request.index') }}" class="pr-btn pr-btn-ghost">Reset</a>
-                    @endif
-                </form>
-            </div>
+            {{-- FILTERS --}}
+            <form method="GET" action="{{ route('gudang.request.index') }}" class="rq-filters">
+                <div class="rq-search">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" name="q" value="{{ request('q') }}" placeholder="Cari produk, SKU, pemohon...">
+                </div>
+                <select name="type" class="rq-sel" onchange="this.form.submit()">
+                    <option value="">Semua Tipe</option>
+                    <option value="po" {{ request('type')==='po'?'selected':'' }}>PO Baru</option>
+                    <option value="transfer" {{ request('type')==='transfer'?'selected':'' }}>Transfer</option>
+                </select>
+                <div class="rq-dates">
+                    <input type="date" name="date_from" value="{{ request('date_from') }}" class="rq-sel" title="Dari">
+                    <span class="rq-date-sep">→</span>
+                    <input type="date" name="date_to" value="{{ request('date_to') }}" class="rq-sel" title="Sampai">
+                </div>
+                <button type="submit" class="rq-btn rq-btn-sm rq-btn-dark">Filter</button>
+                @if(request()->hasAny(['q','status','type','date_from','date_to']) && (request('q') || request('status') || request('type') || request('date_from') || request('date_to')))
+                    <a href="{{ route('gudang.request.index') }}" class="rq-btn rq-btn-sm rq-btn-ghost">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </a>
+                @endif
+            </form>
+
+            {{-- FILTER INFO --}}
+            @php $hasFilter = request()->filled('q') || request()->filled('status') || request()->filled('type') || request()->filled('date_from') || request()->filled('date_to'); @endphp
+            @if($hasFilter)
+                <div class="rq-filter-info">
+                    <strong>{{ number_format($filteredCount) }}</strong> dari <strong>{{ number_format($totalCount) }}</strong> permintaan
+                </div>
+            @endif
 
             {{-- TABLE --}}
-            <div class="pr-table-wrap">
-                <table class="pr-table">
+            <div class="rq-tbl-wrap">
+                <table class="rq-tbl">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
+                            <th style="width:110px">Tanggal</th>
                             <th>Pemohon</th>
                             <th>Produk</th>
-                            <th class="c">Jumlah</th>
-                            <th>Tipe / Rute</th>
+                            <th class="rq-c" style="width:75px">Qty</th>
+                            <th>Tipe</th>
                             <th>Catatan</th>
-                            <th>Status</th>
-                            @if($role === 'supervisor')<th class="c" style="width:150px;">Aksi</th>@endif
+                            <th style="width:95px">Status</th>
+                            <th class="rq-c" style="width:55px"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($requests as $req)
                         <tr>
+                            {{-- Date --}}
                             <td>
-                                <div class="pr-date">{{ $req->created_at->format('d M Y') }}</div>
-                                <div class="pr-date-sub">{{ $req->created_at->format('H:i') }} WIB</div>
+                                <div class="rq-d1">{{ $req->created_at->format('d M Y') }}</div>
+                                <div class="rq-d2">{{ $req->created_at->format('H:i') }}</div>
                             </td>
+                            {{-- Applicant --}}
                             <td>
-                                <div class="pr-user">
-                                    <span class="pr-avatar">{{ strtoupper(substr($req->user->name ?? '?', 0, 1)) }}</span>
+                                <div class="rq-user">
+                                    @php
+                                        $name = $req->user->name ?? '?';
+                                        $initial = strtoupper(substr($name, 0, 1));
+                                        $colors = ['#6366f1','#ec4899','#f59e0b','#10b981','#3b82f6','#8b5cf6'];
+                                        $colorIdx = crc32($name) % count($colors);
+                                        $avatarBg = $colors[$colorIdx];
+                                    @endphp
+                                    <span class="rq-avatar" style="background:{{ $avatarBg }}">{{ $initial }}</span>
                                     <div>
-                                        <div class="pr-user-name">{{ $req->user->name ?? '-' }}</div>
-                                        <div class="pr-user-role">{{ strtoupper((string) ($req->user->role ?? '-')) }}</div>
+                                        <div class="rq-name">{{ $name }}</div>
+                                        <div class="rq-d2">{{ strtoupper((string)($req->user->role ?? '')) }}</div>
                                     </div>
                                 </div>
                             </td>
+                            {{-- Product --}}
                             <td>
-                                <div class="pr-prod-name">{{ $req->product->name ?? '-' }}</div>
-                                <div class="pr-prod-sku">{{ $req->product->sku ?? '-' }}</div>
+                                <div class="rq-name">{{ $req->product->name ?? '-' }}</div>
+                                <div class="rq-d2">{{ $req->product->sku ?? '' }}</div>
                             </td>
-                            <td class="c">
-                                @php
-                                    $unitName = $req->unit?->abbreviation ?? $req->unit?->name ?? $req->product?->unit?->abbreviation ?? $req->product?->unit?->name ?? '';
-                                @endphp
-                                <span class="pr-qty">
-                                    {{ number_format((float)$req->quantity, 0) }}
-                                    <span class="pr-qty-unit">{{ $unitName }}</span>
-                                </span>
+                            {{-- Qty --}}
+                            <td class="rq-c">
+                                @php $u = $req->unit?->abbreviation ?? $req->unit?->name ?? $req->product?->unit?->abbreviation ?? ''; @endphp
+                                <span class="rq-qty">{{ number_format((float)$req->quantity, 0) }}</span>
+                                @if($u)<div class="rq-d2">{{ $u }}</div>@endif
                             </td>
+                            {{-- Type --}}
                             <td>
                                 @if($req->type === 'po')
-                                <span class="pr-type-badge pr-type-po">PO BARU</span>
+                                    <span class="rq-tag rq-tag-blue">PO</span>
                                 @else
-                                <span class="pr-type-badge pr-type-transfer">TRANSFER</span>
-                                <div class="pr-route">
-                                    <span>{{ $req->fromWarehouse?->name ?? 'Gudang Utama' }}</span>
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                                    <span>{{ $req->toWarehouse?->name ?? 'Gudang Cabang' }}</span>
-                                </div>
+                                    <span class="rq-tag rq-tag-amber">Transfer</span>
+                                    <div class="rq-route">{{ $req->fromWarehouse?->name ?? 'Utama' }} → {{ $req->toWarehouse?->name ?? 'Cabang' }}</div>
                                 @endif
                             </td>
+                            {{-- Notes --}}
                             <td>
                                 @if($req->notes)
-                                <div class="pr-notes-text" title="{{ $req->notes }}">{{ $req->notes }}</div>
+                                    <span class="rq-note" title="{{ $req->notes }}">{{ \Illuminate\Support\Str::limit($req->notes, 30) }}</span>
                                 @else
-                                <span class="pr-muted">—</span>
-                                @endif
-                                @if($req->transfer_reference)
-                                <div class="pr-ref">Ref: {{ $req->transfer_reference }}</div>
-                                @endif
-                                @if($req->supervisor_notes)
-                                <div class="pr-spv-note">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                    {{ $req->supervisor_notes }}
-                                </div>
+                                    <span class="rq-d2">—</span>
                                 @endif
                             </td>
+                            {{-- Status --}}
                             <td>
                                 @php
-                                    $statusMap = [
-                                        'pending' => ['label' => 'MENUNGGU', 'class' => 'pr-st-pending'],
-                                        'approved' => ['label' => 'DISETUJUI', 'class' => 'pr-st-approved'],
-                                        'rejected' => ['label' => 'DITOLAK', 'class' => 'pr-st-rejected'],
-                                        'completed' => ['label' => 'SELESAI', 'class' => 'pr-st-completed'],
-                                    ];
-                                    $st = $statusMap[$req->status] ?? ['label' => strtoupper($req->status), 'class' => 'pr-st-pending'];
+                                    $b = match($req->status) {
+                                        'pending'   => ['rq-b-warn','Menunggu'],
+                                        'approved'  => ['rq-b-ok','Disetujui'],
+                                        'rejected'  => ['rq-b-err','Ditolak'],
+                                        'completed' => ['rq-b-muted','Selesai'],
+                                        default     => ['rq-b-muted',strtoupper($req->status)],
+                                    };
                                 @endphp
-                                <span class="pr-status {{ $st['class'] }}">{{ $st['label'] }}</span>
+                                <span class="rq-badge {{ $b[0] }}">{{ $b[1] }}</span>
                             </td>
-                            @if($role === 'supervisor')
-                            <td class="c">
-                                @if($req->status === 'pending')
-                                <div class="pr-actions">
-                                    <button type="button" class="pr-act-btn pr-act-approve" onclick="openModal({{ $req->id }}, 'approved')" title="Setujui">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                    </button>
-                                    <button type="button" class="pr-act-btn pr-act-reject" onclick="openModal({{ $req->id }}, 'rejected')" title="Tolak">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    </button>
-                                </div>
-                                @else
-                                <span class="pr-done">Diproses</span>
+                            {{-- Action --}}
+                            <td class="rq-c">
+                                @if($req->user_id === auth()->id() || $role === 'supervisor')
+                                    <form method="POST" action="{{ route('gudang.request.destroy', $req->id) }}" onsubmit="return confirm('Hapus permintaan ini?');" style="display:inline">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="rq-del" title="Hapus">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </form>
                                 @endif
                             </td>
-                            @endif
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="{{ $role === 'supervisor' ? 8 : 7 }}">
-                                <div class="pr-empty">
-                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                    <h3>Tidak ada permintaan</h3>
-                                    <p>Tidak ada pengajuan Purchase Order atau transfer cabang sesuai filter yang dipilih.</p>
+                            <td colspan="8">
+                                <div class="rq-empty">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.35;margin-bottom:.5rem"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <div class="rq-empty-t">Belum ada permintaan</div>
+                                    <div class="rq-empty-s">Buat permintaan baru untuk memulai.</div>
                                 </div>
                             </td>
                         </tr>
@@ -233,253 +204,130 @@
             </div>
 
             @if($requests->hasPages())
-            <div class="pr-pagination">
-                <div class="pr-pagination-info">Halaman {{ $requests->currentPage() }} dari {{ $requests->lastPage() }}</div>
-                <div class="pr-pagination-links">{{ $requests->withQueryString()->links() }}</div>
-            </div>
+                <div class="rq-pag">{{ $requests->withQueryString()->links() }}</div>
             @endif
         </div>
-
     </div>
-
-    {{-- ══════════ APPROVAL MODAL ══════════ --}}
-    @if($role === 'supervisor')
-    <form id="statusForm" method="POST" style="display:none;" data-action="{{ route('gudang.request.update_status', ['productRequest' => '__ID__']) }}">
-        @csrf @method('PUT')
-        <input type="hidden" name="status" id="statusInput">
-        <input type="hidden" name="supervisor_notes" id="notesInput">
-    </form>
-
-    <div class="pr-modal" id="actionModal">
-        <div class="pr-modal-backdrop" onclick="closeModal()"></div>
-        <div class="pr-modal-box">
-            <div class="pr-modal-head">
-                <h3 id="modalTitle">Tindak Lanjut</h3>
-            </div>
-            <div class="pr-modal-body">
-                <p id="modalDesc" class="pr-modal-desc"></p>
-                <label class="pr-modal-label">Catatan Opsional (Alasan / Info)</label>
-                <textarea id="modalNotes" class="pr-textarea" placeholder="Tuliskan pesan untuk pemohon..."></textarea>
-            </div>
-            <div class="pr-modal-foot">
-                <button type="button" class="pr-btn pr-btn-ghost" onclick="closeModal()">Batalkan</button>
-                <button type="button" class="pr-btn pr-btn-primary" id="modalConfirmBtn">Simpan</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    let currentReq = null;
-    function openModal(id, status) {
-        currentReq = { id, status };
-        const titleEl = document.getElementById('modalTitle');
-        const descEl = document.getElementById('modalDesc');
-        const confirmBtn = document.getElementById('modalConfirmBtn');
-        document.getElementById('modalNotes').value = '';
-
-        if (status === 'approved') {
-            titleEl.textContent = 'Setujui Permintaan';
-            descEl.innerHTML = 'Permintaan akan ditandai sebagai <strong>disetujui</strong> dan dapat dilanjutkan ke tahap distribusi/PO.';
-            confirmBtn.className = 'pr-btn pr-btn-success';
-            confirmBtn.textContent = 'Ya, Setujui';
-        } else {
-            titleEl.textContent = 'Tolak Permintaan';
-            descEl.innerHTML = 'Permintaan akan <strong>ditolak</strong>. Disarankan untuk menuliskan alasan.';
-            confirmBtn.className = 'pr-btn pr-btn-danger';
-            confirmBtn.textContent = 'Ya, Tolak';
-        }
-        document.getElementById('actionModal').classList.add('active');
-        setTimeout(() => document.getElementById('modalNotes').focus(), 100);
-    }
-    function closeModal() {
-        document.getElementById('actionModal').classList.remove('active');
-        currentReq = null;
-    }
-    document.getElementById('modalConfirmBtn').addEventListener('click', function() {
-        if (!currentReq) return;
-        const notes = document.getElementById('modalNotes').value.trim();
-        if (currentReq.status === 'rejected' && !notes) {
-            alert('Catatan/Alasan wajib diisi jika menolak.');
-            document.getElementById('modalNotes').focus();
-            return;
-        }
-        this.disabled = true; this.style.opacity = '.6'; this.textContent = 'Memproses...';
-        const form = document.getElementById('statusForm');
-        document.getElementById('statusInput').value = currentReq.status;
-        document.getElementById('notesInput').value = notes;
-        form.action = form.dataset.action.replace('__ID__', currentReq.id);
-        form.submit();
-    });
-    </script>
-    @endif
 
     @push('styles')
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    :root {
-        --pr-bg: #f1f5f9; --pr-surface: #fff; --pr-border: #e2e8f0; --pr-border-light: #f1f5f9;
-        --pr-text: #0f172a; --pr-text2: #475569; --pr-muted: #94a3b8;
-        --pr-indigo: #4f46e5; --pr-indigo-hover: #4338ca; --pr-indigo-bg: #eef2ff; --pr-indigo-border: #c7d2fe;
-        --pr-green: #10b981; --pr-green-bg: #ecfdf5; --pr-green-text: #065f46; --pr-green-border: #a7f3d0;
-        --pr-red: #ef4444; --pr-red-bg: #fef2f2; --pr-red-text: #991b1b; --pr-red-border: #fecaca;
-        --pr-amber: #f59e0b; --pr-amber-bg: #fffbeb; --pr-amber-text: #92400e; --pr-amber-border: #fde68a;
-        --pr-blue: #0ea5e9; --pr-blue-bg: #e0f2fe; --pr-blue-text: #0369a1; --pr-blue-border: #bae6fd;
-        --pr-slate: #64748b; --pr-slate-bg: #f1f5f9;
-        --pr-r: 12px; --pr-r-sm: 8px;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    .pr-page { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--pr-text); max-width: 1360px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; background: var(--pr-bg); min-height: 100vh; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-    /* ── HEADER ── */
-    .pr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; }
-    .pr-header-left { display: flex; gap: 0.875rem; align-items: flex-start; }
-    .pr-icon-box { width: 48px; height: 48px; border-radius: 12px; background: var(--pr-indigo-bg); color: var(--pr-indigo); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .pr-eyebrow { font-size: 0.63rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pr-indigo); margin-bottom: 0.15rem; }
-    .pr-title { font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
-    .pr-subtitle { font-size: 0.82rem; color: var(--pr-text2); margin: 0.2rem 0 0; line-height: 1.5; }
+        .rq-page{padding:1.5rem;max-width:1280px;margin:0 auto;font-family:'Plus Jakarta Sans',system-ui,sans-serif}
 
-    /* ── BUTTONS ── */
-    .pr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.55rem 1.15rem; border-radius: var(--pr-r-sm); font-size: 0.82rem; font-weight: 700; font-family: inherit; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all .15s; white-space: nowrap; height: 40px; }
-    .pr-btn-primary { background: var(--pr-indigo); color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.2); }
-    .pr-btn-primary:hover { background: var(--pr-indigo-hover); transform: translateY(-1px); }
-    .pr-btn-success { background: var(--pr-green); color: #fff; box-shadow: 0 2px 6px rgba(16,185,129,.2); }
-    .pr-btn-success:hover { background: #059669; }
-    .pr-btn-danger { background: var(--pr-red); color: #fff; box-shadow: 0 2px 6px rgba(239,68,68,.2); }
-    .pr-btn-danger:hover { background: #dc2626; }
-    .pr-btn-dark { background: var(--pr-text); color: #fff; }
-    .pr-btn-dark:hover { background: #000; transform: translateY(-1px); }
-    .pr-btn-ghost { background: transparent; border-color: var(--pr-border); color: var(--pr-text2); }
-    .pr-btn-ghost:hover { border-color: var(--pr-muted); color: var(--pr-text); }
+        /* Header */
+        .rq-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+        .rq-eyebrow{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6366f1;margin-bottom:.2rem;display:block}
+        .rq-title{font-size:1.35rem;font-weight:800;color:#0f172a;margin:0 0 .3rem}
+        .rq-sub{font-size:.8rem;color:#64748b;margin:0}
 
-    /* ── ALERTS ── */
-    .pr-alert { display: flex; align-items: center; gap: 10px; padding: 0.85rem 1.125rem; border-radius: var(--pr-r-sm); margin-bottom: 1rem; font-size: 0.84rem; font-weight: 500; border: 1px solid; }
-    .pr-alert-success { background: var(--pr-green-bg); color: var(--pr-green-text); border-color: var(--pr-green-border); }
-    .pr-alert-danger { background: var(--pr-red-bg); color: var(--pr-red-text); border-color: var(--pr-red-border); }
+        /* Alerts */
+        .rq-alert{display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;border-radius:10px;margin-bottom:1.25rem;font-size:.83rem;font-weight:500}
+        .rq-alert-ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46}
+        .rq-alert-err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
 
-    /* ── KPI CARDS ── */
-    .pr-kpi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.75rem; margin-bottom: 1.25rem; }
-    .pr-kpi-card { background: var(--pr-surface); border: 1px solid var(--pr-border); border-radius: var(--pr-r); padding: 1rem 1.15rem; display: flex; align-items: center; gap: 0.85rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); transition: box-shadow .15s; }
-    .pr-kpi-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.06); }
-    .pr-kpi-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .pr-kpi-info { display: flex; flex-direction: column; gap: 2px; }
-    .pr-kpi-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--pr-muted); }
-    .pr-kpi-value { font-size: 1.5rem; font-weight: 800; line-height: 1; }
-    .pr-kpi-total .pr-kpi-icon { background: var(--pr-indigo-bg); color: var(--pr-indigo); }
-    .pr-kpi-total .pr-kpi-value { color: var(--pr-indigo); }
-    .pr-kpi-pending .pr-kpi-icon { background: var(--pr-amber-bg); color: var(--pr-amber); }
-    .pr-kpi-pending .pr-kpi-value { color: var(--pr-amber); }
-    .pr-kpi-approved .pr-kpi-icon { background: var(--pr-green-bg); color: var(--pr-green); }
-    .pr-kpi-approved .pr-kpi-value { color: var(--pr-green); }
-    .pr-kpi-rejected .pr-kpi-icon { background: var(--pr-red-bg); color: var(--pr-red); }
-    .pr-kpi-rejected .pr-kpi-value { color: var(--pr-red); }
-    .pr-kpi-completed .pr-kpi-icon { background: var(--pr-slate-bg); color: var(--pr-slate); }
-    .pr-kpi-completed .pr-kpi-value { color: var(--pr-slate); }
+        /* Stats */
+        .rq-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:.65rem;margin-bottom:1.5rem}
+        @media(max-width:992px){.rq-stats{grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:576px){.rq-stats{grid-template-columns:repeat(2,1fr)}}
 
-    /* ── CARD ── */
-    .pr-card { background: var(--pr-surface); border: 1px solid var(--pr-border); border-radius: var(--pr-r); overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .rq-stat{
+            position:relative;border-radius:12px;padding:1rem 1.1rem;text-decoration:none;
+            transition:all .18s;cursor:pointer;border:1.5px solid #e2e8f0;background:#fff;overflow:hidden;
+        }
+        .rq-stat:hover{border-color:var(--dot);box-shadow:0 4px 16px rgba(0,0,0,.06);transform:translateY(-2px)}
+        .rq-stat-on{border-color:var(--dot)}
+        .rq-stat-on::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--dot);border-radius:0 0 3px 3px}
+        .rq-stat-hero{background:linear-gradient(135deg,#6366f1,#8b5cf6);border-color:transparent}
+        .rq-stat-hero .rq-stat-n{color:#fff}
+        .rq-stat-hero .rq-stat-l{color:rgba(255,255,255,.75)}
+        .rq-stat-hero:hover{border-color:transparent;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+        .rq-stat-hero.rq-stat-on::after{background:#fff}
+        .rq-stat-n{font-size:1.55rem;font-weight:800;color:#0f172a;line-height:1}
+        .rq-stat-l{font-size:.7rem;color:#64748b;margin-top:.25rem;font-weight:600}
+        .rq-stat-dot{position:absolute;top:.75rem;right:.75rem;width:8px;height:8px;border-radius:50%;background:var(--dot)}
 
-    /* ── FILTER ── */
-    .pr-filter { padding: 1rem 1.25rem; border-bottom: 1px solid var(--pr-border-light); }
-    .pr-filter-form { display: flex; gap: 0.65rem; align-items: center; flex-wrap: wrap; }
-    .pr-search-box { display: flex; align-items: center; gap: 8px; background: #f8fafc; border-radius: var(--pr-r-sm); padding: 0 0.85rem; border: 1.5px solid var(--pr-border); flex: 1; min-width: 220px; height: 40px; transition: all .15s; }
-    .pr-search-box:focus-within { border-color: var(--pr-indigo); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,.08); }
-    .pr-search-box svg { color: var(--pr-muted); flex-shrink: 0; }
-    .pr-search-input { border: none; background: transparent; font-size: 0.84rem; font-family: inherit; color: var(--pr-text); outline: none; width: 100%; }
-    .pr-search-input::placeholder { color: var(--pr-muted); }
-    .pr-select { padding: 0 0.75rem; padding-right: 1.8rem; border: 1.5px solid var(--pr-border); border-radius: var(--pr-r-sm); font-family: inherit; font-size: 0.82rem; color: var(--pr-text); background: #f8fafc; appearance: none; outline: none; cursor: pointer; height: 40px; min-width: 140px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; background-size: 14px; transition: all .15s; }
-    .pr-select:focus { border-color: var(--pr-indigo); background-color: #fff; }
+        /* Card */
+        .rq-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden}
 
-    /* ── TABLE ── */
-    .pr-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .pr-table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 950px; }
-    .pr-table thead th { font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--pr-muted); padding: 0.75rem 1.125rem; border-bottom: 1.5px solid var(--pr-border); background: #fafbfc; white-space: nowrap; text-align: left; user-select: none; }
-    .pr-table tbody tr { transition: background .1s; }
-    .pr-table tbody tr:hover { background: #f8fafc; }
-    .pr-table tbody td { padding: 0.85rem 1.125rem; font-size: 0.84rem; vertical-align: middle; border-bottom: 1px solid var(--pr-border-light); }
-    .pr-table tbody tr:last-child td { border-bottom: none; }
-    .pr-table th.c, .pr-table td.c { text-align: center; }
+        /* Filters */
+        .rq-filters{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.85rem 1.15rem;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+        .rq-search{display:flex;align-items:center;gap:7px;background:#fff;border-radius:8px;padding:.45rem .75rem;border:1px solid #e2e8f0;flex:1;min-width:180px;transition:border-color .15s}
+        .rq-search:focus-within{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+        .rq-search svg{color:#94a3b8;flex-shrink:0}
+        .rq-search input{border:none;background:transparent;font-size:.82rem;outline:none;width:100%;color:#0f172a}
+        .rq-sel{padding:.45rem .65rem;border-radius:8px;border:1px solid #e2e8f0;font-size:.8rem;background:#fff;color:#0f172a;outline:none;transition:border-color .15s}
+        .rq-sel:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+        .rq-dates{display:flex;align-items:center;gap:.3rem}
+        .rq-date-sep{color:#94a3b8;font-size:.75rem}
+        .rq-filter-info{padding:.5rem 1.15rem;font-size:.76rem;color:#64748b;background:#fafbfc;border-bottom:1px solid #f1f5f9}
 
-    /* ── CELLS ── */
-    .pr-date { font-weight: 700; color: var(--pr-text); font-size: 0.84rem; white-space: nowrap; }
-    .pr-date-sub { font-size: 0.7rem; color: var(--pr-muted); margin-top: 2px; font-family: monospace; }
-    .pr-user { display: flex; align-items: center; gap: 8px; }
-    .pr-avatar { width: 30px; height: 30px; border-radius: 8px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; }
-    .pr-user-name { font-weight: 700; font-size: 0.82rem; color: var(--pr-text); }
-    .pr-user-role { font-size: 0.65rem; color: var(--pr-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-    .pr-prod-name { font-weight: 700; font-size: 0.84rem; color: var(--pr-text); line-height: 1.35; }
-    .pr-prod-sku { font-size: 0.7rem; color: var(--pr-muted); font-family: monospace; font-weight: 600; margin-top: 2px; }
+        /* Buttons */
+        .rq-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.5rem .85rem;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:none;cursor:pointer;transition:all .15s;font-family:inherit}
+        .rq-btn-sm{padding:.4rem .65rem;font-size:.78rem}
+        .rq-btn-primary{background:#6366f1;color:#fff}
+        .rq-btn-primary:hover{background:#4f46e5;transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.25)}
+        .rq-btn-dark{background:#1e293b;color:#fff}
+        .rq-btn-dark:hover{background:#0f172a}
+        .rq-btn-ghost{background:transparent;color:#94a3b8;border:1px solid #e2e8f0}
+        .rq-btn-ghost:hover{background:#f1f5f9;color:#64748b}
 
-    /* ── QTY WITH UNIT ── */
-    .pr-qty { display: inline-flex; align-items: baseline; gap: 3px; font-weight: 800; font-size: 0.95rem; color: var(--pr-text); }
-    .pr-qty-unit { font-size: 0.7rem; font-weight: 600; color: var(--pr-text2); }
-    .pr-qty-base { font-size: 0.65rem; color: var(--pr-muted); margin-top: 2px; font-weight: 600; font-family: monospace; }
+        /* Table */
+        .rq-tbl-wrap{overflow-x:auto}
+        .rq-tbl{width:100%;border-collapse:collapse}
+        .rq-tbl th,.rq-tbl td{padding:.7rem .85rem;text-align:left;font-size:.82rem;border-bottom:1px solid #f1f5f9}
+        .rq-tbl th{font-weight:600;color:#94a3b8;background:#fafbfc;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
+        .rq-tbl tbody tr{transition:background .1s}
+        .rq-tbl tbody tr:hover{background:#f8fafc}
+        .rq-c{text-align:center}
+        .rq-d1{font-weight:600;color:#0f172a;font-size:.82rem}
+        .rq-d2{font-size:.7rem;color:#94a3b8}
 
-    /* ── TYPE BADGE ── */
-    .pr-type-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.6rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .pr-type-po { background: var(--pr-blue-bg); color: var(--pr-blue-text); border: 1px solid var(--pr-blue-border); }
-    .pr-type-transfer { background: var(--pr-amber-bg); color: var(--pr-amber-text); border: 1px solid var(--pr-amber-border); }
-    .pr-route { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 0.7rem; color: var(--pr-muted); font-weight: 600; }
-    .pr-route svg { color: var(--pr-muted); }
+        /* User avatar */
+        .rq-user{display:flex;align-items:center;gap:.55rem}
+        .rq-avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:.7rem;font-weight:700;flex-shrink:0}
+        .rq-name{font-weight:600;color:#0f172a;font-size:.82rem}
 
-    /* ── NOTES ── */
-    .pr-notes-text { font-size: 0.8rem; color: var(--pr-text2); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: italic; }
-    .pr-muted { color: var(--pr-muted); font-size: 0.8rem; }
-    .pr-ref { font-size: 0.7rem; color: var(--pr-muted); font-family: monospace; margin-top: 3px; }
-    .pr-spv-note { display: flex; align-items: flex-start; gap: 5px; font-size: 0.72rem; color: var(--pr-indigo); background: var(--pr-indigo-bg); border-left: 2px solid var(--pr-indigo); padding: 0.3rem 0.5rem; border-radius: 4px; margin-top: 6px; font-weight: 500; }
-    .pr-spv-note svg { flex-shrink: 0; margin-top: 2px; }
+        /* Qty */
+        .rq-qty{font-weight:800;font-size:1rem;color:#0f172a}
 
-    /* ── STATUS ── */
-    .pr-status { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
-    .pr-st-pending { background: var(--pr-amber-bg); color: var(--pr-amber-text); border: 1px solid var(--pr-amber-border); }
-    .pr-st-approved { background: var(--pr-green-bg); color: var(--pr-green-text); border: 1px solid var(--pr-green-border); }
-    .pr-st-rejected { background: var(--pr-red-bg); color: var(--pr-red-text); border: 1px solid var(--pr-red-border); }
-    .pr-st-completed { background: var(--pr-slate-bg); color: var(--pr-slate); border: 1px solid var(--pr-border); }
+        /* Tags */
+        .rq-tag{display:inline-block;padding:.15rem .45rem;border-radius:5px;font-size:.65rem;font-weight:700;letter-spacing:.02em}
+        .rq-tag-blue{background:#dbeafe;color:#1e40af}
+        .rq-tag-amber{background:#fef3c7;color:#92400e}
+        .rq-route{font-size:.68rem;color:#94a3b8;margin-top:2px}
+        .rq-note{font-size:.8rem;color:#475569;font-style:italic}
 
-    /* ── ACTIONS ── */
-    .pr-actions { display: flex; gap: 6px; justify-content: center; }
-    .pr-act-btn { width: 32px; height: 32px; border-radius: var(--pr-r-sm); border: 1px solid var(--pr-border); background: var(--pr-surface); color: var(--pr-muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all .15s; }
-    .pr-act-approve:hover { background: var(--pr-green-bg); color: var(--pr-green); border-color: var(--pr-green-border); }
-    .pr-act-reject:hover { background: var(--pr-red-bg); color: var(--pr-red); border-color: var(--pr-red-border); }
-    .pr-done { font-size: 0.72rem; color: var(--pr-muted); font-style: italic; }
+        /* Badges */
+        .rq-badge{display:inline-block;padding:.2rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700}
+        .rq-b-warn{background:#fef3c7;color:#92400e}
+        .rq-b-ok{background:#d1fae5;color:#065f46}
+        .rq-b-err{background:#fee2e2;color:#991b1b}
+        .rq-b-muted{background:#f1f5f9;color:#64748b}
 
-    /* ── EMPTY ── */
-    .pr-empty { text-align: center; padding: 4rem 1.5rem; color: var(--pr-muted); }
-    .pr-empty svg { opacity: .25; margin-bottom: 0.75rem; }
-    .pr-empty h3 { font-size: 1rem; font-weight: 800; color: var(--pr-text); margin: 0 0 0.3rem; }
-    .pr-empty p { font-size: 0.84rem; max-width: 380px; margin: 0 auto; line-height: 1.5; }
+        /* Delete */
+        .rq-del{width:28px;height:28px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;background:transparent;color:#cbd5e1;transition:all .15s}
+        .rq-del:hover{background:#fee2e2;color:#ef4444}
 
-    /* ── PAGINATION ── */
-    .pr-pagination { padding: 0.85rem 1.25rem; border-top: 1px solid var(--pr-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
-    .pr-pagination-info { font-size: 0.78rem; color: var(--pr-muted); font-weight: 500; }
+        /* Empty */
+        .rq-empty{text-align:center;padding:3rem 1rem;color:#94a3b8}
+        .rq-empty-t{font-size:.9rem;font-weight:700;color:#475569;margin-bottom:.2rem}
+        .rq-empty-s{font-size:.8rem}
 
-    /* ── MODAL ── */
-    .pr-modal { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center; padding: 1rem; }
-    .pr-modal.active { display: flex; }
-    .pr-modal-backdrop { position: absolute; inset: 0; background: rgba(15,23,42,.4); backdrop-filter: blur(2px); }
-    .pr-modal-box { position: relative; z-index: 101; width: 100%; max-width: 460px; background: var(--pr-surface); border-radius: var(--pr-r); box-shadow: 0 20px 60px rgba(0,0,0,.15); overflow: hidden; animation: pr-pop .2s cubic-bezier(.16,1,.3,1); }
-    @keyframes pr-pop { 0% { opacity: 0; transform: scale(.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
-    .pr-modal-head { padding: 1.15rem 1.5rem; border-bottom: 1px solid var(--pr-border-light); }
-    .pr-modal-head h3 { font-size: 1.1rem; font-weight: 800; margin: 0; }
-    .pr-modal-body { padding: 1.5rem; }
-    .pr-modal-desc { font-size: 0.84rem; color: var(--pr-text2); margin: 0 0 1rem; line-height: 1.5; }
-    .pr-modal-desc strong { color: var(--pr-text); }
-    .pr-modal-label { font-size: 0.75rem; font-weight: 700; color: var(--pr-text); display: block; margin-bottom: 0.35rem; }
-    .pr-textarea { width: 100%; padding: 0.75rem; border: 1.5px solid var(--pr-border); border-radius: var(--pr-r-sm); font-family: inherit; font-size: 0.84rem; color: var(--pr-text); background: #f8fafc; outline: none; resize: vertical; min-height: 90px; transition: all .15s; }
-    .pr-textarea:focus { border-color: var(--pr-indigo); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,.08); }
-    .pr-modal-foot { padding: 1.15rem 1.5rem; border-top: 1px solid var(--pr-border-light); display: flex; justify-content: flex-end; gap: 0.65rem; }
+        /* Pagination */
+        .rq-pag{padding:.75rem 1.15rem;border-top:1px solid #f1f5f9}
 
-    /* ── RESPONSIVE ── */
-    @media (max-width: 1100px) { .pr-kpi { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 768px) {
-        .pr-header { flex-direction: column; align-items: stretch; }
-        .pr-btn-primary { width: 100%; justify-content: center; }
-        .pr-kpi { grid-template-columns: repeat(2, 1fr); }
-        .pr-filter-form { flex-direction: column; align-items: stretch; }
-        .pr-search-box, .pr-select { width: 100%; min-width: auto; }
-        .pr-modal-foot { flex-direction: column-reverse; }
-        .pr-modal-foot .pr-btn { width: 100%; }
-    }
-    @media (max-width: 480px) { .pr-kpi { grid-template-columns: 1fr; } }
+        /* Responsive */
+        @media(max-width:768px){
+            .rq-page{padding:1rem}
+            .rq-header{flex-direction:column}
+            .rq-filters{flex-direction:column;align-items:stretch}
+            .rq-search{min-width:0}
+            .rq-dates{flex-wrap:wrap}
+            .rq-tbl{font-size:.76rem}
+            .rq-tbl th,.rq-tbl td{padding:.5rem .4rem}
+            .rq-avatar{width:24px;height:24px;font-size:.6rem;border-radius:6px}
+        }
     </style>
     @endpush
 </x-app-layout>

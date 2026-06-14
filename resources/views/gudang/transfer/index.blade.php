@@ -56,17 +56,57 @@
 
             {{-- ALERTS --}}
             @if(session('success'))
-                <div class="tr-alert tr-alert-success">
+                <div class="tr-alert tr-alert-success" style="margin-top:1.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     {{ session('success') }}
                 </div>
             @endif
             @if(session('error')) 
-                <div class="tr-alert tr-alert-danger">
+                <div class="tr-alert tr-alert-danger" style="margin-top:1.5rem;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
                     {{ session('error') }}
                 </div> 
             @endif
+
+            {{-- KPI STATS CARDS --}}
+            <div class="tr-stats-grid-4" style="margin-bottom: 1.5rem;">
+                <div class="tr-stat-card border-blue">
+                    <div class="tr-stat-icon bg-blue">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"></path><path d="M4 20L21 3"></path><path d="M21 16v5h-5"></path><path d="M15 15l6 6"></path><path d="M4 4l5 5"></path></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalTransferInMonth ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Transfer (Bulan Ini)</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-green">
+                    <div class="tr-stat-icon bg-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalQtyTransferredMonth ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Qty (Bulan Ini)</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-orange">
+                    <div class="tr-stat-icon bg-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($pendingReqCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Permintaan Tertunda</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-purple">
+                    <div class="tr-stat-icon bg-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($pendingTransferCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Transfer In Tertunda</div>
+                    </div>
+                </div>
+            </div>
 
             {{-- MAIN CARD --}}
             <div class="tr-card">
@@ -78,9 +118,12 @@
                             <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no. referensi, SKU, atau nama barang...">
                         </div>
-                        <button type="submit" class="tr-btn tr-btn-primary">Cari Data</button>
+                        <input type="date" name="date_from" value="{{ request('date_from') }}" class="tr-select" placeholder="Dari Tanggal">
+                        <input type="date" name="date_to" value="{{ request('date_to') }}" class="tr-select" placeholder="Sampai Tanggal">
                         
-                        @if(request('search'))
+                        <button type="submit" class="tr-btn tr-btn-dark">Filter</button>
+                        
+                        @if(request('search') || request('date_from') || request('date_to'))
                             <a href="{{ route('gudang.transfer') }}" class="tr-btn tr-btn-danger-outline">Reset Filter</a>
                         @endif
                     </form>
@@ -249,11 +292,30 @@
         .tr-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); overflow: hidden; }
         .tr-filter-bar { padding: 1rem 1.25rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
         .tr-filter-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-        .tr-search { display: flex; align-items: center; gap: 8px; background: var(--tr-bg); border-radius: 6px; padding: 0.5rem 1rem; border: 1px solid var(--tr-border); flex: 1; min-width: 280px; transition: border-color 0.2s; }
+        .tr-search { display: flex; align-items: center; gap: 8px; background: var(--tr-bg); border-radius: 8px; padding: 0.5rem 1rem; border: 1px solid var(--tr-border); flex: 1; min-width: 280px; transition: border-color 0.2s; }
         .tr-search:focus-within { border-color: var(--tr-primary); background: #ffffff; }
         .tr-search-icon { color: var(--tr-text-light); }
         .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
         .tr-search input::placeholder { color: var(--tr-text-light); }
+        .tr-select { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--tr-border); font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); background: #ffffff; outline: none; transition: border-color 0.2s; }
+        .tr-select:focus { border-color: var(--tr-primary); }
+
+        /* ── STATS CARDS ── */
+        .tr-stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 992px) { .tr-stats-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 576px) { .tr-stats-grid-4 { grid-template-columns: 1fr; } }
+        .tr-stat-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); }
+        .tr-stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .tr-stat-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); line-height: 1; }
+        .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
+        .bg-green { background: #10b981; }
+        .bg-blue { background: #3b82f6; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-orange { background: #f59e0b; }
+        .border-green { border-left: 4px solid #10b981; }
+        .border-blue { border-left: 4px solid #3b82f6; }
+        .border-purple { border-left: 4px solid #8b5cf6; }
+        .border-orange { border-left: 4px solid #f59e0b; }
 
         /* ── BUTTONS ── */
         .tr-btn {
@@ -263,6 +325,8 @@
         }
         .tr-btn-primary { background: var(--tr-text-main); color: #ffffff; border-color: var(--tr-text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .tr-btn-primary:hover { background: #000000; transform: translateY(-1px); }
+        .tr-btn-dark { background: var(--tr-text-main); color: #ffffff; border-color: var(--tr-text-main); }
+        .tr-btn-dark:hover { background: #000000; border-color: #000000; }
         .tr-btn-outline { border-color: var(--tr-border); color: var(--tr-text-muted); background: var(--tr-surface); }
         .tr-btn-outline:hover { border-color: var(--tr-text-light); color: var(--tr-text-main); }
         .tr-btn-danger-outline { border-color: var(--tr-danger-border); color: var(--tr-danger-text); background: transparent; }

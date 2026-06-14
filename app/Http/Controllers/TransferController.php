@@ -27,6 +27,9 @@ class TransferController extends Controller
         $search = trim((string) $request->input('search'));
         $sanitizedSearch = SearchSanitizer::sanitize($search);
 
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
         // Riwayat ditampilkan per dokumen transfer (reference_number), bukan per item.
         // Tetap bisa cari berdasarkan no referensi / nama barang.
         $referenceQuery = StockMovement::query()
@@ -39,6 +42,12 @@ class TransferController extends Controller
                                 ->orWhere('sku', 'like', "%{$sanitizedSearch}%");
                         });
                 });
+            })
+            ->when($dateFrom, function ($query, $dateFrom) {
+                $query->whereDate('created_at', '>=', $dateFrom);
+            })
+            ->when($dateTo, function ($query, $dateTo) {
+                $query->whereDate('created_at', '<=', $dateTo);
             })
             ->selectRaw('reference_number, MAX(created_at) as latest_created_at')
             ->groupBy('reference_number')
@@ -102,15 +111,20 @@ class TransferController extends Controller
 
         // Stats untuk badge (hindari N+1 di view)
         $pendingReqCount = ProductRequest::where('status', 'approved')->count();
-        $whId = auth()->user()->employee?->warehouse_id;
+        $whId = WarehouseConfig::getAllowedId(strtolower((string) (Auth::user()?->role ?? '')));
         $pendingTransferQuery = StockMovement::where('type', 'transfer_in')->where('status', 'pending');
         if ($whId) {
             $pendingTransferQuery->where('warehouse_id', $whId);
         }
         $pendingTransferCount = $pendingTransferQuery->count();
 
+        // Stats tambahan untuk KPI cards di index
+        $startOfMonth = now()->startOfMonth();
+        $totalTransferInMonth = StockMovement::where('type', 'transfer_out')->where('created_at', '>=', $startOfMonth)->select('reference_number')->distinct()->count('reference_number');
+        $totalQtyTransferredMonth = StockMovement::where('type', 'transfer_out')->where('created_at', '>=', $startOfMonth)->sum('quantity');
+
         return view('gudang.transfer.index', compact(
-            'transfers', 'pendingReqCount', 'pendingTransferCount'
+            'transfers', 'pendingReqCount', 'pendingTransferCount', 'totalTransferInMonth', 'totalQtyTransferredMonth'
         ));
     }
 
@@ -121,30 +135,206 @@ class TransferController extends Controller
             abort(403);
         }
 
-        return redirect()->route('gudang.transfer.requests');
+        $userWhId = WarehouseConfig::getAllowedId($role);
+
+        // For admin3/admin4: only show products with stock in their own warehouse
+        if ($userWhId) {
+            $products = \App\Models\Product::with(['productStocks' => function ($q) use ($userWhId) {
+                    $q->where('warehouse_id', $userWhId)->where('stock', '>', 0);
+                }, 'unitConversions.unit', 'unit'])
+                ->whereHas('productStocks', function ($q) use ($userWhId) {
+                    $q->where('warehouse_id', $userWhId)->where('stock', '>', 0);
+                })
+                ->orderBy('name')
+                ->get();
+            $warehouses = \App\Models\Warehouse::where('active', true)->orderBy('name')->get();
+        } else {
+            // Supervisor: all products and warehouses
+            $products = \App\Models\Product::with(['productStocks', 'unitConversions.unit', 'unit'])
+                ->where('stock', '>', 0)
+                ->orderBy('name')
+                ->get();
+            $warehouses = \App\Models\Warehouse::where('active', true)->orderBy('name')->get();
+        }
+
+        return view('gudang.transfer.create', compact('products', 'warehouses', 'userWhId'));
     }
 
     public function store(Request $request)
     {
-        return back()->with('error', 'Transfer harus dibuat dari permintaan yang disetujui Supervisor.');
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if (! Roles::canTransfer($role)) {
+            abort(403);
+        }
+
+        $request->validate([
+            'reference_number' => 'required|string|unique:stock_movements,reference_number',
+            'from_warehouse_id' => 'required|exists:warehouses,id',
+            'to_warehouse_id' => 'required|exists:warehouses,id|different:from_warehouse_id',
+            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|numeric|min:0.0001',
+            'items.*.unit_factor' => 'required|numeric|min:0.0001',
+            'items.*.unit_label' => 'nullable|string',
+        ]);
+
+        $fromWarehouseId = (int) $request->from_warehouse_id;
+        $toWarehouseId = (int) $request->to_warehouse_id;
+
+        // Admin lain hanya bisa proses transfer dari gudang tempatnya bertugas.
+        if ($role !== 'supervisor') {
+            $userWhId = WarehouseConfig::getAllowedId($role);
+            if (!$userWhId || $userWhId !== $fromWarehouseId) {
+                return back()->with('error', 'Anda tidak berhak mengirim transfer dari gudang asal ini.')->withInput();
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+            $referenceNumber = $request->reference_number;
+            $firstOut = null;
+
+            foreach ($request->items as $item) {
+                $productId = $item['product_id'];
+                $qtyInput = (float) $item['quantity'];
+                $unitFactor = (float) $item['unit_factor'];
+                $unitLabel = $item['unit_label'] ?? 'Satuan Dasar';
+                $qtyToTransfer = (int) round($qtyInput * $unitFactor);
+
+                if ($qtyToTransfer <= 0) continue;
+
+                $notesWithUnit = trim("Transfer Langsung".($request->notes ? ' | '.$request->notes : '')." | Input: {$qtyInput} {$unitLabel} (={$qtyToTransfer} satuan dasar)");
+
+                $availableStocks = \App\Models\ProductStock::where('product_id', $productId)
+                    ->where('warehouse_id', $fromWarehouseId)
+                    ->where('stock', '>', 0)
+                    ->orderBy('expired_date', 'asc')
+                    ->orderBy('created_at', 'asc')
+                    ->lockForUpdate()
+                    ->get();
+
+                $totalAvailable = (int) $availableStocks->sum('stock');
+                if ($totalAvailable < $qtyToTransfer) {
+                    $product = \App\Models\Product::find($productId);
+                    $productLabel = $product ? "{$product->sku} - {$product->name}" : "ID {$productId}";
+                    DB::rollBack();
+                    return back()->with('error', "Stok {$productLabel} di gudang asal tidak mencukupi. Maksimal tersedia: {$totalAvailable} satuan dasar.")->withInput();
+                }
+
+                $remainingQty = $qtyToTransfer;
+                $totalDeducted = 0;
+
+                foreach ($availableStocks as $stock) {
+                    if ($remainingQty <= 0) break;
+
+                    $deductQty = min($stock->stock, $remainingQty);
+                    $stock->stock -= $deductQty;
+                    $stock->save();
+
+                    $totalDeducted += $deductQty;
+                    $qtyInUnitForThisBatch = $unitFactor > 0 ? $deductQty / $unitFactor : $deductQty;
+
+                    $out = \App\Models\StockMovement::create([
+                        'product_id' => $productId,
+                        'warehouse_id' => $fromWarehouseId,
+                        'location_id' => null,
+                        'type' => 'transfer_out',
+                        'status' => 'pending',
+                        'reference_number' => $referenceNumber,
+                        'batch_number' => $stock->batch_number,
+                        'expired_date' => $stock->expired_date,
+                        'quantity' => $deductQty,
+                        'unit_id' => null, 
+                        'conversion_factor' => $unitFactor,
+                        'quantity_in_unit' => $qtyInUnitForThisBatch,
+                        'balance' => $stock->stock,
+                        'notes' => $notesWithUnit,
+                        'user_id' => Auth::id(),
+                    ]);
+
+                    if (! $firstOut) $firstOut = $out;
+
+                    \App\Models\StockMovement::create([
+                        'product_id' => $productId,
+                        'warehouse_id' => $toWarehouseId,
+                        'location_id' => null,
+                        'type' => 'transfer_in',
+                        'status' => 'pending',
+                        'reference_number' => $referenceNumber,
+                        'batch_number' => $stock->batch_number,
+                        'expired_date' => $stock->expired_date,
+                        'quantity' => $deductQty,
+                        'unit_id' => null,
+                        'conversion_factor' => $unitFactor,
+                        'quantity_in_unit' => $qtyInUnitForThisBatch,
+                        'balance' => 0,
+                        'notes' => $notesWithUnit,
+                        'user_id' => Auth::id(),
+                    ]);
+
+                    $remainingQty -= $deductQty;
+                }
+
+                if ($totalDeducted > 0) {
+                    \App\Models\Product::where('id', $productId)->decrement('stock', $totalDeducted);
+                }
+            }
+
+            DB::commit();
+
+            if ($firstOut) {
+                return redirect()->route('gudang.transfer.show', $firstOut)->with('success', 'Dokumen transfer berhasil dibuat dan stok telah dikeluarkan.');
+            }
+
+            return redirect()->route('gudang.transfer')->with('success', 'Dokumen transfer berhasil dibuat.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan sistem: '.$e->getMessage())->withInput();
+        }
     }
 
     public function approvedRequests(Request $request)
     {
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, Roles::transferApprovers(), true)) {
+        $userWhId = \App\Support\WarehouseConfig::getAllowedId($role);
+
+        // Semua role yang punya akses gudang boleh buka menu ini
+        if (! in_array($role, ['supervisor', 'admin3', 'admin4', 'gudang'], true)) {
             abort(403);
         }
 
         $search = trim((string) $request->input('search'));
+        $statusFilter = trim((string) $request->input('status', 'pending'));
         $sanitizedSearch = SearchSanitizer::sanitize($search);
 
-        $query = ProductRequest::query()
+        $baseQuery = ProductRequest::query()
             ->with(['user', 'product', 'fromWarehouse', 'toWarehouse'])
             ->where('type', 'transfer')
-            ->where('status', 'approved')
-            ->whereNull('transfer_reference')
-            ->orderByDesc('created_at');
+            ->where('status', 'approved');
+
+        // Jika bukan supervisor, hanya bisa melihat request yang 'from_warehouse_id' nya sama dengan gudang mereka
+        if ($role !== 'supervisor') {
+            if (!$userWhId) {
+                // Jika user tidak punya gudang terhubung, tidak bisa melihat apa-apa
+                $baseQuery->whereRaw('1 = 0');
+            } else {
+                $baseQuery->where('from_warehouse_id', $userWhId);
+            }
+        }
+
+        // Stats KPI
+        $totalCount = (clone $baseQuery)->count();
+        $pendingCount = (clone $baseQuery)->whereNull('transfer_reference')->count();
+        $processedCount = (clone $baseQuery)->whereNotNull('transfer_reference')->count();
+
+        $query = clone $baseQuery;
+
+        if ($statusFilter === 'pending') {
+            $query->whereNull('transfer_reference');
+        } elseif ($statusFilter === 'processed') {
+            $query->whereNotNull('transfer_reference');
+        }
 
         if ($search !== '') {
             $query->where(function ($q) use ($sanitizedSearch) {
@@ -152,33 +342,50 @@ class TransferController extends Controller
                     $p->where('name', 'like', "%{$sanitizedSearch}%")
                         ->orWhere('sku', 'like', "%{$sanitizedSearch}%");
                 })
-                    ->orWhereHas('user', function ($u) use ($sanitizedSearch) {
-                        $u->where('name', 'like', "%{$sanitizedSearch}%")
-                            ->orWhere('role', 'like', "%{$sanitizedSearch}%");
-                    });
+                ->orWhereHas('user', function ($u) use ($sanitizedSearch) {
+                    $u->where('name', 'like', "%{$sanitizedSearch}%")
+                        ->orWhere('role', 'like', "%{$sanitizedSearch}%");
+                });
             });
         }
 
-        $requests = $query->paginate(15)->withQueryString();
+        $requests = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
-        return view('gudang.transfer.requests', compact('requests'));
+        // Calculate badges count for tabs
+        $pendingReqCount = ProductRequest::where('status', 'approved')->whereNull('transfer_reference')->count();
+        $pendingTransferQuery = StockMovement::where('type', 'transfer_in')->where('status', 'pending');
+        if ($userWhId) {
+            $pendingTransferQuery->where('warehouse_id', $userWhId);
+        }
+        $pendingTransferCount = $pendingTransferQuery->count();
+
+        return view('gudang.transfer.requests', compact(
+            'requests', 'totalCount', 'pendingCount', 'processedCount', 'statusFilter',
+            'pendingReqCount', 'pendingTransferCount'
+        ));
     }
 
     public function processFromRequest(ProductRequest $productRequest)
     {
         $role = strtolower((string) (Auth::user()?->role ?? ''));
-        if (! in_array($role, Roles::transferApprovers(), true)) {
-            abort(403);
+        $fromWarehouseId = (int) ($productRequest->from_warehouse_id ?: WarehouseConfig::getMainId());
+        $toWarehouseId = (int) ($productRequest->to_warehouse_id ?: WarehouseConfig::getBranchId());
+
+        // Supervisor bisa proses transfer dari mana saja.
+        // Admin lain hanya bisa proses transfer jika mereka bertugas di gudang asal.
+        if ($role !== 'supervisor') {
+            $userWhId = \App\Support\WarehouseConfig::getAllowedId($role);
+            if (!$userWhId || $userWhId !== $fromWarehouseId) {
+                abort(403, 'Anda tidak berhak memproses transfer keluar dari gudang asal ini.');
+            }
         }
+
         if ($productRequest->type !== 'transfer' || $productRequest->status !== 'approved') {
             return back()->with('error', 'Permintaan transfer tidak valid atau belum disetujui.');
         }
         if ($productRequest->transfer_reference) {
             return back()->with('error', 'Permintaan transfer ini sudah diproses menjadi dokumen transfer.');
         }
-
-        $fromWarehouseId = (int) ($productRequest->from_warehouse_id ?: WarehouseConfig::getMainId());
-        $toWarehouseId = (int) ($productRequest->to_warehouse_id ?: WarehouseConfig::getBranchId());
 
         // Handle unit conversion
         $conversionFactor = (float) ($productRequest->conversion_factor ?: 1);
@@ -232,6 +439,8 @@ class TransferController extends Controller
 
                 $totalDeducted += $deductQty;
 
+                $qtyInUnitForThisBatch = $conversionFactor > 0 ? $deductQty / $conversionFactor : $deductQty;
+
                 $out = StockMovement::create([
                     'product_id' => $productRequest->product_id,
                     'warehouse_id' => $fromWarehouseId,
@@ -244,7 +453,7 @@ class TransferController extends Controller
                     'quantity' => $deductQty,
                     'unit_id' => $productRequest->unit_id,
                     'conversion_factor' => $conversionFactor,
-                    'quantity_in_unit' => $quantityInUnit,
+                    'quantity_in_unit' => $qtyInUnitForThisBatch,
                     'balance' => $stock->stock,
                     'notes' => $notesWithUnit,
                     'user_id' => Auth::id(),
@@ -266,7 +475,7 @@ class TransferController extends Controller
                     'quantity' => $deductQty,
                     'unit_id' => $productRequest->unit_id,
                     'conversion_factor' => $conversionFactor,
-                    'quantity_in_unit' => $quantityInUnit,
+                    'quantity_in_unit' => $qtyInUnitForThisBatch,
                     'balance' => 0,
                     'notes' => $notesWithUnit,
                     'user_id' => Auth::id(),

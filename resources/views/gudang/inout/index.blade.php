@@ -236,7 +236,7 @@
                 <div class="tr-card-header" style="flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <h2 class="tr-card-title">Peringatan Minimum Stok & Saran Reorder</h2>
-                        <p class="tr-card-subtitle">Item: {{ $reorderSummary['count'] ?? 0 }} • Total Qty: {{ $reorderSummary['total_qty'] ?? 0 }} • Estimasi: Rp {{ number_format($reorderSummary['total_value'] ?? 0, 0, ',', '.') }}</p>
+                        <p class="tr-card-subtitle">Item: {{ $reorderSummary['count'] ?? 0 }} • Total Qty: {{ $reorderSummary['total_qty'] ?? 0 }} • Estimasi: {{ ($hideFinancial ?? false) ? '***' : 'Rp ' . number_format($reorderSummary['total_value'] ?? 0, 0, ',', '.') }}</p>
                     </div>
                     @php
                         $qs = '';
@@ -291,7 +291,7 @@
                                     <td class="c tr-font-bold">{{ $p->min_stock }}</td>
                                     <td class="c tr-font-bold text-red">{{ $p->stock }}</td>
                                     <td class="r tr-font-bold text-primary">+{{ $suggest }}</td>
-                                    <td class="r">Rp {{ number_format($suggest * (float) ($p->purchase_price ?? 0), 0, ',', '.') }}</td>
+                                    <td class="r">{{ ($hideFinancial ?? false) ? '***' : 'Rp ' . number_format($suggest * (float) ($p->purchase_price ?? 0), 0, ',', '.') }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -349,7 +349,8 @@
                     }
                 });
                 var el = document.getElementById('reorder-selected-summary');
-                if(el){ el.innerHTML = `<strong>${items}</strong> item dipilih <span class="tr-dot-divider">•</span> Qty <strong>${qty}</strong> <span class="tr-dot-divider">•</span> Est. <strong>Rp ${format(val)}</strong>`; }
+                var hideFin = {{ ($hideFinancial ?? false) ? 'true' : 'false' }};
+                if(el){ el.innerHTML = `<strong>${items}</strong> item dipilih <span class="tr-dot-divider">•</span> Qty <strong>${qty}</strong>` + (hideFin ? '' : ` <span class="tr-dot-divider">•</span> Est. <strong>Rp ${format(val)}</strong>`); }
             }
             function buildQueryFromChecks(){
                 var sel = document.querySelectorAll('.reorder-check:checked');

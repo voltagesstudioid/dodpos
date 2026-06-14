@@ -70,17 +70,27 @@
     </style>
 </head>
 <body>
-    <div class="print-bar">
+    <div class="print-bar" style="display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">
         <button class="print-btn" onclick="window.print()">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
             Cetak Struk
         </button>
+        <button class="print-btn" onclick="printBluetooth()" style="background:linear-gradient(135deg,#059669,#047857);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l12 8-6 6V2l6 6-12 8"/></svg>
+            Web Bluetooth
+        </button>
+        <button class="print-btn" onclick="printRawBT()" style="background:linear-gradient(135deg,#db2777,#be185d);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Cetak via RawBT
+        </button>
     </div>
 
-    <div class="receipt-wrap">
+    @foreach(['ASLI', 'COPY'] as $jenisStruk)
+    <div class="receipt-wrap" style="{{ $loop->first ? 'margin-bottom: 2rem;' : '' }}">
         <div class="receipt">
             {{-- Header --}}
             <div class="rpt-hdr">
+                <div style="font-size:0.625rem; font-weight:800; border:1px solid #1e40af; border-radius:4px; display:inline-block; padding:2px 8px; margin-bottom:8px; color:#1e40af; letter-spacing:1px;">{{ $jenisStruk }}</div>
                 <div class="rpt-logo">DOD POS</div>
                 <div class="rpt-sub">Mineral</div>
                 <div class="rpt-faktur">{{ $penjualan->no_faktur }}</div>
@@ -194,5 +204,197 @@
             </div>
         </div>
     </div>
+    
+    @if($loop->first)
+    <div style="text-align:center; margin:1.5rem 0; color:#94a3b8; font-size:12px; display:flex; align-items:center; gap:8px;">
+        <div style="flex:1; border-top:1px dashed #cbd5e1;"></div>
+        <div>&#9988; Potong di sini &#9988;</div>
+        <div style="flex:1; border-top:1px dashed #cbd5e1;"></div>
+    </div>
+    @endif
+    @endforeach
+
+    <script>
+        function padLeft(text, length) {
+            return (" ".repeat(length) + text).slice(-length);
+        }
+
+        function formatLine(left, right) {
+            const totalLength = 32;
+            if (left.length + right.length > totalLength) {
+                return left + "\n" + padLeft(right, totalLength);
+            }
+            const spaces = totalLength - left.length - right.length;
+            return left + " ".repeat(spaces) + right;
+        }
+
+        function getReceiptText(jenisStruk) {
+            const ESC = '\x1B';
+            let receipt = "";
+
+            // Initialize
+            receipt += ESC + '@';
+            
+            // Align Center
+            receipt += ESC + 'a' + '\x01';
+            receipt += "*** " + jenisStruk + " ***\n";
+            receipt += "DOD POS\n";
+            receipt += "Mineral\n";
+            receipt += "--------------------------------\n";
+            
+            // Align Left
+            receipt += ESC + 'a' + '\x00';
+            receipt += "Faktur: {{ $penjualan->no_faktur }}\n";
+            receipt += "Tgl   : {{ $penjualan->tanggal_jual->format('d/m/Y H:i') }}\n";
+            receipt += "--------------------------------\n";
+            
+            // Pelanggan
+            receipt += "Toko   : {{ $penjualan->pelanggan->nama_toko ?? '-' }}\n";
+            receipt += "Pemilik: {{ $penjualan->pelanggan->nama_pemilik ?? '-' }}\n";
+            receipt += "--------------------------------\n";
+            
+            // Produk
+            let prodName = "{{ $penjualan->produk->nama ?? '-' }}";
+            let qty = "{{ $penjualan->jumlah }} {{ $penjualan->produk->satuan ?? '' }}";
+            let harga = "Rp {{ number_format($penjualan->harga_satuan, 0, ',', '.') }}";
+            let total = "Rp {{ number_format($penjualan->total, 0, ',', '.') }}";
+            
+            receipt += formatLine(prodName, qty) + "\n";
+            receipt += formatLine("Harga", harga) + "\n";
+            receipt += "--------------------------------\n";
+            
+            // Total
+            receipt += formatLine("TOTAL", total) + "\n";
+            
+            // Tipe Bayar
+            let tipeBayar = "{{ $penjualan->tipe_bayar }}";
+            if (tipeBayar === 'tunai') {
+                receipt += "PEMBAYARAN: TUNAI / CASH\n";
+            } else if (tipeBayar === 'hutang') {
+                receipt += "PEMBAYARAN: KREDIT / HUTANG\n";
+                receipt += formatLine("DP", "Rp {{ number_format($penjualan->bayar, 0, ',', '.') }}") + "\n";
+                receipt += formatLine("SISA", "Rp {{ number_format($penjualan->hutang, 0, ',', '.') }}") + "\n";
+                
+                @if($penjualan->pelanggan)
+                let limit = {{ $penjualan->pelanggan->limit_hutang ?? 0 }};
+                let totalHutang = {{ $penjualan->pelanggan->total_hutang ?? 0 }};
+                if (limit > 0) {
+                    receipt += "--------------------------------\n";
+                    receipt += formatLine("Limit Kredit", "Rp " + limit.toLocaleString('id-ID')) + "\n";
+                    receipt += formatLine("Sisa Limit", "Rp " + Math.max(0, limit - totalHutang).toLocaleString('id-ID')) + "\n";
+                }
+                @endif
+            } else {
+                receipt += "PEMBAYARAN: TRANSFER\n";
+                receipt += "Ref: {{ $penjualan->no_bukti_transfer ?? '-' }}\n";
+            }
+            
+            receipt += "--------------------------------\n";
+            receipt += "Sales: {{ $penjualan->sales->nama ?? '-' }}\n";
+            
+            @if($penjualan->keterangan)
+            receipt += "\nKet: {{ $penjualan->keterangan }}\n";
+            @endif
+            
+            receipt += "--------------------------------\n";
+            
+            // Align Center
+            receipt += ESC + 'a' + '\x01';
+            receipt += "Terima Kasih\n";
+            receipt += "Struk ini adalah bukti\n";
+            receipt += "transaksi yang sah.\n";
+            
+            // Feed paper
+            receipt += "\n\n\n\n";
+
+            return receipt;
+        }
+
+        function printRawBT() {
+            try {
+                let receiptASLI = getReceiptText("ASLI");
+                let receiptCOPY = getReceiptText("COPY");
+                
+                // Gabungkan kedua struk dengan pemisah feed paper tambahan
+                let fullReceipt = receiptASLI + "\n\n--------------------------------\n\n" + receiptCOPY;
+
+                // Encode ke Base64 agar aman dipassing via URL Intent
+                let base64Data = btoa(fullReceipt);
+                let intentUrl = "intent:" + base64Data + "#Intent;scheme=rawbt:base64;package=ru.a402d.rawbtprinter;end;";
+                
+                // Panggil intent RawBT
+                window.location.href = intentUrl;
+            } catch (error) {
+                console.error(error);
+                alert("Gagal memproses struk untuk RawBT: " + error.message);
+            }
+        }
+
+        async function printBluetooth() {
+            try {
+                if (!navigator.bluetooth) {
+                    alert("Browser Anda tidak mendukung Web Bluetooth. Gunakan Google Chrome di Android atau PC.");
+                    return;
+                }
+
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '000018f0-0000-1000-8000-00805f9b34fb',
+                        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                        '0000fee7-0000-1000-8000-00805f9b34fb',
+                        '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+                    ]
+                });
+
+                console.log('Connecting to GATT Server...');
+                const server = await device.gatt.connect();
+
+                console.log('Getting Services...');
+                const services = await server.getPrimaryServices();
+
+                let characteristic = null;
+                for (const service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    for (const c of characteristics) {
+                        if (c.properties.writeWithoutResponse || c.properties.write) {
+                            characteristic = c;
+                            break;
+                        }
+                    }
+                    if (characteristic) break;
+                }
+
+                if (!characteristic) {
+                    alert("Karakteristik Bluetooth untuk print tidak ditemukan pada perangkat ini!");
+                    return;
+                }
+
+                let receiptASLI = getReceiptText("ASLI");
+                let receiptCOPY = getReceiptText("COPY");
+                let fullReceipt = receiptASLI + "\n\n--------------------------------\n\n" + receiptCOPY;
+
+                const encoder = new TextEncoder();
+                const data = encoder.encode(fullReceipt);
+
+                const CHUNK_SIZE = 50; // Use small chunks for BLE
+                for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                    const chunk = data.slice(i, i + CHUNK_SIZE);
+                    if (characteristic.properties.writeWithoutResponse) {
+                        await characteristic.writeValueWithoutResponse(chunk);
+                    } else {
+                        await characteristic.writeValue(chunk);
+                    }
+                    // Small delay to prevent overwhelming the bluetooth buffer
+                    await new Promise(r => setTimeout(r, 40));
+                }
+                
+                alert("Struk berhasil dikirim ke printer!");
+            } catch (error) {
+                console.error('Print Error:', error);
+                alert("Gagal print via Bluetooth.\n" + error.message);
+            }
+        }
+    </script>
 </body>
 </html>

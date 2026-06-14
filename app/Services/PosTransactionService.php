@@ -197,6 +197,7 @@ class PosTransactionService
     {
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', $type)
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
         if (! $activeSession) {
@@ -259,8 +260,9 @@ class PosTransactionService
     }
 
     /**
-     * Buat pick orders otomatis jika ada item dari Gudang Utama.
+     * Buat pick orders otomatis untuk semua gudang yang terlibat dalam transaksi.
      * Dipanggil setelah transaksi berhasil disimpan.
+     * Admin gudang masing-masing dapat melihat dan menyiapkan barang sesuai pick order.
      *
      * @param Transaction $trx          Transaksi yang baru selesai
      * @param array       $resolvedItems Items sudah diresolve (dengan warehouse_id, unit_qty, dll)
@@ -268,25 +270,17 @@ class PosTransactionService
      */
     public function createPickOrdersIfNeeded(Transaction $trx, array $resolvedItems, string $posType = 'eceran'): void
     {
-        // Ambil semua gudang utama
-        $mainWarehouseIds = Warehouse::where('type', 'utama')->where('active', true)->pluck('id')->toArray();
-        if (empty($mainWarehouseIds)) {
-            return; // Tidak ada gudang utama yang didefinisikan
-        }
-
-        // Filter items yang berasal dari gudang utama, kelompokkan per warehouse
+        // Kelompokkan items per warehouse
         $itemsByWarehouse = [];
         foreach ($resolvedItems as $item) {
-            if (in_array($item['warehouse_id'], $mainWarehouseIds)) {
-                $itemsByWarehouse[$item['warehouse_id']][] = $item;
-            }
+            $itemsByWarehouse[$item['warehouse_id']][] = $item;
         }
 
         if (empty($itemsByWarehouse)) {
-            return; // Tidak ada item dari gudang utama
+            return;
         }
 
-        // Buat satu pick order per gudang utama
+        // Buat satu pick order per warehouse
         foreach ($itemsByWarehouse as $warehouseId => $items) {
             $pickOrder = PosPickOrder::create([
                 'pick_number'    => PosPickOrder::generateNumber(),

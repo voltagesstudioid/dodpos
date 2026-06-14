@@ -596,7 +596,7 @@ function doPayment(){
     }).catch(() => alert('Gagal menghubungi server.')).finally(() => { btn.disabled = false; btn.textContent = 'Konfirmasi'; });
 }
 
-function newTrx(){ cart=[]; method='cash'; document.getElementById('priceTier').value='eceran'; priceTier='eceran'; document.getElementById('customerId').value=''; document.getElementById('customerInfo').style.display='none'; renderCart(); render(); document.getElementById('successOverlay').classList.remove('show'); }
+function newTrx(){ cart=[]; method='cash'; document.getElementById('priceTier').value='eceran'; priceTier='eceran'; document.getElementById('customerId').value=''; document.getElementById('customerInfo').style.display='none'; renderCart(); document.getElementById('successOverlay').classList.remove('show'); fetchProducts(document.querySelector('.search-input').value); }
 function fmt(n){ return Math.round(n).toLocaleString('id-ID'); }
 </script>
 </body>

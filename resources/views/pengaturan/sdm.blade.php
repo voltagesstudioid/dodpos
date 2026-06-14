@@ -251,7 +251,7 @@
                                     <option value="auto" {{ $cm === 'auto' ? 'selected' : '' }}>Otomatis (Skema + Override Libur)</option>
                                     <option value="manual" {{ $cm === 'manual' ? 'selected' : '' }}>Manual (Setiap tanggal ditentukan)</option>
                                 </select>
-                                <div class="sd-hint">Mode Manual: hari kerja ditentukan dari kalender di SDM/HR &rarr; Libur.</div>
+                                <div class="sd-hint">Mode Manual: hari kerja ditentukan dari kalender di SDM &amp; Penggajian &rarr; Libur.</div>
                                 @error('sdm_calendar_mode') <div class="sd-error">{{ $message }}</div> @enderror
                             </div>
                         </div>

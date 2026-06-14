@@ -22,10 +22,11 @@ class Roles
 
     /**
      * Roles that can approve transfers and certain transactions.
+     * admin3 (Gudang Masuk) & admin4 (Gudang Keluar) can transfer directly without supervisor approval.
      */
     public static function transferApprovers(): array
     {
-        return [self::ADMIN3, self::SUPERVISOR];
+        return [self::ADMIN3, self::ADMIN4, self::SUPERVISOR];
     }
 
     /**

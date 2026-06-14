@@ -279,6 +279,19 @@
                             <option value="voided" @selected(request('status')=='voided')>Void</option>
                         </select>
                     </div>
+                    @if($kasirUsers->isNotEmpty())
+                    <div class="tx-fg" style="width:140px;">
+                        <label class="tx-fl">Kasir</label>
+                        <select name="user_id" class="tx-fi">
+                            <option value="">Semua Kasir</option>
+                            @foreach($kasirUsers as $ku)
+                                <option value="{{ $ku->id }}" @selected(request('user_id') == $ku->id)>
+                                    {{ $ku->name }} ({{ ucfirst($ku->role) }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    @endif
                     <div style="display:flex;gap:0.4rem;align-self:flex-end;">
                         <button type="submit" class="tx-btn tx-btn-dark tx-btn-sm">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>

@@ -27,8 +27,8 @@ class StoreProductRequestRequest extends FormRequest
             'unit_id' => 'nullable|exists:units,id',
             'conversion_factor' => 'nullable|numeric|min:1',
             'type' => 'required|in:po,transfer',
-            'to_warehouse_id' => 'nullable|exists:warehouses,id',
             'notes' => 'nullable|string|max:1000',
+            // from_warehouse_id and to_warehouse_id are auto-assigned by controller
         ];
     }
 }

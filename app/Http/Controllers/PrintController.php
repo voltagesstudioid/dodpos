@@ -43,7 +43,11 @@ class PrintController extends Controller
      */
     public function printFakturGrosir(Transaction $transaction)
     {
-        $transaction->load(['details.product', 'details.warehouse', 'user', 'customer', 'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy']);
+        $transaction->load([
+            'details.product', 'details.warehouse', 'user', 'customer',
+            'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy',
+            'additionalTransactions.details.product',
+        ]);
         $storeSetting = StoreSetting::current();
 
         return view('print.faktur_grosir', compact('transaction', 'storeSetting'));

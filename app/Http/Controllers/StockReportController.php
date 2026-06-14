@@ -23,22 +23,8 @@ class StockReportController extends Controller
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
         
-        // Hanya admin3 dan admin4 yang perlu masking
-        if (! in_array($role, ['admin3', 'admin4'], true)) {
-            return false;
-        }
-        
-        // Cek apakah ada sesi opname yang aktif hari ini
-        $today = now()->toDateString();
-        
-        return ! StockOpnameSession::query()
-            ->whereIn('status', ['submitted', 'approved'])
-            ->where(function ($q) use ($today) {
-                $q->whereDate('created_at', $today)
-                  ->orWhereDate('submitted_at', $today)
-                  ->orWhereDate('approved_at', $today);
-            })
-            ->exists();
+        // Admin3 dan admin4 selalu di-mask untuk mencegah manipulasi saat opname
+        return in_array($role, ['admin3', 'admin4'], true);
     }
 
     // Rekap Stok Per Gudang & Rak
@@ -57,6 +43,7 @@ class StockReportController extends Controller
         $query = ProductStock::with([
             'product.category',
             'product.unit',
+            'product.unitConversions.unit',
             'warehouse',
             'location'
         ])->where('product_stocks.stock', '>', 0);
@@ -167,7 +154,7 @@ class StockReportController extends Controller
         $daysThreshold = 30; // Bisa dibuat dinamis jika perlu
         $limitDate = Carbon::now()->addDays($daysThreshold);
 
-        $expiredStocks = ProductStock::with(['product', 'warehouse', 'location'])
+        $expiredStocks = ProductStock::with(['product.unitConversions.unit', 'warehouse', 'location'])
             ->whereNotNull('expired_date')
             ->where('stock', '>', 0)
             ->where('expired_date', '<=', $limitDate)
@@ -283,7 +270,7 @@ class StockReportController extends Controller
         $search = $request->input('search');
         $maskStock = $this->shouldMaskStock();
 
-        $stocks = ProductStock::with(['product.category', 'product.unit', 'warehouse', 'location'])
+        $stocks = ProductStock::with(['product.category', 'product.unit', 'product.unitConversions.unit', 'warehouse', 'location'])
             ->where('product_stocks.stock', '>', 0)
             ->when($warehouseId, fn($q) => $q->where('product_stocks.warehouse_id', $warehouseId))
             ->when($categoryId, fn($q) => $q->whereHas('product', function ($sub) use ($categoryId) {
@@ -326,7 +313,7 @@ class StockReportController extends Controller
                     $stock->batch_number ?? '-',
                     $stock->expired_date ? \Carbon\Carbon::parse($stock->expired_date)->format('d/m/Y') : '-',
                     $displayStock,
-                    $stock->product->unit->abbreviation ?? '',
+                    $stock->product->base_unit_name,
                     $status,
                 ]);
             }

@@ -78,12 +78,17 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::middleware('can:view_sesi_kasir')->group(function () {
         Route::get('/kasir/sesi', [\App\Http\Controllers\KasirController::class, 'session'])->name('kasir.session');
+        Route::get('/kasir/rekap-harian', [\App\Http\Controllers\KasirController::class, 'rekapHarian'])->name('kasir.rekap_harian');
+        Route::post('/kasir/force-close/{session}', [\App\Http\Controllers\KasirController::class, 'forceCloseSession'])->name('kasir.force_close');
+        Route::post('/kasir/cleanup-orphaned-grosir', [\App\Http\Controllers\KasirController::class, 'cleanupOrphanedGrosirSessions'])->name('kasir.cleanup_orphaned_grosir');
     });
 
     Route::middleware('can:delete_sesi_kasir')->group(function () {
         Route::post('/kasir/cash-movement', [\App\Http\Controllers\KasirController::class, 'addCashMovement'])->name('kasir.cash_movement');
         Route::post('/kasir/open-session', [\App\Http\Controllers\KasirController::class, 'openSession'])->name('kasir.open_session');
         Route::post('/kasir/open-session-grosir', [\App\Http\Controllers\KasirController::class, 'openSessionGrosir'])->name('kasir.open_session_grosir');
+        Route::post('/kasir/open-session-for', [\App\Http\Controllers\KasirController::class, 'openSessionFor'])->name('kasir.open_session_for');
+                Route::post('/kasir/open-session-grosir-for', [\App\Http\Controllers\KasirController::class, 'openSessionGrosirFor'])->name('kasir.open_session_grosir_for');
         Route::post('/kasir/close-session', [\App\Http\Controllers\KasirController::class, 'closeSession'])->name('kasir.close_session');
         Route::post('/kasir/close-session-grosir', [\App\Http\Controllers\KasirController::class, 'closeSessionGrosir'])->name('kasir.close_session_grosir');
     });
@@ -91,6 +96,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     // Transaksi — kasir, admin, admin1, admin2
     Route::middleware('can:view_transaksi')->group(function () {
         Route::get('/transaksi', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transaksi.index');
+        Route::get('/transaksi/barang-terjual', [\App\Http\Controllers\TransactionController::class, 'soldItems'])->name('transaksi.barang_terjual');
         Route::get('/transaksi/riwayat', fn () => redirect()->route('transaksi.index'))->name('transaksi.riwayat');
         Route::get('/transaksi/{transaksi}', [\App\Http\Controllers\TransactionController::class, 'show'])->name('transaksi.show');
         Route::patch('/transaksi/{transaksi}/void', [\App\Http\Controllers\TransactionController::class, 'destroy'])->name('transaksi.void');
@@ -284,7 +290,14 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/gudang/request', [\App\Http\Controllers\ProductRequestController::class, 'index'])->name('gudang.request.index');
         Route::get('/gudang/request/create', [\App\Http\Controllers\ProductRequestController::class, 'create'])->name('gudang.request.create');
         Route::post('/gudang/request', [\App\Http\Controllers\ProductRequestController::class, 'store'])->name('gudang.request.store');
-        Route::put('/gudang/request/{productRequest}/status', [\App\Http\Controllers\ProductRequestController::class, 'updateStatus'])->name('gudang.request.update_status');
+        Route::delete('/gudang/request/{productRequest}', [\App\Http\Controllers\ProductRequestController::class, 'destroy'])->name('gudang.request.destroy');
+
+        // Persiapan Barang (Pick Orders from POS)
+        Route::get('/gudang/persiapan', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'index'])->name('gudang.pos_pick.index');
+        Route::get('/gudang/persiapan/{pickOrder}', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'show'])->name('gudang.pos_pick.show');
+        Route::patch('/gudang/persiapan/{pickOrder}/process', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'process'])->name('gudang.pos_pick.process');
+        Route::patch('/gudang/persiapan/{pickOrder}/ready', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'markReady'])->name('gudang.pos_pick.ready');
+        Route::patch('/gudang/persiapan/{pickOrder}/complete', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'complete'])->name('gudang.pos_pick.complete');
     });
 
     Route::middleware('can:view_penerimaan_barang')->group(function () {
@@ -307,6 +320,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/gudang/terima-po/{order}', [\App\Http\Controllers\Gudang\WarehouseReceiptController::class, 'store'])->name('gudang.terimapo.store');
     });
 
+    // Penyesuaian Stok (Stock Adjustment) — supervisor only
+    Route::middleware('can:view_penyesuaian_stok')->group(function () {
+        Route::get('/gudang/stock-adjustment', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'index'])->name('gudang.stock-adjustment.index');
+        Route::get('/gudang/stock-adjustment/create', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'create'])->name('gudang.stock-adjustment.create');
+        Route::post('/gudang/stock-adjustment', [\App\Http\Controllers\Gudang\StockAdjustmentController::class, 'store'])->name('gudang.stock-adjustment.store');
+    });
+
     // Opname Stok (Sesi + Approval Supervisor)
     Route::get('/gudang/opname', [OpnameSessionController::class, 'index'])
         ->name('gudang.opname_sessions.index')
@@ -325,6 +345,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('can:create_opname_stok');
     Route::delete('/gudang/opname/{session}/items/{item}', [OpnameSessionController::class, 'deleteItem'])
         ->name('gudang.opname_sessions.items.delete')
+        ->middleware('can:create_opname_stok');
+    Route::post('/gudang/opname/{session}/generate-sales', [OpnameSessionController::class, 'generateFromSales'])
+        ->name('gudang.opname_sessions.generate_sales')
         ->middleware('can:create_opname_stok');
     Route::post('/gudang/opname/{session}/submit', [OpnameSessionController::class, 'submit'])
         ->name('gudang.opname_sessions.submit')
@@ -746,6 +769,23 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::middleware('can:delete_potongan_gaji')->group(function () {
             Route::delete('/potongan/{potongan}', [\App\Http\Controllers\Sdm\PotonganGajiController::class, 'destroy'])->name('potongan.destroy');
         });
+
+        // Kasbon
+        Route::middleware('can:view_potongan_gaji')->group(function () {
+            Route::get('/kasbon', [\App\Http\Controllers\Sdm\KasbonController::class, 'index'])->name('kasbon.index');
+        });
+
+        Route::middleware('can:edit_potongan_gaji')->group(function () {
+            Route::post('/kasbon/{kasbon}/approve', [\App\Http\Controllers\Sdm\KasbonController::class, 'approve'])->name('kasbon.approve');
+            Route::post('/kasbon/{kasbon}/reject', [\App\Http\Controllers\Sdm\KasbonController::class, 'reject'])->name('kasbon.reject');
+        });
+
+        Route::get('/kasbon-saya', [\App\Http\Controllers\Sdm\KasbonController::class, 'selfIndex'])
+            ->name('kasbon.self_index')
+            ->middleware('active');
+        Route::post('/kasbon-saya', [\App\Http\Controllers\Sdm\KasbonController::class, 'store'])
+            ->name('kasbon.self_store')
+            ->middleware('active');
     });
 
 

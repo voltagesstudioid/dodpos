@@ -23,6 +23,7 @@ class PosPickOrder extends Model
         'processing' => 'Diproses',
         'ready'      => 'Siap Diambil',
         'completed'  => 'Selesai',
+        'cancelled'  => 'Dibatalkan',
     ];
 
     public static array $statusColors = [
@@ -30,6 +31,7 @@ class PosPickOrder extends Model
         'processing' => 'info',
         'ready'      => 'success',
         'completed'  => 'secondary',
+        'cancelled'  => 'danger',
     ];
 
     // Auto-generate pick number

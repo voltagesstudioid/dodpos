@@ -50,10 +50,10 @@
                                     <span class="tr-pill-light">{{ $summary->total_items }} baris</span>
                                     <span class="tr-dot-divider">•</span>
                                     Total Qty: <span class="tr-text-primary">{{ $summary->total_qty }}</span>
-                                    @if($summary->unit_name && $summary->unit_name !== 'satuan dasar')
+                                    @if(isset($summary->unit_name) && $summary->unit_name !== 'satuan dasar')
                                         <span class="tr-unit-badge" style="margin-left: 8px;">{{ $summary->unit_name }}</span>
                                         <div class="tr-conversion-text" style="margin-top: 4px;">
-                                            {{ $summary->total_qty_in_unit }} {{ $summary->unit_name }} = {{ $summary->total_qty }} satuan dasar
+                                            {{ $summary->total_qty_in_unit ?? 0 }} {{ $summary->unit_name }} = {{ $summary->total_qty }} satuan dasar
                                         </div>
                                     @endif
                                 </span>

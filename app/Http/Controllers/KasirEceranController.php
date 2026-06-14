@@ -32,6 +32,7 @@ class KasirEceranController extends Controller
     {
         $activeSession = \App\Models\PosSession::where('status', 'open')
             ->where('type', 'eceran')
+            ->where('user_id', Auth::id())
             ->latest()
             ->first();
 

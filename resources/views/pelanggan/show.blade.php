@@ -39,6 +39,17 @@
                             <div style="font-size:1.1rem;font-weight:800;color:#16a34a;">Rp {{ number_format($pelanggan->remaining_credit_limit, 0, ',', '.') }}</div>
                         </div>
                     </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem;">
+                        <div style="padding:0.875rem;background:#faf5ff;border-radius:10px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Total Transaksi</div>
+                            <div style="font-size:1.1rem;font-weight:800;color:#7c3aed;">{{ number_format($totalTransactions) }}x</div>
+                        </div>
+                        <div style="padding:0.875rem;background:#fff7ed;border-radius:10px;text-align:center;">
+                            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Total Belanja</div>
+                            <div style="font-size:1.1rem;font-weight:800;color:#ea580c;">Rp {{ number_format($totalPurchase, 0, ',', '.') }}</div>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- Active debts --}}
@@ -64,7 +75,79 @@
                 </div>
                 @endif
 
-                {{-- Recent history --}}
+                {{-- Riwayat Pembelian (POS) --}}
+                <div class="card" style="margin-bottom:1rem;">
+                    <div style="padding:1rem 1.5rem;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b;font-size:0.875rem;">
+                        🛒 Riwayat Pembelian
+                        <span style="font-weight:400;color:#94a3b8;font-size:0.75rem;margin-left:0.5rem;">({{ $purchaseHistory->count() }} transaksi terakhir)</span>
+                    </div>
+                    @if($purchaseHistory->isEmpty())
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;font-size:0.85rem;">Belum ada riwayat pembelian.</div>
+                    @else
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>Tanggal</th>
+                                    <th>Kasir</th>
+                                    <th>Jenis</th>
+                                    <th>Item</th>
+                                    <th style="text-align:right;">Total</th>
+                                    <th style="text-align:right;">Bayar</th>
+                                    <th>Metode</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($purchaseHistory as $trx)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('transaksi.show', $trx) }}" style="font-weight:600;font-size:0.8rem;color:#4f46e5;text-decoration:none;">
+                                            #{{ $trx->id }}
+                                        </a>
+                                    </td>
+                                    <td style="font-size:0.8rem;white-space:nowrap;">{{ $trx->created_at->format('d/m/Y H:i') }}</td>
+                                    <td style="font-size:0.8rem;">{{ $trx->user?->name ?? '-' }}</td>
+                                    <td>
+                                        <span style="background:{{ $trx->sale_type === 'grosir' ? '#fef3c7' : '#dbeafe' }};color:{{ $trx->sale_type === 'grosir' ? '#b45309' : '#1d4ed8' }};padding:0.1rem 0.4rem;border-radius:999px;font-size:0.65rem;font-weight:600;">
+                                            {{ ucfirst($trx->sale_type ?? 'eceran') }}
+                                        </span>
+                                    </td>
+                                    <td style="font-size:0.75rem;max-width:160px;">
+                                        @if($trx->details && $trx->details->isNotEmpty())
+                                            {{ $trx->details->count() }} item:
+                                            @foreach($trx->details->take(3) as $d)
+                                                <span style="display:inline-block;background:#f1f5f9;padding:0 0.3rem;border-radius:4px;margin:1px 2px;font-size:0.7rem;">{{ Str::limit($d->product?->name ?? '?', 18) }} ({{ $d->quantity }})</span>
+                                            @endforeach
+                                            @if($trx->details->count() > 3)
+                                                <span style="font-size:0.7rem;color:#94a3b8;">+{{ $trx->details->count() - 3 }}</span>
+                                            @endif
+                                        @else
+                                            <span style="color:#94a3b8;">-</span>
+                                        @endif
+                                    </td>
+                                    <td style="font-weight:600;font-size:0.85rem;text-align:right;">Rp {{ number_format($trx->total_amount, 0, ',', '.') }}</td>
+                                    <td style="font-size:0.85rem;text-align:right;">Rp {{ number_format($trx->paid_amount, 0, ',', '.') }}</td>
+                                    <td style="font-size:0.75rem;">{{ strtoupper($trx->payment_method ?? '-') }}</td>
+                                    <td>
+                                        @if($trx->status === 'completed')
+                                            <span style="background:#dcfce7;color:#16a34a;padding:0.1rem 0.4rem;border-radius:999px;font-size:0.65rem;font-weight:600;">Selesai</span>
+                                        @elseif($trx->status === 'voided')
+                                            <span style="background:#fee2e2;color:#dc2626;padding:0.1rem 0.4rem;border-radius:999px;font-size:0.65rem;font-weight:600;">Void</span>
+                                        @else
+                                            <span style="background:#f1f5f9;color:#64748b;padding:0.1rem 0.4rem;border-radius:999px;font-size:0.65rem;font-weight:600;">{{ ucfirst($trx->status) }}</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
+                </div>
+
+                {{-- Recent credit history --}}
                 <div class="card">
                     <div style="padding:1rem 1.5rem;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b;font-size:0.875rem;">📋 Riwayat Kredit Terakhir</div>
                     @if($recentCredits->isEmpty())

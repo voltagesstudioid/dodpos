@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Sdm;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\SdmCashAdvance;
 use App\Models\SdmDeduction;
 use App\Models\SdmEmployee;
 use App\Models\SdmEmployeeAllowance;
@@ -377,6 +378,20 @@ class EmployeeController extends Controller
 
         $monthLabel = Carbon::parse($month.'-01')->translatedFormat('F Y');
 
+        // Kasbon (cash advance) untuk karyawan ini
+        $kasbonHistory = collect();
+        $kasbonSummary = ['total' => 0, 'pending' => 0, 'approved' => 0, 'settled' => 0];
+        if ($karyawan->user_id) {
+            $kasbonHistory = SdmCashAdvance::where('user_id', $karyawan->user_id)
+                ->orderByDesc('created_at')
+                ->limit(20)
+                ->get();
+            $kasbonSummary['total'] = (float) $kasbonHistory->where('status', 'approved')->sum('amount');
+            $kasbonSummary['pending'] = (float) $kasbonHistory->where('status', 'pending')->sum('amount');
+            $kasbonSummary['approved'] = (float) $kasbonHistory->where('status', 'approved')->sum('amount');
+            $kasbonSummary['settled'] = (float) $kasbonHistory->where('status', 'settled')->sum('amount');
+        }
+
         return view('sdm.karyawan.show', compact(
             'karyawan',
             'month',
@@ -388,7 +403,9 @@ class EmployeeController extends Controller
             'leaveRequests',
             'deductions',
             'payroll',
-            'payrollHistory'
+            'payrollHistory',
+            'kasbonHistory',
+            'kasbonSummary'
         ));
     }
 

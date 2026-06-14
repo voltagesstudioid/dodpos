@@ -339,18 +339,115 @@ class DashboardController extends Controller
                     'opnameToday',
                 ));
             case 'admin4':
-                // Dashboard untuk Admin 4 (Gudang Keluar & Loading Armada)
+                // Dashboard untuk Admin 4 (Gudang Keluar & Distribusi)
                 $today = now()->toDateString();
                 $warehouseId = 2;
 
-                $pengeluaranHariIni = class_exists(\App\Models\StockMovement::class) ? \App\Models\StockMovement::where('type', 'out')
-                    ->whereDate('created_at', $today)
-                    ->count() : 0;
-                $transferGudangHariIni = class_exists(\App\Models\StockTransfer::class) ? \App\Models\StockTransfer::whereDate('created_at', $today)->count() : 0;
-                $opnameHariIni = class_exists(\App\Models\StockMovement::class) ? \App\Models\StockMovement::where('type', 'adjustment')
-                    ->whereDate('created_at', $today)
-                    ->count() : 0;
+                // ── Pengeluaran Gudang Hari Ini (filtered by warehouse) ──
+                $pengeluaranHariIni = class_exists(\App\Models\StockMovement::class)
+                    ? \App\Models\StockMovement::where('type', 'out')
+                        ->where('warehouse_id', $warehouseId)
+                        ->whereDate('created_at', $today)
+                        ->count() : 0;
 
+                // ── Transfer Gudang Hari Ini (from warehouse 2) ──
+                $transferGudangHariIni = class_exists(\App\Models\StockTransfer::class)
+                    ? \App\Models\StockTransfer::where('from_warehouse_id', $warehouseId)
+                        ->whereDate('created_at', $today)
+                        ->count() : 0;
+
+                // ── Opname Stok Hari Ini (filtered by warehouse) ──
+                $opnameHariIni = class_exists(\App\Models\StockMovement::class)
+                    ? \App\Models\StockMovement::where('type', 'adjustment')
+                        ->where('warehouse_id', $warehouseId)
+                        ->whereDate('created_at', $today)
+                        ->count() : 0;
+
+                // ── Alert: Produk Min Stok ──
+                $produkMinStok = class_exists(\App\Models\Product::class)
+                    ? \App\Models\Product::whereColumn('stock', '<=', 'min_stock')->count() : 0;
+
+                // ── Alert: Produk Expired / Mendekati (<=30 hari) ──
+                $limitDate = \Carbon\Carbon::now()->addDays(30);
+                $produkExpired = class_exists(\App\Models\ProductStock::class)
+                    ? \App\Models\ProductStock::whereNotNull('expired_date')
+                        ->where('stock', '>', 0)
+                        ->where('warehouse_id', $warehouseId)
+                        ->where('expired_date', '<=', $limitDate)
+                        ->count() : 0;
+
+                // ── Tren Pengeluaran 14 Hari Terakhir ──
+                $warehouseOutboundTrend = [];
+                if (class_exists(\App\Models\StockMovement::class)) {
+                    $start = now()->subDays(13)->startOfDay();
+                    for ($i = 0; $i < 14; $i++) {
+                        $date = $start->copy()->addDays($i);
+                        $key = $date->toDateString();
+                        $label = $date->locale('id')->isoFormat('D MMM');
+
+                        $outCount = \App\Models\StockMovement::where('warehouse_id', $warehouseId)
+                            ->where('type', 'out')
+                            ->whereDate('created_at', $key)
+                            ->count();
+
+                        $transferOut = class_exists(\App\Models\StockTransfer::class)
+                            ? \App\Models\StockTransfer::where('from_warehouse_id', $warehouseId)
+                                ->whereDate('created_at', $key)
+                                ->count() : 0;
+
+                        $warehouseOutboundTrend[] = [
+                            'date' => $key,
+                            'label' => $label,
+                            'out' => (int) $outCount,
+                            'transfer' => (int) $transferOut,
+                            'total' => (int) $outCount + (int) $transferOut,
+                        ];
+                    }
+                }
+                $maxTrend = max(1, (int) collect($warehouseOutboundTrend)->max('total'));
+                $warehouseOutboundTrend = collect($warehouseOutboundTrend)->map(function ($row) use ($maxTrend) {
+                    $row['pct_total'] = ((int) $row['total'] / $maxTrend) * 100;
+                    $row['pct_out'] = $row['total'] > 0 ? ((int) $row['out'] / (int) $row['total']) * 100 : 0;
+                    $row['pct_transfer'] = $row['total'] > 0 ? ((int) $row['transfer'] / (int) $row['total']) * 100 : 0;
+                    return $row;
+                })->values();
+
+                // ── Aktivitas Gudang Terbaru ──
+                $recentMovements = collect();
+                if (class_exists(\App\Models\StockMovement::class)) {
+                    $recentMovements = \App\Models\StockMovement::with(['product', 'user'])
+                        ->where('warehouse_id', $warehouseId)
+                        ->orderByDesc('created_at')
+                        ->limit(10)
+                        ->get();
+                }
+
+                // ── Top Min Stock Products ──
+                $topMinStockProducts = collect();
+                if (class_exists(\App\Models\Product::class)) {
+                    $topMinStockProducts = \App\Models\Product::query()
+                        ->select(['id', 'name', 'sku', 'stock', 'min_stock'])
+                        ->whereNotNull('min_stock')
+                        ->whereColumn('stock', '<=', 'min_stock')
+                        ->orderByRaw('(min_stock - stock) desc')
+                        ->limit(8)
+                        ->get();
+                }
+
+                // ── Expiring Soon ──
+                $expiringSoon = collect();
+                if (class_exists(\App\Models\ProductStock::class)) {
+                    $expiringSoon = \App\Models\ProductStock::with('product')
+                        ->where('warehouse_id', $warehouseId)
+                        ->whereNotNull('expired_date')
+                        ->where('stock', '>', 0)
+                        ->where('expired_date', '<=', $limitDate)
+                        ->orderBy('expired_date')
+                        ->limit(8)
+                        ->get();
+                }
+
+                // ── Opname Status Hari Ini ──
                 $opnameToday = [
                     'status' => 'missing',
                     'at' => null,
@@ -385,6 +482,12 @@ class DashboardController extends Controller
                     'pengeluaranHariIni',
                     'transferGudangHariIni',
                     'opnameHariIni',
+                    'produkMinStok',
+                    'produkExpired',
+                    'warehouseOutboundTrend',
+                    'recentMovements',
+                    'topMinStockProducts',
+                    'expiringSoon',
                     'warehouseId',
                     'opnameToday',
                 ));

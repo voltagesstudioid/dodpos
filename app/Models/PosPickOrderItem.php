@@ -8,7 +8,7 @@ class PosPickOrderItem extends Model
 {
     protected $fillable = [
         'pick_order_id', 'transaction_detail_id', 'product_id',
-        'quantity', 'unit_qty', 'unit_name',
+        'quantity', 'unit_qty', 'unit_name', 'is_additional',
     ];
 
     public function pickOrder()

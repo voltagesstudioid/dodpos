@@ -19,24 +19,16 @@ class ShareStockMasking
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
 
-        if (in_array($role, ['admin3', 'admin4'], true) && Schema::hasTable('stock_opname_sessions') && class_exists(StockOpnameSession::class)) {
-            $start = now()->startOfDay();
-            $end = now()->endOfDay();
-
-            $hasOpname = StockOpnameSession::query()
-                ->whereIn('status', ['submitted', 'approved'])
-                ->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('submitted_at', [$start, $end])
-                        ->orWhereBetween('approved_at', [$start, $end])
-                        ->orWhereBetween('created_at', [$start, $end]);
-                })
-                ->exists();
-
-            $maskStock = ! $hasOpname;
+        // Admin3 dan admin4: mask stok + sembunyikan data keuangan
+        $hideFinancial = false;
+        if (in_array($role, ['admin3', 'admin4'], true)) {
+            $maskStock = true;
+            $hideFinancial = true;
         }
 
         View::share('maskStock', $maskStock);
         View::share('maskStockWarehouseId', $warehouseId);
+        View::share('hideFinancial', $hideFinancial);
 
         return $next($request);
     }

@@ -30,8 +30,48 @@
                 </a>
             </div>
 
+            {{-- STATS CARDS --}}
+            <div class="tr-stats-grid-4">
+                <div class="tr-stat-card border-indigo">
+                    <div class="tr-stat-icon bg-indigo">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($totalCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Total Dokumen PO</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-orange">
+                    <div class="tr-stat-icon bg-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($pendingCount ?? 0) }}</div>
+                        <div class="tr-stat-label">PO Menunggu</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-purple">
+                    <div class="tr-stat-icon bg-purple">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($partialCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Diterima Sebagian</div>
+                    </div>
+                </div>
+                <div class="tr-stat-card border-green">
+                    <div class="tr-stat-icon bg-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    </div>
+                    <div>
+                        <div class="tr-stat-value">{{ number_format($receivedCount ?? 0) }}</div>
+                        <div class="tr-stat-label">Diterima Penuh</div>
+                    </div>
+                </div>
+            </div>
+
             {{-- MAIN CARD --}}
-            <div class="tr-card">
+            <div class="tr-card" style="margin-top: 1.5rem;">
                 
                 {{-- Filter Bar --}}
                 <div class="tr-card-header tr-filter-bar">
@@ -40,9 +80,16 @@
                             <svg class="tr-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari No. PO atau nama Supplier...">
                         </div>
+
+                        <select name="status" class="tr-select">
+                            <option value="all" {{ request('status') === 'all' ? 'selected' : '' }}>Semua Status</option>
+                            <option value="pending" {{ request('status', 'pending') === 'pending' ? 'selected' : '' }}>PO Menunggu / Sebagian</option>
+                            <option value="received" {{ request('status') === 'received' ? 'selected' : '' }}>Selesai / Diterima Penuh</option>
+                        </select>
+
                         <button type="submit" class="tr-btn tr-btn-dark">Cari Data</button>
                         
-                        @if(request('search'))
+                        @if(request('search') || (request('status') && request('status') != 'pending'))
                             <a href="{{ route('gudang.terimapo.index') }}" class="tr-btn tr-btn-danger-outline">Reset Filter</a>
                         @endif
                     </form>
@@ -67,6 +114,7 @@
                                     @php 
                                         $sl = $order->statusLabel; 
                                         $late = $order->expected_date && $order->expected_date->isPast();
+                                        $isReceived = $order->status === 'received';
                                     @endphp
                                     <tr>
                                         <td>
@@ -80,8 +128,8 @@
                                         </td>
                                         <td>
                                             @if($order->expected_date)
-                                                <div class="tr-date-text {{ $late ? 'tr-text-danger tr-font-bold' : '' }}">
-                                                    @if($late)
+                                                <div class="tr-date-text {{ $late && !$isReceived ? 'tr-text-danger tr-font-bold' : '' }}">
+                                                    @if($late && !$isReceived)
                                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:2px; margin-bottom:-2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                                                     @endif
                                                     {{ $order->expected_date->format('d M Y') }}
@@ -91,16 +139,19 @@
                                             @endif
                                         </td>
                                         <td>
-                                            {{-- Dynamic Badge from Backend --}}
                                             <span class="tr-dynamic-badge" style="background-color: {{ $sl['bg'] }}; color: {{ $sl['color'] }}; border: 1px solid currentColor;">
                                                 {{ $sl['label'] }}
                                             </span>
                                         </td>
                                         <td class="r">
+                                            @if(!$isReceived)
                                             <a href="{{ route('gudang.terimapo.show', $order) }}" class="tr-btn-sm tr-btn-primary">
                                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                                                 Proses Terima
                                             </a>
+                                            @else
+                                            <span class="tr-text-muted" style="font-size:0.8rem; font-style:italic">Selesai</span>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach
@@ -118,8 +169,8 @@
                         <div class="tr-empty-icon">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
-                        <h6>Semua PO Sudah Diterima</h6>
-                        <p>Saat ini tidak ada dokumen Purchase Order yang mengantri untuk diproses masuk ke gudang.</p>
+                        <h6>Belum Ada Data PO</h6>
+                        <p>Saat ini tidak ada dokumen Purchase Order yang sesuai dengan kriteria / mengantri untuk diproses masuk ke gudang.</p>
                     </div>
                 @endif
 
@@ -175,6 +226,26 @@
         .tr-tab-item:hover { color: var(--tr-text-main); }
         .tr-tab-item.active-primary { color: var(--tr-primary); border-bottom-color: var(--tr-primary); }
 
+        /* Stats Grid 4 */
+        .tr-stats-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        @media (max-width: 992px) { .tr-stats-grid-4 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 576px) { .tr-stats-grid-4 { grid-template-columns: 1fr; } }
+
+        .tr-stat-card { background: var(--tr-surface); border-radius: 12px; padding: 1.25rem; display: flex; align-items: center; gap: 1rem; border: 1px solid var(--tr-border); }
+        .tr-stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
+        .tr-stat-value { font-size: 1.5rem; font-weight: 800; color: var(--tr-text-main); line-height: 1; }
+        .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; }
+
+        /* Colors */
+        .bg-green { background: #10b981; }
+        .bg-indigo { background: #4f46e5; }
+        .bg-purple { background: #8b5cf6; }
+        .bg-orange { background: #f59e0b; }
+        .border-green { border-left: 4px solid #10b981; }
+        .border-indigo { border-left: 4px solid #4f46e5; }
+        .border-purple { border-left: 4px solid #8b5cf6; }
+        .border-orange { border-left: 4px solid #f59e0b; }
+
         /* ── CARD & FILTER ── */
         .tr-card { background: var(--tr-surface); border-radius: var(--tr-radius-lg); border: 1px solid var(--tr-border); box-shadow: var(--tr-shadow-sm); overflow: hidden; }
         .tr-filter-bar { padding: 1rem 1.25rem; border-bottom: 1px solid var(--tr-border-light); background: #ffffff; }
@@ -184,6 +255,7 @@
         .tr-search-icon { color: var(--tr-text-light); }
         .tr-search input { border: none; background: transparent; font-size: 0.85rem; font-family: inherit; color: var(--tr-text-main); outline: none; width: 100%; }
         .tr-search input::placeholder { color: var(--tr-text-light); }
+        .tr-select { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--tr-border); font-size: 0.85rem; background: white; font-family: inherit; color: var(--tr-text-main); }
 
         /* ── BUTTONS ── */
         .tr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; font-family: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; text-decoration: none; transition: all 0.2s; border: 1px solid transparent; height: 38px; }
@@ -222,7 +294,7 @@
 
         /* ── EMPTY STATE ── */
         .tr-empty-state { text-align: center; padding: 5rem 1.5rem; }
-        .tr-empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--tr-success-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; color: var(--tr-success-text); }
+        .tr-empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--tr-bg); border: 1px solid var(--tr-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem; color: var(--tr-text-muted); }
         .tr-empty-state h6 { font-size: 1.05rem; font-weight: 700; color: var(--tr-text-main); margin-bottom: 0.35rem; }
         .tr-empty-state p { font-size: 0.85rem; color: var(--tr-text-muted); margin: 0 auto; max-width: 400px; line-height: 1.5; }
 
@@ -232,7 +304,7 @@
         /* ── RESPONSIVE ── */
         @media (max-width: 768px) {
             .tr-filter-form { flex-direction: column; align-items: stretch; }
-            .tr-search { width: 100%; min-width: auto; }
+            .tr-search, .tr-select { width: 100%; min-width: auto; }
             .tr-btn { width: 100%; justify-content: center; }
         }
     </style>

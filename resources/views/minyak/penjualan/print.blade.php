@@ -52,7 +52,7 @@
         .rpt-thanks { font-size:0.6875rem; font-weight:600; color:#065f46; }
         .rpt-note { font-size:0.5625rem; color:#94a3b8; margin-top:0.25rem; }
         .rpt-sales { font-size:0.625rem; color:#64748b; margin-top:0.5rem; }
-        .print-bar { text-align:center; margin-bottom:1.5rem; }
+        .print-bar { text-align:center; margin-bottom:1.5rem; display:flex; justify-content:center; gap:1rem; flex-wrap:wrap; }
         .print-btn {
             display:inline-flex; align-items:center; gap:0.5rem; padding:0.75rem 2rem;
             border-radius:10px; font-size:0.875rem; font-weight:700; border:none;
@@ -63,7 +63,7 @@
         .print-btn:hover { transform:translateY(-1px); box-shadow:0 8px 28px rgba(79,70,229,0.35); }
         @media print {
             body { background:#fff; padding:0; }
-            .print-bar { display:none; }
+            .print-bar { display:none !important; }
             .receipt { box-shadow:none; }
             .receipt-wrap { max-width:80mm; }
         }
@@ -75,12 +75,23 @@
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
             Cetak Struk
         </button>
+        <button class="print-btn" onclick="printBluetooth()" style="background:linear-gradient(135deg,#059669,#047857);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 8l12 8-6 6V2l6 6-12 8"/></svg>
+            Web Bluetooth
+        </button>
+        <button class="print-btn" onclick="printRawBT()" style="background:linear-gradient(135deg,#db2777,#be185d);">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+            Cetak via RawBT
+        </button>
     </div>
 
-    <div class="receipt-wrap">
+
+    @foreach(['ASLI', 'COPY'] as $jenisStruk)
+    <div class="receipt-wrap" style="{{ $loop->first ? 'margin-bottom: 2rem;' : '' }}">
         <div class="receipt">
             {{-- Header --}}
             <div class="rpt-hdr">
+                <div style="font-size:0.625rem; font-weight:800; border:1px solid #065f46; border-radius:4px; display:inline-block; padding:2px 8px; margin-bottom:8px; color:#065f46; letter-spacing:1px;">{{ $jenisStruk }}</div>
                 <div class="rpt-logo">DOD POS</div>
                 <div class="rpt-sub">Minyak</div>
                 <div class="rpt-faktur">{{ $penjualan->no_faktur }}</div>
@@ -194,5 +205,228 @@
             </div>
         </div>
     </div>
+    @if($loop->first)
+    <div style="text-align:center; margin:1.5rem 0; color:#94a3b8; font-size:12px; display:flex; align-items:center; gap:8px;">
+        <div style="flex:1; border-top:1px dashed #cbd5e1;"></div>
+        <div>&#9988; Potong di sini &#9988;</div>
+        <div style="flex:1; border-top:1px dashed #cbd5e1;"></div>
+    </div>
+    @endif
+    @endforeach
+
+    <script>
+        function padLeft(text, length) {
+            return (" ".repeat(length) + text).slice(-length);
+        }
+
+        function formatLine(left, right) {
+            const totalLength = 32;
+            if (left.length + right.length > totalLength) {
+                return left + "\n" + padLeft(right, totalLength);
+            }
+            const spaces = totalLength - left.length - right.length;
+            return left + " ".repeat(spaces) + right;
+        }
+
+        function getReceiptText(jenisStruk) {
+            const ESC = '\x1B';
+            const GS  = '\x1D';
+            const LF  = '\n';
+
+            const CENTER = ESC + 'a' + '\x01';
+            const LEFT   = ESC + 'a' + '\x00';
+            const BOLD_ON  = ESC + 'E' + '\x01';
+            const BOLD_OFF = ESC + 'E' + '\x00';
+            const DOUBLE_ON  = GS + '!' + '\x11';
+            const DOUBLE_OFF = GS + '!' + '\x00';
+
+            const LINE32 = '--------------------------------';
+            const LINE32D = '================================';
+
+            let r = '';
+
+            // Initialize
+            r += ESC + '@';
+
+            // ===== HEADER =====
+            r += CENTER;
+            r += BOLD_ON;
+            r += jenisStruk + LF;
+            r += BOLD_OFF;
+            r += LINE32 + LF;
+            r += BOLD_ON + DOUBLE_ON;
+            r += 'DOD POS' + LF;
+            r += DOUBLE_OFF + BOLD_OFF;
+            r += 'MINYAK' + LF;
+            r += '{{ $penjualan->no_faktur }}' + LF;
+            r += '{{ $penjualan->tanggal_jual->format("d/m/Y H:i") }} WIB' + LF;
+            r += LINE32 + LF;
+
+            // ===== PELANGGAN =====
+            r += LEFT;
+            r += BOLD_ON + 'PELANGGAN' + BOLD_OFF + LF;
+            r += formatLine('Toko',    '{{ $penjualan->pelanggan->nama_toko ?? "-" }}') + LF;
+            r += formatLine('Pemilik', '{{ $penjualan->pelanggan->nama_pemilik ?? "-" }}') + LF;
+            r += LINE32 + LF;
+
+            // ===== DETAIL TRANSAKSI =====
+            r += BOLD_ON + 'DETAIL TRANSAKSI' + BOLD_OFF + LF;
+            r += formatLine('{{ $penjualan->produk->nama ?? "-" }}', '{{ $penjualan->jumlah }} {{ $penjualan->produk->satuan ?? "" }}') + LF;
+            r += formatLine('Harga/{{ $penjualan->produk->satuan ?? "unit" }}', 'Rp {{ number_format($penjualan->harga_satuan, 0, ",", ".") }}') + LF;
+            r += LINE32 + LF;
+
+            // ===== TOTAL =====
+            r += CENTER;
+            r += BOLD_ON;
+            r += 'TOTAL' + LF;
+            r += DOUBLE_ON;
+            r += 'Rp {{ number_format($penjualan->total, 0, ",", ".") }}' + LF;
+            r += DOUBLE_OFF;
+            r += BOLD_OFF;
+            r += LINE32 + LF;
+
+            // ===== PEMBAYARAN =====
+            r += LEFT;
+            let tipeBayar = '{{ $penjualan->tipe_bayar }}';
+
+            if (tipeBayar === 'tunai') {
+                r += BOLD_ON + '[ TUNAI / CASH ]' + BOLD_OFF + LF;
+                r += formatLine('Dibayar', 'Rp {{ number_format($penjualan->bayar ?? $penjualan->total, 0, ",", ".") }}') + LF;
+                @php $kembalian = ($penjualan->bayar ?? 0) - $penjualan->total; @endphp
+                @if($kembalian > 0)
+                r += formatLine('Kembali', 'Rp {{ number_format($kembalian, 0, ",", ".") }}') + LF;
+                @endif
+            } else if (tipeBayar === 'hutang') {
+                r += BOLD_ON + '[ KREDIT / HUTANG ]' + BOLD_OFF + LF;
+                r += formatLine('Dibayar (DP)', 'Rp {{ number_format($penjualan->bayar ?? 0, 0, ",", ".") }}') + LF;
+                r += BOLD_ON + formatLine('Sisa Hutang', 'Rp {{ number_format($penjualan->hutang ?? 0, 0, ",", ".") }}') + BOLD_OFF + LF;
+
+                @if($penjualan->pelanggan)
+                let limit = {{ $penjualan->pelanggan->limit_hutang ?? 0 }};
+                let totalHutang = {{ $penjualan->pelanggan->total_hutang ?? 0 }};
+                r += LINE32 + LF;
+                r += BOLD_ON + 'INFO HUTANG PELANGGAN' + BOLD_OFF + LF;
+                r += formatLine('Total Hutang', 'Rp ' + totalHutang.toLocaleString('id-ID')) + LF;
+                if (limit > 0) {
+                    r += formatLine('Limit Kredit', 'Rp ' + limit.toLocaleString('id-ID')) + LF;
+                    r += formatLine('Sisa Limit', 'Rp ' + Math.max(0, limit - totalHutang).toLocaleString('id-ID')) + LF;
+                }
+                @endif
+            } else {
+                r += BOLD_ON + '[ TRANSFER ]' + BOLD_OFF + LF;
+                r += formatLine('No. Bukti', '{{ $penjualan->no_bukti_transfer ?? "-" }}') + LF;
+            }
+
+            @if($penjualan->keterangan)
+            r += LINE32 + LF;
+            r += 'Ket: {{ addslashes($penjualan->keterangan) }}' + LF;
+            @endif
+
+            // ===== SALES =====
+            r += LINE32 + LF;
+            r += formatLine('Sales', '{{ $penjualan->sales->nama ?? "-" }}') + LF;
+
+            // ===== FOOTER =====
+            r += LINE32D + LF;
+            r += CENTER;
+            r += BOLD_ON + 'Terima Kasih' + BOLD_OFF + LF;
+            r += 'Struk ini adalah bukti transaksi' + LF;
+            r += 'yang sah.' + LF;
+
+            // Paper feed
+            r += LF + LF + LF + LF;
+
+            // Cut paper
+            r += GS + 'V' + '\x41' + '\x00';
+
+            return r;
+        }
+
+        function printRawBT() {
+            try {
+                let receiptASLI = getReceiptText("ASLI");
+                let receiptCOPY = getReceiptText("COPY");
+                let fullReceipt = receiptASLI + "\n\n================================\n\n" + receiptCOPY;
+
+                // Encode to base64 safely (supports non-ASCII / UTF-8)
+                const encoder = new TextEncoder();
+                const bytes = encoder.encode(fullReceipt);
+                let binary = '';
+                bytes.forEach(b => binary += String.fromCharCode(b));
+                let base64Data = btoa(binary);
+
+                let intentUrl = "intent:" + base64Data + "#Intent;scheme=rawbt:base64;package=ru.a402d.rawbtprinter;end;";
+                window.location.href = intentUrl;
+            } catch (error) {
+                console.error(error);
+                alert("Gagal memproses struk untuk RawBT: " + error.message);
+            }
+        }
+
+        async function printBluetooth() {
+            try {
+                if (!navigator.bluetooth) {
+                    alert("Browser Anda tidak mendukung Web Bluetooth. Gunakan Google Chrome di Android atau PC.");
+                    return;
+                }
+
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '000018f0-0000-1000-8000-00805f9b34fb',
+                        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+                        '0000fee7-0000-1000-8000-00805f9b34fb',
+                        '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+                    ]
+                });
+
+                console.log('Connecting to GATT Server...');
+                const server = await device.gatt.connect();
+
+                console.log('Getting Services...');
+                const services = await server.getPrimaryServices();
+
+                let characteristic = null;
+                for (const service of services) {
+                    const characteristics = await service.getCharacteristics();
+                    for (const c of characteristics) {
+                        if (c.properties.writeWithoutResponse || c.properties.write) {
+                            characteristic = c;
+                            break;
+                        }
+                    }
+                    if (characteristic) break;
+                }
+
+                if (!characteristic) {
+                    alert("Karakteristik Bluetooth untuk print tidak ditemukan pada perangkat ini!");
+                    return;
+                }
+
+                let receiptASLI = getReceiptText("ASLI");
+                let receiptCOPY = getReceiptText("COPY");
+                let fullReceipt = receiptASLI + "\n\n--------------------------------\n\n" + receiptCOPY;
+
+                const encoder = new TextEncoder();
+                const data = encoder.encode(fullReceipt);
+
+                const CHUNK_SIZE = 50;
+                for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                    const chunk = data.slice(i, i + CHUNK_SIZE);
+                    if (characteristic.properties.writeWithoutResponse) {
+                        await characteristic.writeValueWithoutResponse(chunk);
+                    } else {
+                        await characteristic.writeValue(chunk);
+                    }
+                    await new Promise(r => setTimeout(r, 40));
+                }
+                
+                alert("Struk berhasil dikirim ke printer!");
+            } catch (error) {
+                console.error('Print Error:', error);
+                alert("Gagal print via Bluetooth.\n" + error.message);
+            }
+        }
+    </script>
 </body>
 </html>
