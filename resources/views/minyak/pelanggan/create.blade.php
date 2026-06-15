@@ -422,6 +422,7 @@
         var gpsText = document.getElementById('gps-text');
         var btnDetect = document.getElementById('btn-detect-gps');
         var btnClear = document.getElementById('btn-clear-gps');
+        var watchId = null;
 
         function setStatus(state, text) {
             gpsText.textContent = text;
@@ -437,29 +438,78 @@
             }
         }
 
+        function getErrorMessage(err) {
+            switch(err.code) {
+                case err.PERMISSION_DENIED:
+                    return 'Akses lokasi ditolak. Izinkan akses lokasi di pengaturan browser Anda.';
+                case err.POSITION_UNAVAILABLE:
+                    return 'Informasi lokasi tidak tersedia. Pastikan GPS aktif.';
+                case err.TIMEOUT:
+                    return 'Waktu deteksi lokasi habis. Coba lagi.';
+                default:
+                    return 'Gagal mendeteksi lokasi (' + err.message + ').';
+            }
+        }
+
         function detectGPS() {
             if (!navigator.geolocation) {
                 setStatus('error', 'Browser tidak mendukung GPS.');
                 return;
             }
-            setStatus('loading', 'Mendeteksi lokasi...');
-            navigator.geolocation.getCurrentPosition(
+
+            // Clear any existing watch
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+
+            setStatus('loading', 'Mendeteksi lokasi... Izinkan akses lokasi jika diminta.');
+
+            // Use watchPosition for more reliable detection
+            watchId = navigator.geolocation.watchPosition(
                 function(pos) {
                     inpLat.value = pos.coords.latitude.toFixed(8);
                     inpLng.value = pos.coords.longitude.toFixed(8);
                     setStatus('success', 'Lokasi terdeteksi: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6));
+                    // Stop watching after getting a fix
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
                 },
                 function(err) {
-                    setStatus('error', 'Gagal mendeteksi lokasi. Pastikan GPS aktif dan izinkan akses lokasi.');
+                    setStatus('error', getErrorMessage(err));
+                    watchId = null;
                 },
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 }
             );
+
+            // Fallback timeout: if watchPosition doesn't respond, try getCurrentPosition
+            setTimeout(function() {
+                if (watchId !== null && !inpLat.value) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                    navigator.geolocation.getCurrentPosition(
+                        function(pos) {
+                            inpLat.value = pos.coords.latitude.toFixed(8);
+                            inpLng.value = pos.coords.longitude.toFixed(8);
+                            setStatus('success', 'Lokasi terdeteksi: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6));
+                        },
+                        function(err) {
+                            setStatus('error', getErrorMessage(err) + ' Tips: Pastikan GPS HP aktif & browser diizinkan akses lokasi.');
+                        },
+                        { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
+                    );
+                }
+            }, 10000);
         }
 
         btnDetect.addEventListener('click', detectGPS);
         btnClear.addEventListener('click', function() {
             inpLat.value = '';
             inpLng.value = '';
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
             setStatus('', 'Koordinat direset. Klik "Deteksi Lokasi Saya" untuk mengambil ulang.');
         });
 

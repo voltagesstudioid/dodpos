@@ -621,22 +621,38 @@
         selPelanggan.addEventListener('change', checkRadius);
 
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(p) {
+            // Use watchPosition for more reliable GPS detection
+            var gpsWatchId = navigator.geolocation.watchPosition(function(p) {
                 salesLat = p.coords.latitude;
                 salesLng = p.coords.longitude;
                 document.getElementById('gps-lat').value = salesLat;
                 document.getElementById('gps-lng').value = salesLng;
                 checkRadius();
-            }, function(){
-                // GPS failed - allow submission but show warning
+                // Stop watching after first fix
+                navigator.geolocation.clearWatch(gpsWatchId);
+            }, function(err) {
                 var radiusBox = document.getElementById('radius-box');
                 var radiusContent = document.getElementById('radius-content');
+                var msg = '';
+                switch(err.code) {
+                    case err.PERMISSION_DENIED:
+                        msg = 'Akses lokasi ditolak. Izinkan akses lokasi di pengaturan browser Anda.';
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        msg = 'Informasi lokasi tidak tersedia. Pastikan GPS aktif.';
+                        break;
+                    case err.TIMEOUT:
+                        msg = 'Waktu deteksi lokasi habis. Coba lagi.';
+                        break;
+                    default:
+                        msg = 'GPS gagal. Pastikan lokasi aktif di HP Anda.';
+                }
                 radiusBox.style.display = 'block';
                 radiusBox.style.background = '#fef3c7';
                 radiusBox.style.border = '1.5px solid #fde68a';
-                radiusContent.innerHTML = '⚠️ GPS gagal. Pastikan lokasi aktif di HP Anda.';
+                radiusContent.innerHTML = '⚠️ ' + msg;
                 radiusBox.style.color = '#92400e';
-            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+            }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 });
         }
 
         // Double submit
