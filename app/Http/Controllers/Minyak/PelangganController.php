@@ -115,8 +115,8 @@ class PelangganController extends Controller
             'alamat' => 'nullable|string',
             'kecamatan' => 'nullable|string|max:50',
             'kota' => 'nullable|string|max:50',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'tipe' => 'required|in:eceran,grosir,agen',
         ];
 
@@ -214,8 +214,8 @@ class PelangganController extends Controller
             'alamat' => 'nullable|string',
             'kecamatan' => 'nullable|string|max:50',
             'kota' => 'nullable|string|max:50',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'tipe' => 'required|in:eceran,grosir,agen',
             'limit_hutang' => 'nullable|numeric|min:0',
             'status' => 'required|in:aktif,nonaktif,blacklist',

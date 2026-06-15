@@ -236,7 +236,7 @@
                         <select name="pelanggan_id" class="pj-sel" id="sel-pelanggan" required>
                             <option value="">Pilih Pelanggan</option>
                             @foreach($pelanggans as $p)
-                                <option value="{{ $p->id }}" data-limit="{{ (float) $p->limit_hutang }}" data-total="{{ (float) $p->total_hutang }}" {{ old('pelanggan_id') == $p->id ? 'selected' : '' }}>{{ $p->nama_toko }} — {{ $p->nama_pemilik }}</option>
+                                <option value="{{ $p->id }}" data-limit="{{ (float) $p->limit_hutang }}" data-total="{{ (float) $p->total_hutang }}" data-lat="{{ $p->latitude }}" data-lng="{{ $p->longitude }}" {{ old('pelanggan_id') == $p->id ? 'selected' : '' }}>{{ $p->nama_toko }} — {{ $p->nama_pemilik }}</option>
                             @endforeach
                         </select>
                         @error('pelanggan_id')<div class="pj-err">{{ $message }}</div>@enderror
@@ -382,6 +382,11 @@
             {{-- Hidden GPS --}}
             <input type="hidden" name="latitude" id="gps-lat">
             <input type="hidden" name="longitude" id="gps-lng">
+
+            {{-- Radius Check --}}
+            <div id="radius-box" style="display:none; margin:0.75rem 0; padding:0.875rem 1.125rem; border-radius:14px; font-size:0.8125rem; font-weight:600; line-height:1.6;">
+                <div id="radius-content"></div>
+            </div>
 
             {{-- Bukti Penjualan --}}
             <div class="pj-sec">
@@ -551,12 +556,87 @@
         }
         updateSummary();
 
-        // GPS
+        // GPS with radius check
+        var salesLat = null, salesLng = null;
+        var MAX_RADIUS = 20; // meters
+
+        function haversine(lat1, lon1, lat2, lon2) {
+            var R = 6371000; // Earth radius in meters
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function checkRadius() {
+            var radiusBox = document.getElementById('radius-box');
+            var radiusContent = document.getElementById('radius-content');
+            var opt = selPelanggan.options[selPelanggan.selectedIndex];
+            if (!opt || !opt.value) { radiusBox.style.display = 'none'; return; }
+
+            var custLat = parseFloat(opt.dataset.lat);
+            var custLng = parseFloat(opt.dataset.lng);
+            if (isNaN(custLat) || isNaN(custLng) || custLat === 0 || custLng === 0) {
+                radiusBox.style.display = 'block';
+                radiusBox.style.background = '#fef3c7';
+                radiusBox.style.border = '1.5px solid #fde68a';
+                radiusContent.innerHTML = '⚠️ Pelanggan ini belum memiliki koordinat. Hubungi supervisor untuk update data.';
+                radiusBox.style.color = '#92400e';
+                if (submitBtn) submitBtn.disabled = false;
+                return;
+            }
+
+            if (salesLat === null) {
+                radiusBox.style.display = 'block';
+                radiusBox.style.background = '#f1f5f9';
+                radiusBox.style.border = '1.5px solid #e2e8f0';
+                radiusContent.innerHTML = '📍 Mendeteksi lokasi Anda...';
+                radiusBox.style.color = '#475569';
+                return;
+            }
+
+            var dist = haversine(salesLat, salesLng, custLat, custLng);
+            var distRound = Math.round(dist);
+
+            if (dist <= MAX_RADIUS) {
+                radiusBox.style.display = 'block';
+                radiusBox.style.background = '#ecfdf5';
+                radiusBox.style.border = '1.5px solid #a7f3d0';
+                radiusContent.innerHTML = '✅ <strong>Dalam jangkauan!</strong> Jarak: ' + distRound + ' meter dari lokasi pelanggan.';
+                radiusBox.style.color = '#065f46';
+                if (submitBtn) submitBtn.disabled = false;
+            } else {
+                radiusBox.style.display = 'block';
+                radiusBox.style.background = '#fef2f2';
+                radiusBox.style.border = '1.5px solid #fecaca';
+                radiusContent.innerHTML = '❌ <strong>Di luar jangkauan!</strong> Jarak: ' + distRound + ' meter (maks ' + MAX_RADIUS + ' meter).<br><span style="font-size:0.6875rem;font-weight:400;">Anda harus berada di dekat toko pelanggan untuk melakukan penjualan.</span>';
+                radiusBox.style.color = '#991b1b';
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        }
+
+        selPelanggan.addEventListener('change', checkRadius);
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(p) {
-                document.getElementById('gps-lat').value = p.coords.latitude;
-                document.getElementById('gps-lng').value = p.coords.longitude;
-            }, function(){}, {timeout:5000});
+                salesLat = p.coords.latitude;
+                salesLng = p.coords.longitude;
+                document.getElementById('gps-lat').value = salesLat;
+                document.getElementById('gps-lng').value = salesLng;
+                checkRadius();
+            }, function(){
+                // GPS failed - allow submission but show warning
+                var radiusBox = document.getElementById('radius-box');
+                var radiusContent = document.getElementById('radius-content');
+                radiusBox.style.display = 'block';
+                radiusBox.style.background = '#fef3c7';
+                radiusBox.style.border = '1.5px solid #fde68a';
+                radiusContent.innerHTML = '⚠️ GPS gagal. Pastikan lokasi aktif di HP Anda.';
+                radiusBox.style.color = '#92400e';
+            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
         }
 
         // Double submit

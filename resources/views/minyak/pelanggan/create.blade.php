@@ -204,6 +204,49 @@
                     </div>
                 </div>
 
+                {{-- Koordinat Lokasi Toko --}}
+                <div class="pcf-card">
+                    <div class="pcf-card-hdr" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);">
+                        <div class="pcf-card-hdr-ico" style="background:linear-gradient(135deg,#10b981,#059669); color:#fff;">📍</div>
+                        <div>
+                            <div class="pcf-card-hdr-title">Koordinat Lokasi Toko</div>
+                            <div class="pcf-card-hdr-desc">Wajib diisi — digunakan untuk validasi jarak saat penjualan (maks 20 meter)</div>
+                        </div>
+                    </div>
+                    <div class="pcf-card-body">
+                        {{-- GPS status --}}
+                        <div id="gps-status-box" style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:12px; background:#f1f5f9; border:1.5px solid #e2e8f0; margin-bottom:1rem;">
+                            <span id="gps-dot" style="width:10px; height:10px; border-radius:50%; background:#94a3b8; flex-shrink:0;"></span>
+                            <span id="gps-text" style="font-size:0.8125rem; font-weight:600; color:#64748b;">Mendeteksi lokasi...</span>
+                        </div>
+                        <div class="pcf-grid">
+                            <div>
+                                <label class="pcf-lbl">Latitude <span class="pcf-req">*</span></label>
+                                <input type="text" name="latitude" id="inp-lat" value="{{ old('latitude') }}" required placeholder="-6.20880000" class="pcf-input" readonly>
+                            </div>
+                            <div>
+                                <label class="pcf-lbl">Longitude <span class="pcf-req">*</span></label>
+                                <input type="text" name="longitude" id="inp-lng" value="{{ old('longitude') }}" required placeholder="106.84560000" class="pcf-input" readonly>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
+                            <button type="button" id="btn-detect-gps" class="pcf-btn pcf-btn-primary" style="padding:0.625rem 1.25rem; font-size:0.8125rem;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                Deteksi Lokasi Saya
+                            </button>
+                            <button type="button" id="btn-clear-gps" class="pcf-btn pcf-btn-ghost" style="padding:0.625rem 1.25rem; font-size:0.8125rem;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                Reset
+                            </button>
+                        </div>
+                        <div style="font-size:0.6875rem; color:#94a3b8; margin-top:0.75rem; line-height:1.6;">
+                            📱 Pastikan GPS/lokasi di HP Anda aktif. Koordinat ini akan digunakan untuk memverifikasi sales berada di lokasi toko saat melakukan penjualan.
+                        </div>
+                        @error('latitude')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
+                        @error('longitude')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
+                    </div>
+                </div>
+
                 {{-- Foto Toko --}}
                 <div class="pcf-card">
                     <div class="pcf-card-hdr" style="background:linear-gradient(135deg,#fce7f3,#fdf2f8);">
@@ -358,6 +401,7 @@
 
     @push('scripts')
     <script>
+    // Foto preview
     document.getElementById('inp-foto-toko').addEventListener('change', function(e) {
         var file = e.target.files[0];
         if (!file) return;
@@ -369,6 +413,59 @@
         };
         reader.readAsDataURL(file);
     });
+
+    // GPS Detection
+    (function() {
+        var inpLat = document.getElementById('inp-lat');
+        var inpLng = document.getElementById('inp-lng');
+        var gpsDot = document.getElementById('gps-dot');
+        var gpsText = document.getElementById('gps-text');
+        var btnDetect = document.getElementById('btn-detect-gps');
+        var btnClear = document.getElementById('btn-clear-gps');
+
+        function setStatus(state, text) {
+            gpsText.textContent = text;
+            if (state === 'success') {
+                gpsDot.style.background = '#10b981';
+                gpsText.style.color = '#065f46';
+            } else if (state === 'error') {
+                gpsDot.style.background = '#ef4444';
+                gpsText.style.color = '#991b1b';
+            } else {
+                gpsDot.style.background = '#f59e0b';
+                gpsText.style.color = '#92400e';
+            }
+        }
+
+        function detectGPS() {
+            if (!navigator.geolocation) {
+                setStatus('error', 'Browser tidak mendukung GPS.');
+                return;
+            }
+            setStatus('loading', 'Mendeteksi lokasi...');
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    inpLat.value = pos.coords.latitude.toFixed(8);
+                    inpLng.value = pos.coords.longitude.toFixed(8);
+                    setStatus('success', 'Lokasi terdeteksi: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6));
+                },
+                function(err) {
+                    setStatus('error', 'Gagal mendeteksi lokasi. Pastikan GPS aktif dan izinkan akses lokasi.');
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        }
+
+        btnDetect.addEventListener('click', detectGPS);
+        btnClear.addEventListener('click', function() {
+            inpLat.value = '';
+            inpLng.value = '';
+            setStatus('', 'Koordinat direset. Klik "Deteksi Lokasi Saya" untuk mengambil ulang.');
+        });
+
+        // Auto-detect on page load
+        detectGPS();
+    })();
     </script>
     @endpush
 </x-app-layout>

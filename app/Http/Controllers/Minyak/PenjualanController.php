@@ -237,6 +237,33 @@ class PenjualanController extends Controller
             $validated['sales_id'] = $profile->id;
         }
 
+        // Radius validation: sales must be within 20 meters of customer's registered location
+        if (!empty($validated['latitude']) && !empty($validated['longitude'])) {
+            $pelanggan = MinyakPelanggan::find($validated['pelanggan_id']);
+            if ($pelanggan && $pelanggan->latitude && $pelanggan->longitude) {
+                $salesLat = (float) $validated['latitude'];
+                $salesLng = (float) $validated['longitude'];
+                $custLat  = (float) $pelanggan->latitude;
+                $custLng  = (float) $pelanggan->longitude;
+
+                // Haversine formula
+                $R = 6371000; // Earth radius in meters
+                $dLat = deg2rad($custLat - $salesLat);
+                $dLon = deg2rad($custLng - $salesLng);
+                $a = sin($dLat / 2) * sin($dLat / 2) +
+                     cos(deg2rad($salesLat)) * cos(deg2rad($custLat)) *
+                     sin($dLon / 2) * sin($dLon / 2);
+                $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+                $distance = $R * $c;
+
+                $maxRadius = 20; // meters
+                if ($distance > $maxRadius) {
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Anda berada ' . round($distance) . ' meter dari lokasi pelanggan (maksimum ' . $maxRadius . ' meter). Pastikan Anda berada di dekat toko pelanggan.');
+                }
+            }
+        }
+
         // Apply regional pricing if harga_satuan not explicitly set by user
         $salesProfile = MinyakSales::find($validated['sales_id']);
         if ($salesProfile && $salesProfile->regional_id) {

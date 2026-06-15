@@ -254,12 +254,29 @@
                                 <input type="text" name="kota" value="{{ old('kota', $pelanggan->kota) }}" placeholder="Nama kota" class="pcf-input">
                             </div>
                             <div>
-                                <label class="pcf-lbl">Latitude</label>
-                                <input type="number" step="any" name="latitude" value="{{ old('latitude', $pelanggan->latitude) }}" placeholder="-6.123456" class="pcf-input">
+                                <label class="pcf-lbl">Latitude <span class="pcf-req">*</span></label>
+                                <input type="text" name="latitude" id="inp-lat" value="{{ old('latitude', $pelanggan->latitude) }}" required placeholder="-6.20880000" class="pcf-input" readonly>
                             </div>
                             <div>
-                                <label class="pcf-lbl">Longitude</label>
-                                <input type="number" step="any" name="longitude" value="{{ old('longitude', $pelanggan->longitude) }}" placeholder="106.123456" class="pcf-input">
+                                <label class="pcf-lbl">Longitude <span class="pcf-req">*</span></label>
+                                <input type="text" name="longitude" id="inp-lng" value="{{ old('longitude', $pelanggan->longitude) }}" required placeholder="106.84560000" class="pcf-input" readonly>
+                            </div>
+                            <div class="pcf-full">
+                                <div id="gps-status-box" style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:12px; background:#f1f5f9; border:1.5px solid #e2e8f0; margin-bottom:0.5rem;">
+                                    <span id="gps-dot" style="width:10px; height:10px; border-radius:50%; background:#94a3b8; flex-shrink:0;"></span>
+                                    <span id="gps-text" style="font-size:0.8125rem; font-weight:600; color:#64748b;">Klik tombol di bawah untuk memperbarui koordinat</span>
+                                </div>
+                                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                                    <button type="button" id="btn-detect-gps" class="pcf-btn pcf-btn-primary" style="padding:0.5rem 1rem; font-size:0.75rem;">
+                                        📍 Deteksi Ulang Lokasi
+                                    </button>
+                                    <button type="button" id="btn-clear-gps" class="pcf-btn pcf-btn-ghost" style="padding:0.5rem 1rem; font-size:0.75rem;">
+                                        Reset
+                                    </button>
+                                </div>
+                                <div style="font-size:0.6875rem; color:#94a3b8; margin-top:0.5rem;">
+                                    📱 Koordinat saat ini tersimpan. Klik "Deteksi Ulang" untuk memperbarui dari lokasi Anda saat ini.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -421,6 +438,7 @@
 
     @push('scripts')
     <script>
+    // Foto preview
     document.getElementById('inp-foto-toko').addEventListener('change', function(e) {
         var file = e.target.files[0];
         if (!file) return;
@@ -432,6 +450,61 @@
         };
         reader.readAsDataURL(file);
     });
+
+    // GPS Detection
+    (function() {
+        var inpLat = document.getElementById('inp-lat');
+        var inpLng = document.getElementById('inp-lng');
+        var gpsDot = document.getElementById('gps-dot');
+        var gpsText = document.getElementById('gps-text');
+        var btnDetect = document.getElementById('btn-detect-gps');
+        var btnClear = document.getElementById('btn-clear-gps');
+
+        function setStatus(state, text) {
+            gpsText.textContent = text;
+            if (state === 'success') {
+                gpsDot.style.background = '#10b981';
+                gpsText.style.color = '#065f46';
+            } else if (state === 'error') {
+                gpsDot.style.background = '#ef4444';
+                gpsText.style.color = '#991b1b';
+            } else {
+                gpsDot.style.background = '#f59e0b';
+                gpsText.style.color = '#92400e';
+            }
+        }
+
+        // Show current saved coordinates
+        if (inpLat.value && inpLng.value) {
+            setStatus('success', 'Koordinat tersimpan: ' + parseFloat(inpLat.value).toFixed(6) + ', ' + parseFloat(inpLng.value).toFixed(6));
+        }
+
+        function detectGPS() {
+            if (!navigator.geolocation) {
+                setStatus('error', 'Browser tidak mendukung GPS.');
+                return;
+            }
+            setStatus('loading', 'Mendeteksi lokasi...');
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    inpLat.value = pos.coords.latitude.toFixed(8);
+                    inpLng.value = pos.coords.longitude.toFixed(8);
+                    setStatus('success', 'Lokasi terdeteksi: ' + pos.coords.latitude.toFixed(6) + ', ' + pos.coords.longitude.toFixed(6));
+                },
+                function(err) {
+                    setStatus('error', 'Gagal mendeteksi lokasi. Pastikan GPS aktif.');
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        }
+
+        btnDetect.addEventListener('click', detectGPS);
+        btnClear.addEventListener('click', function() {
+            inpLat.value = '';
+            inpLng.value = '';
+            setStatus('', 'Koordinat direset.');
+        });
+    })();
     </script>
     @endpush
 </x-app-layout>
