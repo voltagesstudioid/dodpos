@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test GPS</title>
+    <style>
+        body { font-family: system-ui; padding: 2rem; text-align: center; }
+        .status { padding: 1rem; margin: 1rem 0; border-radius: 12px; font-weight: 600; }
+        .success { background: #ecfdf5; color: #065f46; border: 2px solid #a7f3d0; }
+        .error { background: #fef2f2; color: #991b1b; border: 2px solid #fecaca; }
+        .loading { background: #fffbeb; color: #92400e; border: 2px solid #fde68a; }
+        button { padding: 1rem 2rem; font-size: 1.1rem; border-radius: 12px; border: none; background: #10b981; color: white; font-weight: 700; cursor: pointer; }
+        .coords { font-size: 1.5rem; margin: 1rem 0; font-weight: 700; color: #065f46; }
+    </style>
+</head>
+<body>
+    <h1>📍 Test GPS Location</h1>
+    <p>Tap the button below to test GPS detection</p>
+
+    <div id="status" class="status loading">Waiting...</div>
+    <div id="coords" class="coords" style="display:none;"></div>
+
+    <button onclick="testGPS()">📍 Detect My Location</button>
+
+    <div style="margin-top: 2rem; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto;">
+        <h3>Debug Info:</h3>
+        <div id="debug" style="font-size: 0.8rem; color: #666; background: #f1f5f9; padding: 1rem; border-radius: 8px;">
+            <p><strong>HTTPS:</strong> <span id="is-https"></span></p>
+            <p><strong>Geolocation API:</strong> <span id="has-geo"></span></p>
+            <p><strong>Protocol:</strong> <span id="protocol"></span></p>
+            <p><strong>User Agent:</strong> <span id="ua"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Debug info
+        document.getElementById('is-https').textContent = window.location.protocol === 'https:' ? '✅ Yes' : '❌ No (GPS may be blocked!)';
+        document.getElementById('has-geo').textContent = 'geolocation' in navigator ? '✅ Available' : '❌ Not available';
+        document.getElementById('protocol').textContent = window.location.protocol;
+        document.getElementById('ua').textContent = navigator.userAgent;
+
+        function testGPS() {
+            var status = document.getElementById('status');
+            var coords = document.getElementById('coords');
+
+            if (!navigator.geolocation) {
+                status.className = 'status error';
+                status.textContent = '❌ Browser does not support GPS';
+                return;
+            }
+
+            status.className = 'status loading';
+            status.textContent = '📍 Detecting location... Please allow access if prompted.';
+            coords.style.display = 'none';
+
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    status.className = 'status success';
+                    status.textContent = '✅ GPS Working!';
+                    coords.style.display = 'block';
+                    coords.innerHTML =
+                        'Lat: ' + pos.coords.latitude.toFixed(8) + '<br>' +
+                        'Lng: ' + pos.coords.longitude.toFixed(8) + '<br>' +
+                        '<small style="color:#64748b;">Accuracy: ' + Math.round(pos.coords.accuracy) + ' meters</small>';
+                },
+                function(err) {
+                    status.className = 'status error';
+                    var msg = '';
+                    switch(err.code) {
+                        case 1: msg = '❌ PERMISSION_DENIED - Location access was blocked.<br><small>Check browser settings → Site permissions → Location → Allow</small>'; break;
+                        case 2: msg = '❌ POSITION_UNAVAILABLE - GPS signal not available.<br><small>Make sure GPS is enabled on your device.</small>'; break;
+                        case 3: msg = '❌ TIMEOUT - Request timed out.<br><small>Try again in a location with better GPS signal.</small>'; break;
+                        default: msg = '❌ Unknown error: ' + err.message;
+                    }
+                    status.innerHTML = msg;
+                },
+                { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+            );
+        }
+    </script>
+</body>
+</html>
