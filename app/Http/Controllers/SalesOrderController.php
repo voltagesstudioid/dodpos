@@ -292,7 +292,7 @@ class SalesOrderController extends Controller
         }
 
         $customers = Customer::orderBy('name')->get();
-        $salesOrder->load('items.product');
+        $salesOrder->load(['items.product', 'user']);
 
         $existingItemsForJs = $this->hydrateItemsForJs(
             $salesOrder->items->map(fn ($it) => [
