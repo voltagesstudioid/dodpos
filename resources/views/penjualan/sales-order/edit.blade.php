@@ -403,8 +403,8 @@
         </div>
     </div>
 
-    <script type="application/json" id="so-existing-items-json">{{ json_encode($existingItemsForJs ?? [], JSON_UNESCAPED_UNICODE) }}</script>
-    <script type="application/json" id="so-old-items-json">{{ json_encode($oldItemsForJs ?? [], JSON_UNESCAPED_UNICODE) }}</script>
+    <script type="application/json" id="so-existing-items-json">{!! json_encode($existingItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
+    <script type="application/json" id="so-old-items-json">{!! json_encode($oldItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 
     @push('scripts')
     <script>
@@ -413,7 +413,10 @@
         (function(){
             try {
                 var exEl = document.getElementById('so-existing-items-json');
-                var ex = JSON.parse(exEl ? (exEl.textContent || '[]') : '[]');
+                var exRaw = exEl ? (exEl.textContent || exEl.innerText || '[]') : '[]';
+                console.log('[SO Edit] Raw existing items JSON:', exRaw.substring(0, 200));
+                var ex = JSON.parse(exRaw);
+                console.log('[SO Edit] Parsed existing items count:', (ex || []).length);
                 orderItems = (ex || []).map(function(it){
                     var price = Number(it.price || 0);
                     var qty = Number(it.quantity || 1);
@@ -427,7 +430,9 @@
                     };
                 });
                 var oldEl = document.getElementById('so-old-items-json');
-                var oldItems = JSON.parse(oldEl ? (oldEl.textContent || '[]') : '[]');
+                var oldRaw = oldEl ? (oldEl.textContent || oldEl.innerText || '[]') : '[]';
+                var oldItems = JSON.parse(oldRaw);
+                console.log('[SO Edit] Parsed old items count:', (oldItems || []).length);
                 if (Array.isArray(oldItems) && oldItems.length) {
                     orderItems = [];
                     oldItems.forEach(function(item){
@@ -443,7 +448,8 @@
                         });
                     });
                 }
-            } catch(e) { console.error('Error loading items:', e); }
+                console.log('[SO Edit] Final orderItems count:', orderItems.length);
+            } catch(e) { console.error('[SO Edit] Error loading items:', e); }
         })();
 
         function fmt(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n)); }

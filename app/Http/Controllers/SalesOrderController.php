@@ -49,6 +49,7 @@ class SalesOrderController extends Controller
         }
 
         $productsById = Product::query()
+            ->withTrashed()
             ->with(['unit', 'unitConversions.unit'])
             ->whereIn('id', $productIds)
             ->get()
