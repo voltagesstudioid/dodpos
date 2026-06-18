@@ -76,6 +76,7 @@
         .so-item-qty{width:72px;text-align:center;}
         .so-item-price{width:130px;text-align:right;}
         .so-item-x{color:#cbd5e1;font-size:.8rem;font-weight:800;padding-top:16px;}
+        .so-item-conv{font-size:.7rem;color:#d97706;font-weight:700;margin-top:3px;padding:2px 8px;background:#fef3c7;border-radius:5px;display:inline-block;}
 
         .so-empty{text-align:center;padding:3rem 1.5rem;}
         .so-empty-icon{width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#fef3c7,#fffbeb);display:inline-flex;align-items:center;justify-content:center;margin-bottom:1rem;}
@@ -420,13 +421,16 @@
                 orderItems = (ex || []).map(function(it){
                     var price = Number(it.price || 0);
                     var qty = Number(it.quantity || 1);
+                    var unitFactor = Number(it.unit_factor || 1);
+                    var displayQty = unitFactor > 1 ? Math.round(qty / unitFactor) : qty;
                     return {
                         id: Number(it.product_id),
                         name: String(it.name || ('Barang (ID: '+it.product_id+')')),
                         price: price,
+                        display_qty: displayQty,
                         qty: qty,
                         unit_name: it.unit_name || null,
-                        unit_factor: Number(it.unit_factor || 1),
+                        unit_factor: unitFactor,
                         conversions: Array.isArray(it.conversions) ? it.conversions : [],
                         subtotal: price * qty
                     };
@@ -440,13 +444,16 @@
                     oldItems.forEach(function(item){
                         var price = Number(item.price || 0);
                         var qty = Number(item.quantity || 1);
+                        var unitFactor = Number(item.unit_factor || 1);
+                        var displayQty = unitFactor > 1 ? Math.round(qty / unitFactor) : qty;
                         orderItems.push({
                             id: Number(item.product_id),
                             name: String(item.name || ("Barang (ID: "+item.product_id+")")),
                             price: price,
+                            display_qty: displayQty,
                             qty: qty,
                             unit_name: item.unit_name || null,
-                            unit_factor: Number(item.unit_factor || 1),
+                            unit_factor: unitFactor,
                             conversions: Array.isArray(item.conversions) ? item.conversions : [],
                             subtotal: price * qty
                         });
@@ -518,7 +525,8 @@
         window.selectProduct = function(id, name, defaultPrice) {
             var existing = orderItems.find(function(i){ return i.id === id; });
             if (existing) {
-                existing.qty += 1;
+                existing.display_qty = (existing.display_qty || 1) + 1;
+                existing.qty = existing.display_qty * (existing.unit_factor || 1);
                 existing.subtotal = existing.qty * existing.price;
             } else {
                 var convs = [];
@@ -528,7 +536,7 @@
                     convs = Array.isArray(found && found.conversions) ? found.conversions : [];
                     if (convs.length > 0) baseUnitName = convs[0].label || 'pcs';
                 } catch (e) {}
-                orderItems.push({ id:id, name:name, price:defaultPrice, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, subtotal:defaultPrice });
+                orderItems.push({ id:id, name:name, price:defaultPrice, display_qty:1, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, subtotal:defaultPrice });
             }
             closeProductModal();
             document.getElementById('searchInput').value = '';
@@ -538,7 +546,9 @@
 
         function updateQty(i, v) {
             var val = parseInt(v) || 1;
-            orderItems[i].qty = val < 1 ? 1 : val;
+            if (val < 1) val = 1;
+            orderItems[i].display_qty = val;
+            orderItems[i].qty = val * (orderItems[i].unit_factor || 1);
             orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
             renderTable();
         }
@@ -556,7 +566,10 @@
             var optLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
             orderItems[i].unit_factor = factor;
             orderItems[i].unit_name = optLabel || orderItems[i].unit_name;
-            updateQty(i, factor);
+            // Recalculate: display_qty stays the same, base qty = display_qty × factor
+            orderItems[i].qty = (orderItems[i].display_qty || 1) * factor;
+            orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
+            renderTable();
         }
 
         window.removeItem = function(i) {
@@ -595,6 +608,15 @@
                 grandTotal += item.subtotal;
                 totalQty += item.qty;
 
+                var dq = item.display_qty || item.qty || 1;
+                var factor = item.unit_factor || 1;
+                var unitName = item.unit_name || 'pcs';
+                var convHint = '';
+                if (factor > 1) {
+                    var baseUnit = (item.conversions && item.conversions.length > 0) ? item.conversions[0].label : 'pcs';
+                    convHint = '<div class="so-item-conv">' + dq + ' ' + unitName + ' = ' + fmt(item.qty) + ' ' + baseUnit + '</div>';
+                }
+
                 var unitHtml = '';
                 if (item.conversions && item.conversions.length > 1) {
                     var savedFactor = item.unit_factor || 1;
@@ -616,6 +638,7 @@
                     + '<input type="hidden" name="items['+i+'][product_id]" value="'+item.id+'">'
                     + '<input type="hidden" name="items['+i+'][unit_name]" value="'+(item.unit_name || '')+'">'
                     + '<input type="hidden" name="items['+i+'][unit_factor]" value="'+(item.unit_factor || 1)+'">'
+                    + convHint
                     + '</div>'
                     + '<div class="so-item-actions">'
                     + '<div class="so-item-sub">Rp '+fmt(item.subtotal)+'</div>'
@@ -632,7 +655,7 @@
                     + '<span class="so-item-x">&times;</span>'
                     + '<div class="so-item-field">'
                     + '<span class="so-item-field-label">Qty</span>'
-                    + '<input type="number" name="items['+i+'][quantity]" value="'+item.qty+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty">'
+                    + '<input type="number" name="items['+i+'][quantity]" value="'+dq+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty">'
                     + '</div>'
                     + unitHtml
                     + '</div>'
