@@ -5,271 +5,331 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-        :root {
-            --so-bg: #f8fafc;
-            --so-surface: #ffffff;
-            --so-border: #e2e8f0;
-            --so-border-light: #f1f5f9;
-            --so-text-main: #0f172a;
-            --so-text-muted: #64748b;
-            --so-primary: #3b82f6;
-            --so-primary-hover: #2563eb;
-            --so-danger: #ef4444;
-            --so-success: #10b981;
-            --so-radius-lg: 16px;
-            --so-radius-md: 8px;
-            --so-shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+        .so-pg{background:linear-gradient(135deg,#f0f4ff 0%,#f8fafc 50%,#f0fdf4 100%);min-height:calc(100vh - 64px);padding:2rem 1.5rem;font-family:'Plus Jakarta Sans',system-ui,sans-serif;}
+        .so-wrap{max-width:1100px;margin:0 auto;}
+
+        /* ── back link ── */
+        .so-back{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:#64748b;text-decoration:none;margin-bottom:1.25rem;transition:.2s;padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.7);backdrop-filter:blur(4px);}
+        .so-back:hover{color:#0f172a;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+
+        /* ── page title bar ── */
+        .so-title-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;}
+        .so-title-area{display:flex;align-items:center;gap:1rem;}
+        .so-title-icon{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(99,102,241,.3);}
+        .so-title-text h1{font-size:1.4rem;font-weight:800;color:#0f172a;margin:0;letter-spacing:-.02em;}
+        .so-title-text p{font-size:.82rem;color:#64748b;margin:2px 0 0;}
+
+        /* ── layout ── */
+        .so-layout{display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start;}
+
+        /* ── card ── */
+        .so-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden;margin-bottom:1.25rem;transition:box-shadow .2s;}
+        .so-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06);}
+        .so-card-hdr{padding:1.25rem 1.5rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:.75rem;}
+        .so-card-hdr-left{display:flex;align-items:center;gap:.75rem;}
+        .so-card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .so-card-icon.blue{background:#eff6ff;color:#3b82f6;}
+        .so-card-icon.green{background:#f0fdf4;color:#10b981;}
+        .so-card-icon.purple{background:#f5f3ff;color:#7c3aed;}
+        .so-card-title{font-size:.95rem;font-weight:800;color:#0f172a;margin:0;}
+        .so-card-sub{font-size:.75rem;color:#94a3b8;margin:1px 0 0;}
+        .so-card-body{padding:1.5rem;}
+
+        /* ── form ── */
+        .so-grid{display:grid;grid-template-columns:12;gap:1rem;}
+        .so-g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+        .so-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+        .so-g2-1{display:grid;grid-template-columns:2fr 1fr;gap:1rem;}
+        .so-g1-2{display:grid;grid-template-columns:1fr 2fr;gap:1rem;}
+
+        .so-fld{display:flex;flex-direction:column;gap:5px;}
+        .so-lbl{font-size:.78rem;font-weight:700;color:#475569;letter-spacing:.02em;display:flex;align-items:center;gap:4px;}
+        .so-lbl .req{color:#ef4444;}
+        .so-inp{width:100%;padding:.6rem .85rem;border:1.5px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:.84rem;color:#0f172a;background:#f8fafc;outline:none;transition:.2s;}
+        .so-inp:focus{border-color:#6366f1;background:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.08);}
+        .so-inp:hover:not(:focus){border-color:#cbd5e1;}
+        select.so-inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
+        textarea.so-inp{resize:vertical;min-height:80px;}
+
+        /* ── item rows ── */
+        .so-items{display:flex;flex-direction:column;gap:.75rem;}
+        .so-item{display:grid;grid-template-columns:auto 1fr auto auto auto;align-items:center;gap:.75rem;padding:.85rem 1rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;transition:.2s;}
+        .so-item:hover{border-color:#c7d2fe;background:#fafbff;}
+        .so-item-num{width:28px;height:28px;border-radius:8px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;}
+        .so-item-info{min-width:0;}
+        .so-item-name{font-weight:700;color:#0f172a;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .so-item-sku{font-size:.7rem;color:#94a3b8;margin-top:1px;}
+        .so-item-inputs{display:flex;gap:.5rem;align-items:center;}
+        .so-item-qty{width:72px;text-align:center;}
+        .so-item-price{width:120px;text-align:right;}
+        .so-item-sub{font-weight:800;color:#4f46e5;font-size:.88rem;white-space:nowrap;min-width:100px;text-align:right;}
+        .so-item-del{width:32px;height:32px;border-radius:8px;border:1.5px solid #fecaca;background:#fff;color:#ef4444;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex-shrink:0;}
+        .so-item-del:hover{background:#ef4444;color:#fff;border-color:#ef4444;transform:scale(1.05);}
+
+        /* ── empty state ── */
+        .so-empty{text-align:center;padding:3rem 1.5rem;}
+        .so-empty-icon{width:72px;height:72px;border-radius:20px;background:linear-gradient(135deg,#eff6ff,#f0fdf4);display:inline-flex;align-items:center;justify-content:center;margin-bottom:1rem;}
+        .so-empty-title{font-size:.95rem;font-weight:800;color:#0f172a;margin-bottom:4px;}
+        .so-empty-sub{font-size:.82rem;color:#64748b;max-width:300px;margin:0 auto;}
+        .so-empty-hint{display:inline-flex;align-items:center;gap:6px;margin-top:.75rem;font-size:.72rem;font-weight:700;color:#6366f1;background:#eef2ff;padding:6px 14px;border-radius:8px;}
+
+        /* ── add item btn ── */
+        .so-add-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:.85rem;border:2px dashed #c7d2fe;border-radius:12px;background:transparent;color:#6366f1;font-weight:700;font-size:.85rem;cursor:pointer;transition:.2s;font-family:inherit;width:100%;}
+        .so-add-btn:hover{background:#eef2ff;border-color:#6366f1;}
+        .so-add-btn kbd{background:#e0e7ff;padding:2px 6px;border-radius:4px;font-size:.7rem;font-weight:800;}
+
+        /* ── sidebar summary ── */
+        .so-summary{position:sticky;top:1rem;}
+        .so-sum-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow:hidden;}
+        .so-sum-hdr{padding:1rem 1.25rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:.6rem;}
+        .so-sum-title{font-size:.88rem;font-weight:800;color:#0f172a;}
+        .so-sum-body{padding:1.25rem;}
+        .so-sum-row{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;font-size:.82rem;}
+        .so-sum-row.total{border-top:2px solid #e2e8f0;margin-top:.5rem;padding-top:.85rem;}
+        .so-sum-lbl{color:#64748b;font-weight:600;}
+        .so-sum-val{font-weight:800;color:#0f172a;}
+        .so-sum-val.grand{font-size:1.2rem;color:#4f46e5;}
+
+        .so-submit-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:.85rem;border-radius:12px;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;font-weight:800;font-size:.92rem;cursor:pointer;border:none;transition:.2s;font-family:inherit;margin-top:1rem;box-shadow:0 4px 14px rgba(99,102,241,.3);}
+        .so-submit-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,.4);}
+        .so-submit-btn:active{transform:translateY(0);}
+
+        .so-cancel-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:.7rem;border-radius:10px;background:#f8fafc;color:#64748b;font-weight:600;font-size:.82rem;cursor:pointer;border:1.5px solid #e2e8f0;transition:.2s;font-family:inherit;margin-top:.5rem;text-decoration:none;}
+        .so-cancel-btn:hover{background:#f1f5f9;color:#0f172a;}
+
+        /* ── alert ── */
+        .so-alert{padding:1rem 1.25rem;border-radius:12px;margin-bottom:1.25rem;font-size:.84rem;display:flex;gap:.75rem;align-items:flex-start;}
+        .so-alert-danger{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;}
+        .so-alert ul{margin:.5rem 0 0;padding-left:1.25rem;}
+
+        /* ── modal ── */
+        .so-modal{position:fixed;inset:0;background:rgba(15,23,42,.5);display:none;align-items:center;justify-content:center;padding:1rem;z-index:1200;backdrop-filter:blur(6px);}
+        .so-modal.open{display:flex;}
+        .so-modal-card{width:min(640px,100%);background:#fff;border-radius:20px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 24px 80px rgba(15,23,42,.3);display:flex;flex-direction:column;max-height:80vh;animation:modalIn .2s ease;}
+        @keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
+        .so-modal-hdr{padding:1.25rem 1.5rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#f8fafc,#f0f4ff);}
+        .so-modal-body{padding:1.25rem 1.5rem;overflow-y:auto;flex:1;}
+        .so-modal-close{width:34px;height:34px;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;color:#64748b;}
+        .so-modal-close:hover{background:#f1f5f9;color:#0f172a;}
+
+        .so-search-inp{width:100%;padding:.75rem 1rem .75rem 2.5rem;border:1.5px solid #e2e8f0;border-radius:12px;font-size:.88rem;color:#0f172a;background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 12px center;outline:none;transition:.2s;font-family:inherit;}
+        .so-search-inp:focus{border-color:#6366f1;background-color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.08);}
+
+        .so-results{margin-top:1rem;border:1.5px solid #e2e8f0;border-radius:12px;max-height:320px;overflow-y:auto;}
+        .so-result{padding:.85rem 1rem;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:.15s;}
+        .so-result:last-child{border-bottom:none;}
+        .so-result:hover{background:#f8fafc;}
+        .so-result-left{min-width:0;flex:1;}
+        .so-result-name{font-weight:700;color:#0f172a;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .so-result-meta{font-size:.72rem;color:#94a3b8;margin-top:2px;display:flex;gap:.5rem;align-items:center;}
+        .so-result-right{text-align:right;flex-shrink:0;margin-left:.75rem;}
+        .so-result-price{font-weight:800;color:#4f46e5;font-size:.88rem;}
+        .so-badge{padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;}
+        .so-badge-green{background:#dcfce7;color:#166534;}
+        .so-badge-red{background:#fee2e2;color:#b91c1c;}
+
+        .so-search-empty{padding:2.5rem;text-align:center;color:#94a3b8;font-size:.85rem;}
+
+        @media(max-width:900px){
+            .so-layout{grid-template-columns:1fr;}
+            .so-summary{position:static;}
         }
-
-        .so-page-wrapper { background-color: var(--so-bg); min-height: calc(100vh - 64px); padding: 2rem 1.5rem; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .so-container { max-width: 1000px; margin: 0 auto; color: var(--so-text-main); }
-
-        .so-back-link {
-            display: inline-flex; align-items: center; gap: 6px;
-            font-size: 0.85rem; font-weight: 600; color: var(--so-text-muted);
-            text-decoration: none; margin-bottom: 1.25rem; transition: color 0.2s;
-        }
-        .so-back-link:hover { color: var(--so-text-main); }
-
-        .so-paper {
-            background: var(--so-surface); border-radius: var(--so-radius-lg);
-            border: 1px solid var(--so-border); box-shadow: var(--so-shadow-sm);
-            overflow: hidden; margin-bottom: 1.5rem;
-        }
-
-        .so-header {
-            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-            padding: 1.5rem 2rem; border-bottom: 1px solid var(--so-border-light); background: #fff;
-        }
-        .so-header-left { display: flex; align-items: center; gap: 1rem; }
-        .so-header-icon {
-            width: 48px; height: 48px; border-radius: 12px;
-            background: #eff6ff; color: var(--so-primary);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .so-title { font-size: 1.25rem; font-weight: 800; margin: 0; }
-        .so-subtitle { font-size: 0.85rem; color: var(--so-text-muted); margin-top: 0.25rem; }
-        
-        .so-body { padding: 1.5rem 2rem; }
-        
-        .so-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.25rem; }
-        .col-4 { grid-column: span 4; }
-        .col-6 { grid-column: span 6; }
-        .col-12 { grid-column: span 12; }
-
-        .so-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
-        .so-req { color: var(--so-danger); }
-        .so-input {
-            width: 100%; padding: 0.65rem 0.85rem; border: 1px solid var(--so-border);
-            border-radius: var(--so-radius-md); font-family: inherit; font-size: 0.85rem; color: var(--so-text-main);
-            background: #f8fafc; outline: none; transition: all 0.2s;
-        }
-        .so-input:focus { border-color: var(--so-primary); background: #ffffff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        select.so-input { cursor: pointer; }
-
-        .so-alert { padding: 1rem 1.25rem; border-radius: var(--so-radius-md); margin-bottom: 1rem; font-size: 0.85rem; fill-opacity: 0.1; display: flex; gap: 0.75rem; }
-        .so-alert-danger { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-
-        .so-table-wrapper { border: 1px solid var(--so-border); border-radius: var(--so-radius-md); overflow: hidden; margin-top: 1rem; }
-        .so-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        .so-table th { background: #f8fafc; padding: 0.75rem 1rem; text-align: left; font-weight: 700; color: var(--so-text-muted); border-bottom: 1px solid var(--so-border); }
-        .so-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--so-border-light); vertical-align: middle; }
-        .so-table tr:last-child td { border-bottom: none; }
-        
-        .so-btn {
-            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 0.65rem 1.25rem; border-radius: var(--so-radius-md); font-size: 0.85rem; 
-            font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-family: inherit;
-        }
-        .so-btn-primary { background: var(--so-primary); color: #fff; }
-        .so-btn-primary:hover { background: var(--so-primary-hover); transform: translateY(-1px); }
-        .so-btn-outline { background: #fff; border: 1px solid var(--so-border); color: var(--so-text-main); }
-        .so-btn-outline:hover { background: #f8fafc; }
-        .so-btn-danger { background: #fef2f2; color: var(--so-danger); border: 1px solid #fecaca; padding: 0.4rem 0.75rem; }
-        .so-btn-danger:hover { background: var(--so-danger); color: #fff; }
-        
-        .empty-state { text-align: center; padding: 3rem 1rem; color: var(--so-text-muted); }
-        .empty-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.5; }
-
-        /* Modal Styles */
-        .so-modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: none; align-items: center; justify-content: center; padding: 1rem; z-index: 1200; backdrop-filter: blur(4px); }
-        .so-modal.open { display: flex; }
-        .so-modal-card { width: min(700px, 100%); background: #fff; border-radius: 16px; border: 1px solid var(--so-border); overflow: hidden; box-shadow: 0 24px 80px rgba(15, 23, 42, 0.35); display: flex; flex-direction: column; max-height: 85vh; }
-        .so-modal-head { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--so-border-light); display: flex; align-items: center; justify-content: space-between; background: #f8fafc; }
-        .so-modal-body { padding: 1.5rem; overflow-y: auto; }
-        
-        .search-results { margin-top: 1rem; border: 1px solid var(--so-border); border-radius: 8px; max-height: 300px; overflow-y: auto; }
-        .search-item { padding: 0.85rem 1rem; border-bottom: 1px solid var(--so-border-light); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
-        .search-item:last-child { border-bottom: none; }
-        .search-item:hover { background: #f8fafc; }
-        .search-item-title { font-weight: 700; color: var(--so-text-main); margin-bottom: 2px; }
-        .search-item-sub { font-size: 0.75rem; color: var(--so-text-muted); }
-
-        @media (max-width: 768px) {
-            .col-4, .col-6 { grid-column: span 12; }
-            .so-header { flex-direction: column; align-items: flex-start; }
-            .so-body { padding: 1rem; }
+        @media(max-width:640px){
+            .so-pg{padding:1rem;}
+            .so-g2,.so-g3,.so-g2-1,.so-g1-2{grid-template-columns:1fr;}
+            .so-item{grid-template-columns:auto 1fr auto;gap:.5rem;padding:.75rem;}
+            .so-item-inputs{flex-wrap:wrap;}
+            .so-item-sub{grid-column:2/3;text-align:left;}
+            .so-card-body{padding:1rem;}
         }
     </style>
     @endpush
 
-    <div class="so-page-wrapper">
-        <div class="so-container">
-            <a href="{{ route('sales-order.index') }}" class="so-back-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                Kembali ke Daftar Sales Order
+    <div class="so-pg">
+        <div class="so-wrap">
+            <a href="{{ route('sales-order.index') }}" class="so-back">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+                Kembali ke Daftar
             </a>
+
+            <div class="so-title-bar">
+                <div class="so-title-area">
+                    <div class="so-title-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    </div>
+                    <div class="so-title-text">
+                        <h1>Buat Sales Order Baru</h1>
+                        <p>Isi detail pesanan dan tambahkan barang yang akan dikirim.</p>
+                    </div>
+                </div>
+            </div>
 
             @if($errors->any())
                 <div class="so-alert so-alert-danger">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     <div>
                         <strong>Terdapat kesalahan input:</strong>
-                        <ul style="margin: 0.5rem 0 0; padding-left: 1.5rem;">
-                            @foreach($errors->all() as $err) <li>{{ $err }}</li> @endforeach
-                        </ul>
+                        <ul>@foreach($errors->all() as $err) <li>{{ $err }}</li> @endforeach</ul>
                     </div>
                 </div>
             @endif
 
             <form action="{{ route('sales-order.store') }}" method="POST" id="soForm">
                 @csrf
-                
-                {{-- Info Panel --}}
-                <div class="so-paper">
-                    <div class="so-header">
-                        <div class="so-header-left">
-                            <div class="so-header-icon">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                <div class="so-layout">
+                    {{-- ─── LEFT COLUMN ─── --}}
+                    <div class="so-main">
+                        {{-- Info Card --}}
+                        <div class="so-card">
+                            <div class="so-card-hdr">
+                                <div class="so-card-hdr-left">
+                                    <div class="so-card-icon blue">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    </div>
+                                    <div>
+                                        <div class="so-card-title">Informasi Order</div>
+                                        <div class="so-card-sub">Pelanggan, tanggal, dan status pesanan</div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <h2 class="so-title">Informasi Order</h2>
-                                <p class="so-subtitle">Detail pelanggan, tanggal, dan status order.</p>
+                            <div class="so-card-body">
+                                <div class="so-g2-1" style="margin-bottom:1rem;">
+                                    <div class="so-fld">
+                                        <label class="so-lbl" for="customer_id">Pelanggan <span class="req">*</span></label>
+                                        <select name="customer_id" id="customer_id" class="so-inp" required>
+                                            <option value="">-- Pilih Pelanggan --</option>
+                                            @foreach($customers as $c)
+                                                <option value="{{ $c->id }}" {{ old('customer_id') == $c->id ? 'selected' : '' }}>
+                                                    {{ $c->name }} {{ $c->phone ? '('.$c->phone.')' : '' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="so-fld">
+                                        <label class="so-lbl" for="status">Status <span class="req">*</span></label>
+                                        <select name="status" id="status" class="so-inp" required>
+                                            <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft</option>
+                                            <option value="confirmed" {{ old('status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                                            <option value="processing" {{ old('status') == 'processing' ? 'selected' : '' }}>Processing</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="so-g2" style="margin-bottom:1rem;">
+                                    <div class="so-fld">
+                                        <label class="so-lbl" for="order_date">Tanggal Order <span class="req">*</span></label>
+                                        <input type="date" name="order_date" id="order_date" value="{{ old('order_date', date('Y-m-d')) }}" class="so-inp" required>
+                                    </div>
+                                    <div class="so-fld">
+                                        <label class="so-lbl" for="delivery_date">Tanggal Kirim</label>
+                                        <input type="date" name="delivery_date" id="delivery_date" value="{{ old('delivery_date', date('Y-m-d', strtotime('+1 day'))) }}" class="so-inp">
+                                    </div>
+                                </div>
+                                <div class="so-fld">
+                                    <label class="so-lbl" for="notes">Catatan</label>
+                                    <textarea name="notes" id="notes" class="so-inp" placeholder="Tambahkan catatan untuk pesanan ini...">{{ old('notes') }}</textarea>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <div class="so-body">
-                        <div class="so-grid">
-                            <div class="col-6">
-                                <label class="so-label" for="customer_id">Pelanggan <span class="so-req">*</span></label>
-                                <select name="customer_id" id="customer_id" class="so-input" required>
-                                    <option value="">-- Pilih Pelanggan --</option>
-                                    @foreach($customers as $c)
-                                        <option value="{{ $c->id }}" {{ old('customer_id') == $c->id ? 'selected' : '' }}>
-                                            {{ $c->name }} {{ $c->phone ? '('.$c->phone.')' : '' }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="so-label" for="order_date">Tanggal Order <span class="so-req">*</span></label>
-                                <input type="date" name="order_date" id="order_date" value="{{ old('order_date', date('Y-m-d')) }}" class="so-input" required>
-                            </div>
-                            <div class="col-3">
-                                <label class="so-label" for="delivery_date">Tanggal Kirim</label>
-                                <input type="date" name="delivery_date" id="delivery_date" value="{{ old('delivery_date', date('Y-m-d', strtotime('+1 day'))) }}" class="so-input">
-                            </div>
 
-                            <div class="col-4">
-                                <label class="so-label" for="status">Status Awal <span class="so-req">*</span></label>
-                                <select name="status" id="status" class="so-input" required>
-                                    <option value="draft" {{ old('status') == 'draft' ? 'selected' : '' }}>Draft (Baru)</option>
-                                    <option value="confirmed" {{ old('status') == 'confirmed' ? 'selected' : '' }}>Confirmed (Disetujui)</option>
-                                    <option value="processing" {{ old('status') == 'processing' ? 'selected' : '' }}>Processing (Diproses)</option>
-                                </select>
+                        {{-- Items Card --}}
+                        <div class="so-card">
+                            <div class="so-card-hdr">
+                                <div class="so-card-hdr-left">
+                                    <div class="so-card-icon green">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                                    </div>
+                                    <div>
+                                        <div class="so-card-title">Daftar Barang</div>
+                                        <div class="so-card-sub"><span id="itemCountLabel">0</span> barang ditambahkan</div>
+                                    </div>
+                                </div>
+                                <button type="button" class="so-add-btn" style="width:auto;padding:.5rem 1rem;border:1.5px solid #c7d2fe;border-radius:10px;" onclick="openProductModal()">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Tambah Barang <kbd>/</kbd>
+                                </button>
                             </div>
-                            <div class="col-8">
-                                <label class="so-label" for="notes">Catatan Tambahan</label>
-                                <input type="text" name="notes" id="notes" value="{{ old('notes') }}" class="so-input" placeholder="Contoh: Kirim secepatnya...">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                            <div class="so-card-body">
+                                <div class="so-items" id="itemsContainer">
+                                    {{-- Empty State --}}
+                                    <div id="emptyState" class="so-empty">
+                                        <div class="so-empty-icon">
+                                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                                        </div>
+                                        <div class="so-empty-title">Belum ada barang</div>
+                                        <div class="so-empty-sub">Klik tombol di atas atau gunakan shortcut keyboard untuk menambah barang.</div>
+                                        <div class="so-empty-hint">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 12h.01"/></svg>
+                                            Tekan <kbd style="background:#c7d2fe;padding:1px 5px;border-radius:3px;margin:0 2px;">/</kbd> untuk cari barang
+                                        </div>
+                                    </div>
+                                </div>
 
-                {{-- Items Panel --}}
-                <div class="so-paper">
-                    <div class="so-header">
-                        <div class="so-header-left">
-                            <div class="so-header-icon" style="background:#f0fdf4; color:var(--so-success);">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                            </div>
-                            <div>
-                                <h2 class="so-title">Daftar Barang</h2>
-                                <p class="so-subtitle">Tambahkan barang minimal 1 ke dalam pesanan.</p>
+                                <button type="button" class="so-add-btn" id="addItemBtn" onclick="openProductModal()" style="display:none;margin-top:.75rem;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Tambah Barang Lagi
+                                </button>
                             </div>
                         </div>
-                        <button type="button" class="so-btn so-btn-outline" onclick="openProductModal()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Tambah Barang ( / )
-                        </button>
                     </div>
-                    
-                    <div class="so-body">
-                        <div class="so-table-wrapper">
-                            <table class="so-table" id="itemsTable">
-                                <thead>
-                                    <tr>
-                                        <th style="width:50px; text-align:center;">#</th>
-                                        <th>Nama Barang</th>
-                                        <th style="width:150px;">Harga (Rp)</th>
-                                        <th style="width:200px;">Qty & Satuan</th>
-                                        <th style="width:150px; text-align:right;">Subtotal</th>
-                                        <th style="width:80px; text-align:center;">Hapus</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr id="emptyRow">
-                                        <td colspan="6">
-                                            <div class="empty-state">
-                                                <div class="empty-icon">🛒</div>
-                                                <div style="font-weight:700; color:var(--so-text-main); margin-bottom:0.25rem;">Belum ada barang</div>
-                                                <div>Klik tombol "Tambah Barang" untuk memulai</div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                                <tfoot>
-                                    <tr style="background:#f8fafc;">
-                                        <td colspan="4" style="text-align:right; font-weight:800;">TOTAL KESELURUHAN</td>
-                                        <td style="text-align:right; font-weight:800; color:var(--so-primary); font-size:1.1rem;">
-                                            Rp <span id="grandTotalLabel">0</span>
-                                            <input type="hidden" name="total_amount" id="total_amount" value="0">
-                                        </td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                </div>
 
-                <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem;">
-                    <a href="{{ route('sales-order.index') }}" class="so-btn so-btn-outline" style="padding:0.75rem 1.5rem;">Batalkan</a>
-                    <button type="submit" class="so-btn so-btn-primary" style="padding:0.75rem 1.5rem; font-size:0.95rem;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                        Simpan Sales Order
-                    </button>
+                    {{-- ─── RIGHT SIDEBAR ─── --}}
+                    <div class="so-summary">
+                        <div class="so-sum-card">
+                            <div class="so-sum-hdr">
+                                <div class="so-card-icon purple" style="width:34px;height:34px;border-radius:9px;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                                </div>
+                                <div class="so-sum-title">Ringkasan Order</div>
+                            </div>
+                            <div class="so-sum-body">
+                                <div class="so-sum-row">
+                                    <span class="so-sum-lbl">Jumlah Barang</span>
+                                    <span class="so-sum-val" id="sumItems">0</span>
+                                </div>
+                                <div class="so-sum-row">
+                                    <span class="so-sum-lbl">Total Qty</span>
+                                    <span class="so-sum-val" id="sumQty">0</span>
+                                </div>
+                                <div class="so-sum-row total">
+                                    <span class="so-sum-lbl" style="font-size:.85rem;font-weight:700;color:#0f172a;">Grand Total</span>
+                                    <span class="so-sum-val grand" id="sumGrand">Rp 0</span>
+                                </div>
+                                <input type="hidden" name="total_amount" id="total_amount" value="0">
+
+                                <button type="submit" class="so-submit-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    Simpan Sales Order
+                                </button>
+                                <a href="{{ route('sales-order.index') }}" class="so-cancel-btn">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                                    Batal & Kembali
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 
-    {{-- Product Modal --}}
-    <div id="productModal" class="so-modal" role="dialog" aria-modal="true" aria-hidden="true">
+    {{-- ─── PRODUCT SEARCH MODAL ─── --}}
+    <div id="productModal" class="so-modal" role="dialog" aria-modal="true">
         <div class="so-modal-card">
-            <div class="so-modal-head">
+            <div class="so-modal-hdr">
                 <div>
-                    <h3 style="font-size:1.1rem; font-weight:800; margin:0; color:var(--so-text-main);">Cari & Tambah Barang</h3>
-                    <p style="font-size:0.8rem; color:var(--so-text-muted); margin-top:2px;">Ketik minimal 2 karakter (Nama / SKU)</p>
+                    <div style="font-size:1rem;font-weight:800;color:#0f172a;">Cari & Tambah Barang</div>
+                    <div style="font-size:.75rem;color:#64748b;margin-top:2px;">Ketik minimal 2 karakter (Nama / SKU / Barcode)</div>
                 </div>
-                <button type="button" class="so-btn so-btn-outline" onclick="closeProductModal()" style="padding:0.4rem 0.75rem;">✕ Tutup</button>
+                <button type="button" class="so-modal-close" onclick="closeProductModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
             <div class="so-modal-body">
-                <input type="text" id="searchInput" class="so-input" placeholder="Cari barang..." autocomplete="off">
-                <div class="search-results" id="searchResults">
-                    <div style="padding: 2rem; text-align:center; color:var(--so-text-muted); font-size:0.85rem;">
-                        Mulai ketik untuk mencari...
+                <input type="text" id="searchInput" class="so-search-inp" placeholder="Cari barang..." autocomplete="off">
+                <div class="so-results" id="searchResults">
+                    <div class="so-search-empty">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin-bottom:8px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <div>Mulai ketik untuk mencari barang...</div>
                     </div>
                 </div>
             </div>
@@ -289,7 +349,7 @@
             oldItems.forEach(it => {
                 orderItems.push({
                     id: Number(it.product_id),
-                    name: String(it.name || `Barang (ID: ${it.product_id})`),
+                    name: String(it.name || 'Barang (ID: '+it.product_id+')'),
                     price: Number(it.price || 0),
                     qty: Number(it.quantity || 1),
                     conversions: Array.isArray(it.conversions) ? it.conversions : [],
@@ -299,185 +359,194 @@
             renderTable();
         }
 
-        function formatCurrency(num) {
-            return new Intl.NumberFormat('id-ID').format(Math.round(num));
-        }
+        function fmt(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n)); }
 
         function openProductModal() {
-            const modal = document.getElementById('productModal');
-            modal.classList.add('open');
-            modal.setAttribute('aria-hidden', 'false');
-            setTimeout(() => document.getElementById('searchInput').focus(), 100);
+            var m = document.getElementById('productModal');
+            m.classList.add('open');
+            setTimeout(function(){ document.getElementById('searchInput').focus(); }, 150);
         }
         window.openProductModal = openProductModal;
 
         function closeProductModal() {
-            const modal = document.getElementById('productModal');
-            modal.classList.remove('open');
-            modal.setAttribute('aria-hidden', 'true');
+            document.getElementById('productModal').classList.remove('open');
         }
 
         let searchTimeout = null;
         document.getElementById('searchInput').addEventListener('input', function(e) {
-            const query = e.target.value.trim();
-            const resultsContainer = document.getElementById('searchResults');
+            var q = e.target.value.trim();
+            var rc = document.getElementById('searchResults');
             clearTimeout(searchTimeout);
-            
-            if (query.length < 2) {
-                resultsContainer.innerHTML = '<div style="padding: 2rem; text-align:center; color:#64748b;">Ketik minimal 2 karakter...</div>';
+
+            if (q.length < 2) {
+                rc.innerHTML = '<div class="so-search-empty"><div>Mulai ketik untuk mencari...</div></div>';
                 return;
             }
 
-            resultsContainer.innerHTML = '<div style="padding: 2rem; text-align:center; color:#3b82f6; font-weight:600;">Mencari data...</div>';
-            
-            searchTimeout = setTimeout(() => {
-                fetch(`{{ route('sales-order.products.search') }}?q=${encodeURIComponent(query)}`)
-                    .then(res => res.json())
-                    .then(data => {
+            rc.innerHTML = '<div class="so-search-empty" style="color:#6366f1;font-weight:600;">Mencari...</div>';
+
+            searchTimeout = setTimeout(function() {
+                fetch('{{ route("sales-order.products.search") }}?q=' + encodeURIComponent(q))
+                    .then(function(r){ return r.json(); })
+                    .then(function(data) {
                         window.latestSoSearchResults = Array.isArray(data) ? data : [];
-                        if(!Array.isArray(data) || data.length === 0) {
-                            resultsContainer.innerHTML = '<div style="padding: 2rem; text-align:center; color:#ef4444;">Barang tidak ditemukan.</div>';
+                        if (!Array.isArray(data) || data.length === 0) {
+                            rc.innerHTML = '<div class="so-search-empty" style="color:#ef4444;">Barang tidak ditemukan.</div>';
                             return;
                         }
-
-                        let html = '';
-                        data.forEach(item => {
-                            const safeName = String(item.name || '').replace(/'/g, "\\'");
-                            const stock = item.stock || 0;
-                            let badge = stock > 0 ? `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">Stok: ${stock}</span>` : `<span style="background:#fee2e2; color:#b91c1c; padding:2px 8px; border-radius:99px; font-size:0.7rem; font-weight:700;">Habis</span>`;
-                            
-                            html += `
-                                <div class="search-item" onclick="selectProduct(${item.id}, '${safeName}', ${item.price || 0})">
-                                    <div>
-                                        <div class="search-item-title">${item.name || '-'}</div>
-                                        <div class="search-item-sub">${item.sku || item.barcode || '-'}</div>
-                                    </div>
-                                    <div style="text-align:right;">
-                                        <div style="font-weight:700; color:var(--so-primary); font-size:0.9rem;">Rp ${formatCurrency(item.price || 0)}</div>
-                                        ${badge}
-                                    </div>
-                                </div>
-                            `;
+                        var html = '';
+                        data.forEach(function(item) {
+                            var sn = String(item.name || '').replace(/'/g, "\\'");
+                            var st = item.stock || 0;
+                            var badge = st > 0
+                                ? '<span class="so-badge so-badge-green">Stok: '+st+'</span>'
+                                : '<span class="so-badge so-badge-red">Habis</span>';
+                            html += '<div class="so-result" onclick="selectProduct('+item.id+', \''+sn+'\', '+(item.price||0)+')">'
+                                + '<div class="so-result-left">'
+                                + '<div class="so-result-name">'+(item.name||'-')+'</div>'
+                                + '<div class="so-result-meta"><span>'+(item.sku||item.barcode||'-')+'</span></div>'
+                                + '</div>'
+                                + '<div class="so-result-right">'
+                                + '<div class="so-result-price">Rp '+fmt(item.price||0)+'</div>'
+                                + badge
+                                + '</div></div>';
                         });
-                        resultsContainer.innerHTML = html;
+                        rc.innerHTML = html;
                     })
-                    .catch(err => {
-                        resultsContainer.innerHTML = '<div style="padding: 2rem; text-align:center; color:#ef4444;">Gagal mengambil data.</div>';
+                    .catch(function(){
+                        rc.innerHTML = '<div class="so-search-empty" style="color:#ef4444;">Gagal mengambil data.</div>';
                     });
             }, 300);
         });
 
         window.selectProduct = function(id, name, defaultPrice) {
-            const existing = orderItems.find(item => item.id === id);
+            var existing = orderItems.find(function(i){ return i.id === id; });
             if (existing) {
                 existing.qty += 1;
                 existing.subtotal = existing.qty * existing.price;
             } else {
-                let convs = [];
+                var convs = [];
                 try {
-                    const found = (window.latestSoSearchResults || []).find(x => x.id === id);
-                    convs = Array.isArray(found?.conversions) ? found.conversions : [];
+                    var found = (window.latestSoSearchResults || []).find(function(x){ return x.id === id; });
+                    convs = Array.isArray(found && found.conversions) ? found.conversions : [];
                 } catch (e) {}
-                
-                orderItems.push({
-                    id: id, name: name, price: defaultPrice, qty: 1, conversions: convs, subtotal: defaultPrice
-                });
+                orderItems.push({ id:id, name:name, price:defaultPrice, qty:1, conversions:convs, subtotal:defaultPrice });
             }
             closeProductModal();
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchResults').innerHTML = '<div class="so-search-empty"><div>Mulai ketik untuk mencari barang...</div></div>';
             renderTable();
         };
 
-        function updateQty(index, newQty) {
-            const val = parseInt(newQty) || 1;
-            orderItems[index].qty = val < 1 ? 1 : val;
-            orderItems[index].subtotal = orderItems[index].qty * orderItems[index].price;
+        function updateQty(i, v) {
+            var val = parseInt(v) || 1;
+            orderItems[i].qty = val < 1 ? 1 : val;
+            orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
             renderTable();
         }
 
-        function updatePrice(index, newPrice) {
-            let val = parseFloat(newPrice) || 0;
-            orderItems[index].price = val < 0 ? 0 : val;
-            orderItems[index].subtotal = orderItems[index].qty * orderItems[index].price;
+        function updatePrice(i, v) {
+            var val = parseFloat(v) || 0;
+            orderItems[i].price = val < 0 ? 0 : val;
+            orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
             renderTable();
         }
 
-        function onUnitChange(index) {
-            const sel = document.getElementById('unit-'+index);
-            const factor = parseInt(sel.value) || 1;
-            const item = orderItems[index];
-            updateQty(index, factor); 
+        function onUnitChange(i) {
+            var sel = document.getElementById('unit-'+i);
+            var factor = parseInt(sel.value) || 1;
+            updateQty(i, factor);
         }
 
-        window.removeItem = function(index) {
-            orderItems.splice(index, 1);
+        window.removeItem = function(i) {
+            orderItems.splice(i, 1);
             renderTable();
-        }
+        };
 
         function renderTable() {
-            const tbody = document.querySelector('#itemsTable tbody');
-            const emptyRow = document.getElementById('emptyRow');
-            document.querySelectorAll('.item-row').forEach(row => row.remove());
-            
+            var container = document.getElementById('itemsContainer');
+            var empty = document.getElementById('emptyState');
+            var addBtn = document.getElementById('addItemBtn');
+
+            // Remove old item elements
+            container.querySelectorAll('.so-item').forEach(function(r){ r.remove(); });
+
             if (orderItems.length === 0) {
-                emptyRow.style.display = 'table-row';
-                document.getElementById('grandTotalLabel').innerText = '0';
+                empty.style.display = '';
+                addBtn.style.display = 'none';
+                document.getElementById('itemCountLabel').textContent = '0';
+                document.getElementById('sumItems').textContent = '0';
+                document.getElementById('sumQty').textContent = '0';
+                document.getElementById('sumGrand').textContent = 'Rp 0';
                 document.getElementById('total_amount').value = 0;
                 return;
             }
-            
-            emptyRow.style.display = 'none';
-            let grandTotal = 0;
-            let html = '';
-            
-            orderItems.forEach((item, index) => {
+
+            empty.style.display = 'none';
+            addBtn.style.display = '';
+
+            var grandTotal = 0;
+            var totalQty = 0;
+            var html = '';
+
+            orderItems.forEach(function(item, i) {
                 grandTotal += item.subtotal;
-                
-                let unitOptions = '';
-                if(item.conversions && item.conversions.length > 0) {
-                     unitOptions = `<select id="unit-${index}" class="so-input" onchange="onUnitChange(${index})" style="width:100%; margin-top:4px; padding:0.4rem;">
-                        ${item.conversions.slice(0,5).map(c => `<option value="${c.factor}">${c.label} (x${c.factor})</option>`).join('')}
-                     </select>`;
+                totalQty += item.qty;
+
+                var unitHtml = '';
+                if (item.conversions && item.conversions.length > 1) {
+                    unitHtml = '<select id="unit-'+i+'" class="so-inp" onchange="onUnitChange('+i+')" style="width:90px;padding:.35rem .5rem;font-size:.72rem;">'
+                        + item.conversions.slice(0,5).map(function(c){ return '<option value="'+c.factor+'">'+c.label+'</option>'; }).join('')
+                        + '</select>';
                 }
 
-                html += `
-                    <tr class="item-row">
-                        <td style="text-align:center; font-weight:700; color:var(--so-text-muted);">${index + 1}</td>
-                        <td style="font-weight:700;">
-                            ${item.name}
-                            <input type="hidden" name="items[${index}][product_id]" value="${item.id}">
-                        </td>
-                        <td>
-                            <input type="number" name="items[${index}][price]" value="${item.price}" onchange="updatePrice(${index}, this.value)" class="so-input" min="0" step="1">
-                        </td>
-                        <td>
-                            <input type="number" name="items[${index}][quantity]" value="${item.qty}" min="1" onchange="updateQty(${index}, this.value)" class="so-input">
-                            ${unitOptions}
-                        </td>
-                        <td style="text-align:right; font-weight:800; color:var(--so-primary);">Rp ${formatCurrency(item.subtotal)}</td>
-                        <td style="text-align:center;">
-                            <button type="button" onclick="removeItem(${index})" class="so-btn so-btn-danger" title="Hapus">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                html += '<div class="so-item">'
+                    + '<div class="so-item-num">'+(i+1)+'</div>'
+                    + '<div class="so-item-info">'
+                    + '<div class="so-item-name">'+item.name+'</div>'
+                    + '<input type="hidden" name="items['+i+'][product_id]" value="'+item.id+'">'
+                    + '</div>'
+                    + '<div class="so-item-inputs">'
+                    + '<input type="number" name="items['+i+'][price]" value="'+item.price+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" min="0" step="1" title="Harga">'
+                    + '<span style="color:#94a3b8;font-size:.75rem;font-weight:700;">x</span>'
+                    + '<input type="number" name="items['+i+'][quantity]" value="'+item.qty+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty" title="Qty">'
+                    + unitHtml
+                    + '</div>'
+                    + '<div class="so-item-sub">Rp '+fmt(item.subtotal)+'</div>'
+                    + '<button type="button" onclick="removeItem('+i+')" class="so-item-del" title="Hapus">'
+                    + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
+                    + '</button>'
+                    + '</div>';
             });
-            
-            emptyRow.insertAdjacentHTML('beforebegin', html);
-            document.getElementById('grandTotalLabel').innerText = formatCurrency(grandTotal);
+
+            empty.insertAdjacentHTML('beforebegin', html);
+            document.getElementById('itemCountLabel').textContent = orderItems.length;
+            document.getElementById('sumItems').textContent = orderItems.length;
+            document.getElementById('sumQty').textContent = totalQty;
+            document.getElementById('sumGrand').textContent = 'Rp ' + fmt(grandTotal);
             document.getElementById('total_amount').value = grandTotal;
         }
 
-        document.addEventListener('keydown', function(e){
+        // Keyboard shortcut
+        document.addEventListener('keydown', function(e) {
             if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 var tag = (e.target && e.target.tagName || '').toLowerCase();
-                if (['input', 'textarea', 'select'].indexOf(tag) === -1) {
+                if (['input','textarea','select'].indexOf(tag) === -1) {
                     e.preventDefault();
                     openProductModal();
                 }
             }
+            if (e.key === 'Escape') {
+                closeProductModal();
+            }
         });
 
+        // Close modal on backdrop click
+        document.getElementById('productModal').addEventListener('click', function(e) {
+            if (e.target === this) closeProductModal();
+        });
+
+        // Form submit
         document.getElementById('soForm').addEventListener('submit', function(e) {
             if (orderItems.length === 0) {
                 e.preventDefault();
