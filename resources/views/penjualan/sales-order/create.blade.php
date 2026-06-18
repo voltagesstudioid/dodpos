@@ -168,7 +168,7 @@
                             </div>
                             <div class="col-3">
                                 <label class="so-label" for="delivery_date">Tanggal Kirim</label>
-                                <input type="date" name="delivery_date" id="delivery_date" value="{{ old('delivery_date') }}" class="so-input">
+                                <input type="date" name="delivery_date" id="delivery_date" value="{{ old('delivery_date', date('Y-m-d', strtotime('+1 day'))) }}" class="so-input">
                             </div>
 
                             <div class="col-4">

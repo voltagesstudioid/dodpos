@@ -20,6 +20,8 @@
         .so-stat-ico.blue{background:#eff6ff;color:#2563eb;}
         .so-stat-ico.emerald{background:#ecfdf5;color:#059669;}
         .so-stat-ico.rose{background:#fff1f2;color:#e11d48;}
+        .so-stat-ico.orange{background:#fff7ed;color:#ea580c;}
+        .so-stat-ico.red{background:#fef2f2;color:#dc2626;}
         .so-stat-info{display:flex;flex-direction:column;gap:.1rem;min-width:0;}
         .so-stat-label{font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;}
         .so-stat-val{font-size:1.45rem;font-weight:800;line-height:1.1;}
@@ -28,12 +30,24 @@
         .so-stat-val.blue{color:#2563eb;}
         .so-stat-val.emerald{color:#059669;}
         .so-stat-val.rose{color:#e11d48;}
+        .so-stat-val.orange{color:#ea580c;}
+        .so-stat-val.red{color:#dc2626;}
         .so-stat-pill{font-size:.65rem;font-weight:600;padding:.15rem .5rem;border-radius:6px;display:inline-block;width:fit-content;margin-top:.15rem;}
         .so-pill-gray{background:#f1f5f9;color:#64748b;}
         .so-pill-amber{background:#fef3c7;color:#92400e;}
         .so-pill-blue{background:#dbeafe;color:#1e40af;}
         .so-pill-emerald{background:#d1fae5;color:#065f46;}
         .so-pill-rose{background:#ffe4e6;color:#9f1239;}
+        .so-pill-orange{background:#fff7ed;color:#9a3412;}
+        .so-pill-green{background:#dcfce7;color:#166534;}
+
+        /* ── delivery date badge ── */
+        .so-dlv{font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:6px;display:inline-flex;align-items:center;gap:.25rem;}
+        .so-dlv-today{background:#fef3c7;color:#92400e;}
+        .so-dlv-tomorrow{background:#dbeafe;color:#1e40af;}
+        .so-dlv-future{background:#f1f5f9;color:#475569;}
+        .so-dlv-overdue{background:#fee2e2;color:#991b1b;}
+        .so-dlv-done{background:#d1fae5;color:#065f46;}
 
         /* ── filter bar ── */
         .so-filter{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.15rem;}
@@ -181,6 +195,52 @@
             @endif
         </div>
 
+        {{-- ─── DELIVERY STAT CARDS ─── --}}
+        <div class="so-stats">
+            <a href="{{ route('sales-order.index', ['delivery' => 'today']) }}" class="so-stat" style="text-decoration:none;cursor:pointer;{{ ($deliveryFilter ?? '') === 'today' ? 'border-color:#d97706;box-shadow:0 0 0 2px rgba(217,119,6,0.2);' : '' }}">
+                <div class="so-stat-ico amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="so-stat-info">
+                    <div class="so-stat-label">Kirim Hari Ini</div>
+                    <div class="so-stat-val amber">{{ $kirimHariIniCount ?? 0 }}</div>
+                    <span class="so-stat-pill so-pill-amber">{{ now()->format('d M') }}</span>
+                </div>
+            </a>
+            <a href="{{ route('sales-order.index', ['delivery' => 'tomorrow']) }}" class="so-stat" style="text-decoration:none;cursor:pointer;{{ ($deliveryFilter ?? '') === 'tomorrow' ? 'border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,0.2);' : '' }}">
+                <div class="so-stat-ico blue">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="so-stat-info">
+                    <div class="so-stat-label">Siap Kirim Besok</div>
+                    <div class="so-stat-val blue">{{ $siapKirimCount ?? 0 }}</div>
+                    <span class="so-stat-pill so-pill-blue">{{ now()->addDay()->format('d M') }}</span>
+                </div>
+            </a>
+            <a href="{{ route('sales-order.index', ['delivery' => 'week']) }}" class="so-stat" style="text-decoration:none;cursor:pointer;{{ ($deliveryFilter ?? '') === 'week' ? 'border-color:#059669;box-shadow:0 0 0 2px rgba(5,150,105,0.2);' : '' }}">
+                <div class="so-stat-ico emerald">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div class="so-stat-info">
+                    <div class="so-stat-label">Minggu Ini</div>
+                    <div class="so-stat-val emerald">{{ ($kirimHariIniCount ?? 0) + ($siapKirimCount ?? 0) }}</div>
+                    <span class="so-stat-pill so-pill-emerald">7 hari ke depan</span>
+                </div>
+            </a>
+            @if(($overdueCount ?? 0) > 0)
+            <a href="{{ route('sales-order.index', ['delivery' => 'overdue']) }}" class="so-stat" style="text-decoration:none;cursor:pointer;{{ ($deliveryFilter ?? '') === 'overdue' ? 'border-color:#dc2626;box-shadow:0 0 0 2px rgba(220,38,38,0.2);' : '' }}">
+                <div class="so-stat-ico red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div class="so-stat-info">
+                    <div class="so-stat-label">Terlambat</div>
+                    <div class="so-stat-val red">{{ $overdueCount }}</div>
+                    <span class="so-stat-pill" style="background:#fee2e2;color:#991b1b;">Perlu dikirim</span>
+                </div>
+            </a>
+            @endif
+        </div>
+
         {{-- ─── FILTER BAR ─── --}}
         <div class="so-filter">
             <form method="GET" action="{{ route('sales-order.index') }}" class="so-filter-form">
@@ -200,14 +260,24 @@
                     </select>
                 </div>
                 <div class="so-field" style="flex:0 0 155px;min-width:140px;">
-                    <label class="so-field-label">Tanggal</label>
+                    <label class="so-field-label">Tanggal Order</label>
                     <input type="date" name="date" value="{{ $date }}" class="so-field-input">
+                </div>
+                <div class="so-field" style="flex:0 0 165px;min-width:140px;">
+                    <label class="so-field-label">Pengiriman</label>
+                    <select name="delivery" class="so-field-input">
+                        <option value="">Semua</option>
+                        <option value="today" {{ ($deliveryFilter ?? '') === 'today' ? 'selected' : '' }}>Hari Ini</option>
+                        <option value="tomorrow" {{ ($deliveryFilter ?? '') === 'tomorrow' ? 'selected' : '' }}>Besok</option>
+                        <option value="week" {{ ($deliveryFilter ?? '') === 'week' ? 'selected' : '' }}>7 Hari Ke Depan</option>
+                        <option value="overdue" {{ ($deliveryFilter ?? '') === 'overdue' ? 'selected' : '' }}>Terlambat</option>
+                    </select>
                 </div>
                 <button type="submit" class="so-btn-apply">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     Terapkan
                 </button>
-                @if($search || $status || $date)
+                @if($search || $status || $date || ($deliveryFilter ?? ''))
                 <a href="{{ route('sales-order.index') }}" class="so-btn-reset">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                     Reset
@@ -230,6 +300,7 @@
                         <tr>
                             <th>No. SO</th>
                             <th>Tgl Order</th>
+                            <th>Tgl Kirim</th>
                             <th>Pelanggan</th>
                             <th>Total</th>
                             <th>Status</th>
@@ -247,6 +318,34 @@
                                 <div class="so-by">Oleh: {{ $so->user->name ?? '-' }}</div>
                             </td>
                             <td>{{ \Carbon\Carbon::parse($so->order_date)->format('d M Y') }}</td>
+                            <td>
+                                @if($so->delivery_date)
+                                    @php
+                                        $dlvDate = \Carbon\Carbon::parse($so->delivery_date);
+                                        $today = \Carbon\Carbon::today();
+                                        $tomorrow = \Carbon\Carbon::tomorrow();
+                                        if ($so->status === 'completed') {
+                                            $dlvClass = 'so-dlv-done';
+                                            $dlvLabel = 'Selesai';
+                                        } elseif ($dlvDate->isSameDay($today)) {
+                                            $dlvClass = 'so-dlv-today';
+                                            $dlvLabel = 'Hari Ini';
+                                        } elseif ($dlvDate->isSameDay($tomorrow)) {
+                                            $dlvClass = 'so-dlv-tomorrow';
+                                            $dlvLabel = 'Besok';
+                                        } elseif ($dlvDate->lt($today)) {
+                                            $dlvClass = 'so-dlv-overdue';
+                                            $dlvLabel = 'Terlambat ' . $dlvDate->diffInDays($today) . ' hari';
+                                        } else {
+                                            $dlvClass = 'so-dlv-future';
+                                            $dlvLabel = $dlvDate->format('d M Y');
+                                        }
+                                    @endphp
+                                    <span class="so-dlv {{ $dlvClass }}">{{ $dlvDate->format('d M') }} &middot; {{ $dlvLabel }}</span>
+                                @else
+                                    <span class="so-dlv so-dlv-future">-</span>
+                                @endif
+                            </td>
                             <td>
                                 <div class="so-cust-name">{{ $so->customer->name ?? '-' }}</div>
                                 @if($so->customer && $so->customer->phone)
@@ -278,21 +377,21 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="so-empty">
                                     <div class="so-empty-ico">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                                     </div>
                                     <div class="so-empty-title">Belum ada Sales Order</div>
                                     <div class="so-empty-sub">
-                                        @if($search || $status || $date)
+                                        @if($search || $status || $date || ($deliveryFilter ?? ''))
                                             Tidak ada data yang cocok dengan filter Anda. Coba ubah kata kunci atau reset filter.
                                         @else
                                             Buat Sales Order baru untuk mulai mengelola pesanan pelanggan.
                                         @endif
                                     </div>
                                     <div class="so-empty-actions">
-                                        @if($search || $status || $date)
+                                        @if($search || $status || $date || ($deliveryFilter ?? ''))
                                             <a href="{{ route('sales-order.index') }}" class="so-btn-reset">
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                                                 Hapus Filter

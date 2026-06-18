@@ -410,6 +410,26 @@
                                 <div class="so-detail-value">{{ \Carbon\Carbon::parse($salesOrder->order_date)->translatedFormat('d F Y') }}</div>
                             </div>
                             <div class="so-detail-row">
+                                <div class="so-detail-label">Tanggal Kirim:</div>
+                                <div class="so-detail-value">
+                                    @if($salesOrder->delivery_date)
+                                        {{ \Carbon\Carbon::parse($salesOrder->delivery_date)->translatedFormat('d F Y') }}
+                                        @php
+                                            $dlvDate = \Carbon\Carbon::parse($salesOrder->delivery_date);
+                                            if ($dlvDate->isSameDay(\Carbon\Carbon::today())) {
+                                                echo ' <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:700;">Hari Ini</span>';
+                                            } elseif ($dlvDate->isSameDay(\Carbon\Carbon::tomorrow())) {
+                                                echo ' <span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:700;">Besok</span>';
+                                            } elseif ($dlvDate->lt(\Carbon\Carbon::today())) {
+                                                echo ' <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:700;">Terlambat</span>';
+                                            }
+                                        @endphp
+                                    @else
+                                        -
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="so-detail-row">
                                 <div class="so-detail-label">Tanggal Jatuh Tempo:</div>
                                 <div class="so-detail-value">{{ \Carbon\Carbon::parse($salesOrder->order_date)->addDays(7)->translatedFormat('d F Y') }}</div>
                             </div>

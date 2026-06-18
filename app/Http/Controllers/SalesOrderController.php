@@ -135,6 +135,7 @@ class SalesOrderController extends Controller
         $sanitizedSearch = SearchSanitizer::sanitize($search);
         $status = $request->input('status');
         $date = $request->input('date');
+        $deliveryFilter = $request->input('delivery'); // today, tomorrow, week, overdue
 
         $baseQuery = SalesOrder::query();
 
@@ -154,12 +155,32 @@ class SalesOrderController extends Controller
             $baseQuery->whereDate('order_date', $date);
         }
 
+        // Delivery date filter
+        $today = now()->toDateString();
+        $tomorrow = now()->addDay()->toDateString();
+        if ($deliveryFilter === 'today') {
+            $baseQuery->whereDate('delivery_date', $today);
+        } elseif ($deliveryFilter === 'tomorrow') {
+            $baseQuery->whereDate('delivery_date', $tomorrow);
+        } elseif ($deliveryFilter === 'week') {
+            $baseQuery->whereBetween('delivery_date', [$today, now()->addDays(7)->toDateString()]);
+        } elseif ($deliveryFilter === 'overdue') {
+            $baseQuery->whereDate('delivery_date', '<', $today)
+                      ->whereIn('status', ['draft', 'confirmed', 'processing']);
+        }
+
         $totalCount = (clone $baseQuery)->count();
         $draftCount = (clone $baseQuery)->where('status', 'draft')->count();
         $confirmedCount = (clone $baseQuery)->where('status', 'confirmed')->count();
         $processingCount = (clone $baseQuery)->where('status', 'processing')->count();
         $completedCount = (clone $baseQuery)->where('status', 'completed')->count();
         $cancelledCount = (clone $baseQuery)->where('status', 'cancelled')->count();
+
+        // Delivery stats (non-cancelled, non-completed)
+        $activeBase = SalesOrder::whereIn('status', ['draft', 'confirmed', 'processing']);
+        $siapKirimCount = (clone $activeBase)->whereDate('delivery_date', $tomorrow)->count();
+        $kirimHariIniCount = (clone $activeBase)->whereDate('delivery_date', $today)->count();
+        $overdueCount = (clone $activeBase)->whereDate('delivery_date', '<', $today)->count();
 
         $listQuery = (clone $baseQuery)->with(['customer', 'user'])->latest();
 
@@ -174,12 +195,16 @@ class SalesOrderController extends Controller
             'search',
             'status',
             'date',
+            'deliveryFilter',
             'totalCount',
             'draftCount',
             'confirmedCount',
             'processingCount',
             'completedCount',
-            'cancelledCount'
+            'cancelledCount',
+            'siapKirimCount',
+            'kirimHariIniCount',
+            'overdueCount'
         ));
     }
 
