@@ -359,6 +359,8 @@
                     name: String(it.name || 'Barang (ID: '+it.product_id+')'),
                     price: Number(it.price || 0),
                     qty: Number(it.quantity || 1),
+                    unit_name: it.unit_name || null,
+                    unit_factor: Number(it.unit_factor || 1),
                     conversions: Array.isArray(it.conversions) ? it.conversions : [],
                     subtotal: Number(it.price || 0) * Number(it.quantity || 1),
                 });
@@ -433,11 +435,13 @@
                 existing.subtotal = existing.qty * existing.price;
             } else {
                 var convs = [];
+                var baseUnitName = 'pcs';
                 try {
                     var found = (window.latestSoSearchResults || []).find(function(x){ return x.id === id; });
                     convs = Array.isArray(found && found.conversions) ? found.conversions : [];
+                    if (convs.length > 0) baseUnitName = convs[0].label || 'pcs';
                 } catch (e) {}
-                orderItems.push({ id:id, name:name, price:defaultPrice, qty:1, conversions:convs, subtotal:defaultPrice });
+                orderItems.push({ id:id, name:name, price:defaultPrice, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, subtotal:defaultPrice });
             }
             closeProductModal();
             document.getElementById('searchInput').value = '';
@@ -462,6 +466,9 @@
         function onUnitChange(i) {
             var sel = document.getElementById('unit-'+i);
             var factor = parseInt(sel.value) || 1;
+            var optLabel = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+            orderItems[i].unit_factor = factor;
+            orderItems[i].unit_name = optLabel || orderItems[i].unit_name;
             updateQty(i, factor);
         }
 
@@ -502,10 +509,14 @@
 
                 var unitHtml = '';
                 if (item.conversions && item.conversions.length > 1) {
+                    var savedFactor = item.unit_factor || 1;
                     unitHtml = '<div class="so-item-field">'
                         + '<span class="so-item-field-label">Satuan</span>'
                         + '<select id="unit-'+i+'" class="so-inp" onchange="onUnitChange('+i+')" style="width:110px;">'
-                        + item.conversions.slice(0,5).map(function(c){ return '<option value="'+c.factor+'">'+c.label+'</option>'; }).join('')
+                        + item.conversions.slice(0,5).map(function(c){
+                            var sel = (Number(c.factor) === savedFactor) ? ' selected' : '';
+                            return '<option value="'+c.factor+'"'+sel+'>'+c.label+'</option>';
+                        }).join('')
                         + '</select></div>';
                 }
 
@@ -516,6 +527,8 @@
                     + '<div class="so-item-info">'
                     + '<div class="so-item-name">'+item.name+'</div>'
                     + '<input type="hidden" name="items['+i+'][product_id]" value="'+item.id+'">'
+                    + '<input type="hidden" name="items['+i+'][unit_name]" value="'+(item.unit_name || '')+'">'
+                    + '<input type="hidden" name="items['+i+'][unit_factor]" value="'+(item.unit_factor || 1)+'">'
                     + '</div>'
                     + '<div class="so-item-actions">'
                     + '<div class="so-item-sub">Rp '+fmt(item.subtotal)+'</div>'

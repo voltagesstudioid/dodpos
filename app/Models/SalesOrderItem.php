@@ -10,6 +10,8 @@ class SalesOrderItem extends Model
         'sales_order_id',
         'product_id',
         'quantity',
+        'unit_name',
+        'unit_factor',
         'price',
         'subtotal',
     ];

@@ -60,12 +60,16 @@ class SalesOrderController extends Controller
             $product = $productsById->get($pid);
             $qty = (int) ($it['quantity'] ?? 1);
             $price = (float) ($it['price'] ?? ($product?->price ?? 0));
+            $unitName = $it['unit_name'] ?? null;
+            $unitFactor = (int) ($it['unit_factor'] ?? 1);
 
             return [
                 'product_id' => $pid,
                 'name' => $product?->name ?? ('Barang (ID: '.$pid.')'),
                 'price' => $price,
                 'quantity' => $qty,
+                'unit_name' => $unitName,
+                'unit_factor' => $unitFactor,
                 'subtotal' => $price * $qty,
                 'conversions' => $product ? $this->buildConversionsFromProduct($product) : [],
             ];
@@ -229,6 +233,8 @@ class SalesOrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.unit_name' => 'nullable|string|max:50',
+            'items.*.unit_factor' => 'nullable|integer|min:1',
         ]);
 
         try {
@@ -260,6 +266,8 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $qty,
+                    'unit_name' => $item['unit_name'] ?? null,
+                    'unit_factor' => (int) ($item['unit_factor'] ?? 1),
                     'price' => $price,
                     'subtotal' => $subtotal,
                 ]);
@@ -300,6 +308,8 @@ class SalesOrderController extends Controller
                 'product_id' => $it->product_id,
                 'price' => (float) $it->price,
                 'quantity' => (int) $it->quantity,
+                'unit_name' => $it->unit_name,
+                'unit_factor' => (int) ($it->unit_factor ?? 1),
             ])->values()->all()
         );
 
@@ -324,6 +334,8 @@ class SalesOrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.unit_name' => 'nullable|string|max:50',
+            'items.*.unit_factor' => 'nullable|integer|min:1',
         ]);
 
         try {
@@ -352,6 +364,8 @@ class SalesOrderController extends Controller
                     'sales_order_id' => $salesOrder->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $qty,
+                    'unit_name' => $item['unit_name'] ?? null,
+                    'unit_factor' => (int) ($item['unit_factor'] ?? 1),
                     'price' => $price,
                     'subtotal' => $subtotal,
                 ]);

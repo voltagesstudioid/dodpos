@@ -278,8 +278,17 @@
                                                     <div class="so-item-meta">{{ $item->product?->sku ?? '' }} {{ $item->product?->barcode ? '('.$item->product->barcode.')' : '' }}</div>
                                                 @endif
                                             </div>
-                                            <div class="so-item-qty">{{ $item->quantity }} pcs</div>
-                                            <div class="so-item-price">Rp {{ number_format($item->price, 0, ',', '.') }} /pcs</div>
+                                            @php
+                                                $unitName = $item->unit_name ?? ($item->product?->unit?->name ?? 'pcs');
+                                                $displayQty = ($item->unit_factor && $item->unit_factor > 1)
+                                                    ? $item->quantity / $item->unit_factor
+                                                    : $item->quantity;
+                                                $displayQtyStr = is_float($displayQty) && $displayQty != (int)$displayQty
+                                                    ? number_format($displayQty, 1, ',', '.')
+                                                    : number_format($displayQty, 0, ',', '.');
+                                            @endphp
+                                            <div class="so-item-qty">{{ $displayQtyStr }} {{ $unitName }}</div>
+                                            <div class="so-item-price">Rp {{ number_format($item->price, 0, ',', '.') }} /{{ $unitName }}</div>
                                             <div class="so-item-sub">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</div>
                                         </div>
                                     @endforeach
