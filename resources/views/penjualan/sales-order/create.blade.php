@@ -51,20 +51,25 @@
         select.so-inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px;}
         textarea.so-inp{resize:vertical;min-height:80px;}
 
-        /* ── item rows ── */
+        /* ── item rows (2-line layout) ── */
         .so-items{display:flex;flex-direction:column;gap:.75rem;}
-        .so-item{display:grid;grid-template-columns:auto 1fr auto auto auto;align-items:center;gap:.75rem;padding:.85rem 1rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;transition:.2s;}
+        .so-item{padding:1rem;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;transition:.2s;}
         .so-item:hover{border-color:#c7d2fe;background:#fafbff;}
+        .so-item-top{display:flex;align-items:center;gap:.75rem;}
         .so-item-num{width:28px;height:28px;border-radius:8px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;flex-shrink:0;}
-        .so-item-info{min-width:0;}
-        .so-item-name{font-weight:700;color:#0f172a;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-        .so-item-sku{font-size:.7rem;color:#94a3b8;margin-top:1px;}
-        .so-item-inputs{display:flex;gap:.5rem;align-items:center;}
-        .so-item-qty{width:72px;text-align:center;}
-        .so-item-price{width:120px;text-align:right;}
-        .so-item-sub{font-weight:800;color:#4f46e5;font-size:.88rem;white-space:nowrap;min-width:100px;text-align:right;}
+        .so-item-info{flex:1;min-width:0;}
+        .so-item-name{font-weight:700;color:#0f172a;font-size:.88rem;word-break:break-word;}
+        .so-item-actions{display:flex;align-items:center;gap:.75rem;flex-shrink:0;}
+        .so-item-sub{font-weight:800;color:#4f46e5;font-size:.95rem;white-space:nowrap;}
         .so-item-del{width:32px;height:32px;border-radius:8px;border:1.5px solid #fecaca;background:#fff;color:#ef4444;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex-shrink:0;}
         .so-item-del:hover{background:#ef4444;color:#fff;border-color:#ef4444;transform:scale(1.05);}
+        .so-item-bottom{display:flex;align-items:center;gap:.5rem;margin-top:.65rem;padding-top:.65rem;border-top:1px dashed #e2e8f0;flex-wrap:wrap;}
+        .so-item-field{display:flex;flex-direction:column;gap:2px;}
+        .so-item-field-label{font-size:.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;}
+        .so-item-field .so-inp{padding:.4rem .6rem;font-size:.8rem;}
+        .so-item-qty{width:72px;text-align:center;}
+        .so-item-price{width:120px;text-align:right;}
+        .so-item-x{color:#cbd5e1;font-size:.8rem;font-weight:800;padding-top:16px;}
 
         /* ── empty state ── */
         .so-empty{text-align:center;padding:3rem 1.5rem;}
@@ -137,9 +142,11 @@
         @media(max-width:640px){
             .so-pg{padding:1rem;}
             .so-g2,.so-g3,.so-g2-1,.so-g1-2{grid-template-columns:1fr;}
-            .so-item{grid-template-columns:auto 1fr auto;gap:.5rem;padding:.75rem;}
-            .so-item-inputs{flex-wrap:wrap;}
-            .so-item-sub{grid-column:2/3;text-align:left;}
+            .so-item-top{flex-wrap:wrap;}
+            .so-item-bottom{flex-direction:column;align-items:stretch;}
+            .so-item-field .so-inp{width:100%;}
+            .so-item-qty,.so-item-price{width:100%;}
+            .so-item-x{display:none;}
             .so-card-body{padding:1rem;}
         }
     </style>
@@ -495,27 +502,41 @@
 
                 var unitHtml = '';
                 if (item.conversions && item.conversions.length > 1) {
-                    unitHtml = '<select id="unit-'+i+'" class="so-inp" onchange="onUnitChange('+i+')" style="width:90px;padding:.35rem .5rem;font-size:.72rem;">'
+                    unitHtml = '<div class="so-item-field">'
+                        + '<span class="so-item-field-label">Satuan</span>'
+                        + '<select id="unit-'+i+'" class="so-inp" onchange="onUnitChange('+i+')" style="width:110px;">'
                         + item.conversions.slice(0,5).map(function(c){ return '<option value="'+c.factor+'">'+c.label+'</option>'; }).join('')
-                        + '</select>';
+                        + '</select></div>';
                 }
 
                 html += '<div class="so-item">'
+                    // Top line: number + name + subtotal + delete
+                    + '<div class="so-item-top">'
                     + '<div class="so-item-num">'+(i+1)+'</div>'
                     + '<div class="so-item-info">'
                     + '<div class="so-item-name">'+item.name+'</div>'
                     + '<input type="hidden" name="items['+i+'][product_id]" value="'+item.id+'">'
                     + '</div>'
-                    + '<div class="so-item-inputs">'
-                    + '<input type="number" name="items['+i+'][price]" value="'+item.price+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" min="0" step="1" title="Harga">'
-                    + '<span style="color:#94a3b8;font-size:.75rem;font-weight:700;">x</span>'
-                    + '<input type="number" name="items['+i+'][quantity]" value="'+item.qty+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty" title="Qty">'
-                    + unitHtml
-                    + '</div>'
+                    + '<div class="so-item-actions">'
                     + '<div class="so-item-sub">Rp '+fmt(item.subtotal)+'</div>'
                     + '<button type="button" onclick="removeItem('+i+')" class="so-item-del" title="Hapus">'
                     + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'
                     + '</button>'
+                    + '</div>'
+                    + '</div>'
+                    // Bottom line: price x qty [unit]
+                    + '<div class="so-item-bottom">'
+                    + '<div class="so-item-field">'
+                    + '<span class="so-item-field-label">Harga</span>'
+                    + '<input type="number" name="items['+i+'][price]" value="'+item.price+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" min="0" step="1">'
+                    + '</div>'
+                    + '<span class="so-item-x">×</span>'
+                    + '<div class="so-item-field">'
+                    + '<span class="so-item-field-label">Qty</span>'
+                    + '<input type="number" name="items['+i+'][quantity]" value="'+item.qty+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty">'
+                    + '</div>'
+                    + unitHtml
+                    + '</div>'
                     + '</div>';
             });
 
