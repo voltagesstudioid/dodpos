@@ -1049,6 +1049,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/opname/create', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'create'])->name('opname.create');
         Route::post('/opname', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'store'])->name('opname.store');
         Route::get('/opname/{id}', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'show'])->name('opname.show');
+
+        // Hutang Pelanggan (shared: all pasgar roles)
+        Route::get('/hutang', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'index'])->name('hutang.index');
+        Route::get('/hutang/{id}', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'show'])->name('hutang.show');
+        Route::get('/hutang/{id}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'bayar'])->name('hutang.bayar');
+        Route::post('/hutang/{id}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'storeBayar'])->name('hutang.storeBayar');
+        Route::post('/hutang/bayar/{bayarId}/confirm', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'confirm'])->name('hutang.confirm');
     });
 
     // --- Supervisor, Admin & Pasgar only (full access features) ---
