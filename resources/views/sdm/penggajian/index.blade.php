@@ -485,27 +485,27 @@
                     </div>
                     <div class="pg-fg">
                         <label class="pg-fl">Override Gaji Pokok</label>
-                        <input type="number" name="override_total_basic_salary" id="pgAdjBasic" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
+                        <input type="text" inputmode="numeric" data-currency name="override_total_basic_salary" id="pgAdjBasic" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
                         <div class="pg-fi-hint">Gaji pokok karyawan. Override jika ada penyesuaian khusus.</div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
                         <div class="pg-fg">
                             <label class="pg-fl">Insentif / Bonus</label>
-                            <input type="number" name="incentive_amount" id="pgAdjIncentive" class="pg-fi" value="0" oninput="pgPreview()">
+                            <input type="text" inputmode="numeric" data-currency name="incentive_amount" id="pgAdjIncentive" class="pg-fi" value="0" oninput="pgPreview()">
                         </div>
                         <div class="pg-fg">
                             <label class="pg-fl">Bonus Performa</label>
-                            <input type="number" name="performance_bonus" id="pgAdjPerformance" class="pg-fi" value="0" oninput="pgPreview()">
+                            <input type="text" inputmode="numeric" data-currency name="performance_bonus" id="pgAdjPerformance" class="pg-fi" value="0" oninput="pgPreview()">
                         </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
                         <div class="pg-fg">
                             <label class="pg-fl">Override Potongan Telat</label>
-                            <input type="number" name="override_late_meal_penalty" id="pgAdjLatePenalty" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
+                            <input type="text" inputmode="numeric" data-currency name="override_late_meal_penalty" id="pgAdjLatePenalty" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
                         </div>
                         <div class="pg-fg">
                             <label class="pg-fl">Override Potongan Alpha</label>
-                            <input type="number" name="override_absence_deduction" id="pgAdjAbsence" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
+                            <input type="text" inputmode="numeric" data-currency name="override_absence_deduction" id="pgAdjAbsence" class="pg-fi" placeholder="Kosongkan = otomatis" oninput="pgPreview()">
                         </div>
                     </div>
                     {{-- Live Preview THP --}}
@@ -573,11 +573,11 @@
         return 'Rp '+Math.round(n).toLocaleString('id-ID');
     }
     function pgPreview(){
-        var basic     = parseFloat(document.getElementById('pgAdjBasic').value)      || _pgCurrent.basic    || 0;
-        var incentive = parseFloat(document.getElementById('pgAdjIncentive').value)  || 0;
-        var perf      = parseFloat(document.getElementById('pgAdjPerformance').value)|| 0;
-        var latePen   = document.getElementById('pgAdjLatePenalty').value !== '' ? parseFloat(document.getElementById('pgAdjLatePenalty').value) : (_pgCurrent.latePen   || 0);
-        var absDed    = document.getElementById('pgAdjAbsence').value    !== '' ? parseFloat(document.getElementById('pgAdjAbsence').value)    : (_pgCurrent.absDed    || 0);
+        var basic     = parseInt(parseCurrency(document.getElementById('pgAdjBasic').value))      || _pgCurrent.basic    || 0;
+        var incentive = parseInt(parseCurrency(document.getElementById('pgAdjIncentive').value))  || 0;
+        var perf      = parseInt(parseCurrency(document.getElementById('pgAdjPerformance').value))|| 0;
+        var latePen   = document.getElementById('pgAdjLatePenalty').value !== '' ? parseInt(parseCurrency(document.getElementById('pgAdjLatePenalty').value)) : (_pgCurrent.latePen   || 0);
+        var absDed    = document.getElementById('pgAdjAbsence').value    !== '' ? parseInt(parseCurrency(document.getElementById('pgAdjAbsence').value))    : (_pgCurrent.absDed    || 0);
         var allowance = (_pgCurrent.mealGross || 0) - latePen;
         if(allowance < 0) allowance = 0;
         var fixed     = _pgCurrent.fixed   || 0;
@@ -612,11 +612,11 @@
     function pgAdjustOpen(id, incentive, performance, overrideBasic, overrideLate, overrideAbsence, basic, mealGross, fixed, ot, otherDed, absDed, latePen){
         var form = document.getElementById('pgAdjustForm');
         form.action = '{{ url("sdm/penggajian") }}/' + id + '/adjust';
-        document.getElementById('pgAdjIncentive').value = incentive || 0;
-        document.getElementById('pgAdjPerformance').value = performance || 0;
-        document.getElementById('pgAdjBasic').value = overrideBasic || '';
-        document.getElementById('pgAdjLatePenalty').value = overrideLate || '';
-        document.getElementById('pgAdjAbsence').value = overrideAbsence || '';
+        document.getElementById('pgAdjIncentive').value = formatCurrency(incentive) || '';
+        document.getElementById('pgAdjPerformance').value = formatCurrency(performance) || '';
+        document.getElementById('pgAdjBasic').value = overrideBasic ? formatCurrency(overrideBasic) : '';
+        document.getElementById('pgAdjLatePenalty').value = overrideLate ? formatCurrency(overrideLate) : '';
+        document.getElementById('pgAdjAbsence').value = overrideAbsence ? formatCurrency(overrideAbsence) : '';
         // Store current payroll data for preview calculation
         _pgCurrent = {
             basic:    parseFloat(basic)    || 0,

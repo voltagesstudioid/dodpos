@@ -112,7 +112,7 @@
             <div class="htb-card-body">
                 <div class="htb-fg">
                     <label class="htb-lbl">Jumlah Bayar <span class="htb-req">*</span></label>
-                    <input type="number" name="jumlah" class="htb-inp" value="{{ old('jumlah', $hutang->sisa) }}" min="1" max="{{ (int) $hutang->sisa }}" step="1" required>
+                    <input type="text" inputmode="numeric" data-currency name="jumlah" class="htb-inp" value="{{ old('jumlah', (int) $hutang->sisa) }}" required>
                     <span class="htb-hint">Maksimal Rp {{ number_format($hutang->sisa, 0, ',', '.') }}</span>
                 </div>
 

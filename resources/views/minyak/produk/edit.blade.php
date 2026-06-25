@@ -204,9 +204,9 @@
                             </label>
                             <div class="pe-money-wrap">
                                 <span class="pe-money-prefix">Rp</span>
-                                <input type="number" name="harga_modal" id="harga_modal" value="{{ old('harga_modal', $produk->harga_modal) }}"
+                                <input type="text" inputmode="numeric" data-currency name="harga_modal" id="harga_modal" value="{{ old('harga_modal', (int) $produk->harga_modal) }}"
                                     class="pe-inp pe-money-inp @error('harga_modal') is-invalid @enderror"
-                                    placeholder="0" min="0" step="100">
+                                    placeholder="0">
                             </div>
                             <div class="pe-hint">Harga beli dari supplier per <span class="satuan-text">{{ strtolower($produk->satuan) }}</span></div>
                             @error('harga_modal')<div class="pe-err">{{ $message }}</div>@enderror
@@ -219,9 +219,9 @@
                             </label>
                             <div class="pe-money-wrap">
                                 <span class="pe-money-prefix">Rp</span>
-                                <input type="number" name="harga_jual" id="harga_jual" value="{{ old('harga_jual', $produk->harga_jual) }}" required
+                                <input type="text" inputmode="numeric" data-currency name="harga_jual" id="harga_jual" value="{{ old('harga_jual', (int) $produk->harga_jual) }}" required
                                     class="pe-inp pe-money-inp @error('harga_jual') is-invalid @enderror"
-                                    placeholder="0" min="0" step="100">
+                                    placeholder="0">
                             </div>
                             <div class="pe-hint">Harga jual ke pelanggan per <span class="satuan-text">{{ strtolower($produk->satuan) }}</span></div>
                             @error('harga_jual')<div class="pe-err">{{ $message }}</div>@enderror
@@ -349,8 +349,8 @@
         }
 
         function updateMargin() {
-            const modal = parseFloat(hargaModal.value) || 0;
-            const jual = parseFloat(hargaJual.value) || 0;
+            const modal = parseInt(parseCurrency(hargaModal.value)) || 0;
+            const jual = parseInt(parseCurrency(hargaJual.value)) || 0;
             if (modal === 0 && jual === 0) {
                 marginBox.className = 'pe-margin-box';
                 marginVal.className = 'pe-margin-val neutral';

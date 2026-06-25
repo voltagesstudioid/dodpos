@@ -12,6 +12,7 @@ class SalesOrderItem extends Model
         'quantity',
         'unit_name',
         'unit_factor',
+        'warehouse_id',
         'price',
         'subtotal',
     ];
@@ -24,5 +25,10 @@ class SalesOrderItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 }

@@ -345,6 +345,7 @@
     </div>
 
     <script type="application/json" id="oldItemsJson">{!! json_encode($oldItemsForJs ?? []) !!}</script>
+    <script type="application/json" id="warehousesJson">{!! json_encode(\App\Models\Warehouse::where('active', true)->orderBy('name')->get(['id','name','code'])) !!}</script>
 
     @push('scripts')
     <script>
@@ -352,6 +353,8 @@
         const oldItemsEl = document.getElementById('oldItemsJson');
         let oldItems = [];
         try { oldItems = JSON.parse(oldItemsEl ? oldItemsEl.textContent : '[]'); } catch (e) {}
+
+        const WAREHOUSES = (function(){ try { return JSON.parse(document.getElementById('warehousesJson').textContent); } catch(e){ return []; } })();
 
         if (Array.isArray(oldItems) && oldItems.length) {
             oldItems.forEach(it => {
@@ -367,6 +370,7 @@
                     unit_name: it.unit_name || null,
                     unit_factor: unitFactor,
                     conversions: Array.isArray(it.conversions) ? it.conversions : [],
+                    warehouse_id: it.warehouse_id || null,
                     subtotal: Number(it.price || 0) * qty,
                 });
             });
@@ -447,7 +451,7 @@
                     convs = Array.isArray(found && found.conversions) ? found.conversions : [];
                     if (convs.length > 0) baseUnitName = convs[0].label || 'pcs';
                 } catch (e) {}
-                orderItems.push({ id:id, name:name, price:defaultPrice, display_qty:1, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, subtotal:defaultPrice });
+                orderItems.push({ id:id, name:name, price:defaultPrice, display_qty:1, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, warehouse_id:null, subtotal:defaultPrice });
             }
             closeProductModal();
             document.getElementById('searchInput').value = '';
@@ -465,7 +469,7 @@
         }
 
         function updatePrice(i, v) {
-            var val = parseFloat(v) || 0;
+            var val = parseInt(parseCurrency(String(v))) || 0;
             orderItems[i].price = val < 0 ? 0 : val;
             orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
             renderTable();
@@ -539,6 +543,20 @@
                         + '</select></div>';
                 }
 
+                var whHtml = '';
+                if (WAREHOUSES.length) {
+                    var whOpts = WAREHOUSES.map(function(w){
+                        var sel = (Number(w.id) === Number(item.warehouse_id)) ? ' selected' : '';
+                        return '<option value="'+w.id+'"'+sel+'>'+w.name+'</option>';
+                    }).join('');
+                    whHtml = '<div class="so-item-field">'
+                        + '<span class="so-item-field-label">Gudang</span>'
+                        + '<select name="items['+i+'][warehouse_id]" class="so-inp" onchange="onWarehouseChange('+i+',this.value)" style="width:140px;">'
+                        + '<option value="">-- Gudang --</option>'
+                        + whOpts
+                        + '</select></div>';
+                }
+
                 html += '<div class="so-item">'
                     // Top line: number + name + subtotal + delete
                     + '<div class="so-item-top">'
@@ -557,11 +575,11 @@
                     + '</button>'
                     + '</div>'
                     + '</div>'
-                    // Bottom line: price x qty [unit]
+                    // Bottom line: price x qty [unit] + gudang
                     + '<div class="so-item-bottom">'
                     + '<div class="so-item-field">'
                     + '<span class="so-item-field-label">Harga</span>'
-                    + '<input type="number" name="items['+i+'][price]" value="'+item.price+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" min="0" step="1">'
+                    + '<input type="text" inputmode="numeric" data-currency name="items['+i+'][price]" value="'+formatCurrency(item.price)+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" autocomplete="off">'
                     + '</div>'
                     + '<span class="so-item-x">&times;</span>'
                     + '<div class="so-item-field">'
@@ -569,6 +587,7 @@
                     + '<input type="number" name="items['+i+'][quantity]" value="'+dq+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty">'
                     + '</div>'
                     + unitHtml
+                    + whHtml
                     + '</div>'
                     + '</div>';
             });
@@ -580,6 +599,10 @@
             document.getElementById('sumGrand').textContent = 'Rp ' + fmt(grandTotal);
             document.getElementById('total_amount').value = grandTotal;
         }
+
+        window.onWarehouseChange = function(i, val) {
+            orderItems[i].warehouse_id = val ? Number(val) : null;
+        };
 
         // Keyboard shortcut
         document.addEventListener('keydown', function(e) {

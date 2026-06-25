@@ -45,6 +45,7 @@
 
         .so-g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
         .so-g2-1{display:grid;grid-template-columns:2fr 1fr;gap:1rem;}
+        .so-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
 
         .so-fld{display:flex;flex-direction:column;gap:5px;}
         .so-lbl{font-size:.78rem;font-weight:700;color:#475569;letter-spacing:.02em;display:flex;align-items:center;gap:4px;}
@@ -148,7 +149,7 @@
         @media(max-width:900px){.so-layout{grid-template-columns:1fr;}.so-summary{position:static;}}
         @media(max-width:640px){
             .so-pg{padding:1rem;}
-            .so-g2,.so-g2-1{grid-template-columns:1fr;}
+            .so-g2,.so-g2-1,.so-g3{grid-template-columns:1fr;}
             .so-item-top{flex-wrap:wrap;}
             .so-item-bottom{flex-direction:column;align-items:stretch;}
             .so-item-field .so-inp{width:100%;}
@@ -406,6 +407,7 @@
 
     <script type="application/json" id="so-existing-items-json">{!! json_encode($existingItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
     <script type="application/json" id="so-old-items-json">{!! json_encode($oldItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
+    <script type="application/json" id="warehousesJson">@json(\App\Models\Warehouse::where('active', true)->orderBy('name')->get(['id','name','code']))</script>
 
     @push('scripts')
     <script>
@@ -432,6 +434,7 @@
                         unit_name: it.unit_name || null,
                         unit_factor: unitFactor,
                         conversions: Array.isArray(it.conversions) ? it.conversions : [],
+                        warehouse_id: it.warehouse_id || null,
                         subtotal: price * qty
                     };
                 });
@@ -455,6 +458,7 @@
                             unit_name: item.unit_name || null,
                             unit_factor: unitFactor,
                             conversions: Array.isArray(item.conversions) ? item.conversions : [],
+                            warehouse_id: item.warehouse_id || null,
                             subtotal: price * qty
                         });
                     });
@@ -462,6 +466,8 @@
                 console.log('[SO Edit] Final orderItems count:', orderItems.length);
             } catch(e) { console.error('[SO Edit] Error loading items:', e); }
         })();
+
+        const WAREHOUSES = (function(){ try { return JSON.parse(document.getElementById('warehousesJson').textContent); } catch(e){ return []; } })();
 
         function fmt(n) { return new Intl.NumberFormat('id-ID').format(Math.round(n)); }
 
@@ -536,7 +542,7 @@
                     convs = Array.isArray(found && found.conversions) ? found.conversions : [];
                     if (convs.length > 0) baseUnitName = convs[0].label || 'pcs';
                 } catch (e) {}
-                orderItems.push({ id:id, name:name, price:defaultPrice, display_qty:1, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, subtotal:defaultPrice });
+                orderItems.push({ id:id, name:name, price:defaultPrice, display_qty:1, qty:1, unit_name:baseUnitName, unit_factor:1, conversions:convs, warehouse_id:null, subtotal:defaultPrice });
             }
             closeProductModal();
             document.getElementById('searchInput').value = '';
@@ -554,7 +560,7 @@
         }
 
         function updatePrice(i, v) {
-            var val = parseFloat(v) || 0;
+            var val = parseInt(parseCurrency(String(v))) || 0;
             orderItems[i].price = val < 0 ? 0 : val;
             orderItems[i].subtotal = orderItems[i].qty * orderItems[i].price;
             renderTable();
@@ -630,6 +636,20 @@
                         + '</select></div>';
                 }
 
+                var whHtml = '';
+                if (WAREHOUSES.length) {
+                    var whOpts = WAREHOUSES.map(function(w){
+                        var sel = (Number(w.id) === Number(item.warehouse_id)) ? ' selected' : '';
+                        return '<option value="'+w.id+'"'+sel+'>'+w.name+'</option>';
+                    }).join('');
+                    whHtml = '<div class="so-item-field">'
+                        + '<span class="so-item-field-label">Gudang</span>'
+                        + '<select name="items['+i+'][warehouse_id]" class="so-inp" onchange="onWarehouseChange('+i+',this.value)" style="width:140px;">'
+                        + '<option value="">-- Gudang --</option>'
+                        + whOpts
+                        + '</select></div>';
+                }
+
                 html += '<div class="so-item">'
                     + '<div class="so-item-top">'
                     + '<div class="so-item-num">'+(i+1)+'</div>'
@@ -650,7 +670,7 @@
                     + '<div class="so-item-bottom">'
                     + '<div class="so-item-field">'
                     + '<span class="so-item-field-label">Harga</span>'
-                    + '<input type="number" name="items['+i+'][price]" value="'+item.price+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" min="0" step="1">'
+                    + '<input type="text" inputmode="numeric" data-currency name="items['+i+'][price]" value="'+formatCurrency(item.price)+'" onchange="updatePrice('+i+',this.value)" class="so-inp so-item-price" autocomplete="off">'
                     + '</div>'
                     + '<span class="so-item-x">&times;</span>'
                     + '<div class="so-item-field">'
@@ -658,6 +678,7 @@
                     + '<input type="number" name="items['+i+'][quantity]" value="'+dq+'" min="1" onchange="updateQty('+i+',this.value)" class="so-inp so-item-qty">'
                     + '</div>'
                     + unitHtml
+                    + whHtml
                     + '</div>'
                     + '</div>';
             });
@@ -669,6 +690,10 @@
             document.getElementById('sumGrand').textContent = 'Rp ' + fmt(grandTotal);
             document.getElementById('total_amount').value = grandTotal;
         }
+
+        window.onWarehouseChange = function(i, val) {
+            orderItems[i].warehouse_id = val ? Number(val) : null;
+        };
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {

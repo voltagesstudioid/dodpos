@@ -13,6 +13,8 @@ class UnitController extends Controller
 {
     public function index(Request $request)
     {
+        return redirect()->route('master.produk', ['tab' => 'satuan']);
+
         $query = Unit::withCount(['products as products_count' => function ($q) {
             $q->withTrashed();
         }]);

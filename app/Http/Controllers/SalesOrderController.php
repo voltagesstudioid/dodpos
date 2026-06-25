@@ -8,6 +8,7 @@ use App\Models\SalesOrder;
 use App\Models\SalesOrderItem;
 use App\Models\StoreSetting;
 use App\Services\ReferenceNumberService;
+use App\Services\StockService;
 use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -62,6 +63,7 @@ class SalesOrderController extends Controller
             $price = (float) ($it['price'] ?? ($product?->price ?? 0));
             $unitName = $it['unit_name'] ?? null;
             $unitFactor = (int) ($it['unit_factor'] ?? 1);
+            $warehouseId = $it['warehouse_id'] ?? null;
 
             return [
                 'product_id' => $pid,
@@ -70,6 +72,7 @@ class SalesOrderController extends Controller
                 'quantity' => $qty,
                 'unit_name' => $unitName,
                 'unit_factor' => $unitFactor,
+                'warehouse_id' => $warehouseId ? (int) $warehouseId : null,
                 'subtotal' => $price * $qty,
                 'conversions' => $product ? $this->buildConversionsFromProduct($product) : [],
             ];
@@ -235,6 +238,7 @@ class SalesOrderController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'items.*.unit_name' => 'nullable|string|max:50',
             'items.*.unit_factor' => 'nullable|integer|min:1',
+            'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
         ]);
 
         try {
@@ -268,6 +272,7 @@ class SalesOrderController extends Controller
                     'quantity' => $qty,
                     'unit_name' => $item['unit_name'] ?? null,
                     'unit_factor' => (int) ($item['unit_factor'] ?? 1),
+                    'warehouse_id' => $item['warehouse_id'] ?? null,
                     'price' => $price,
                     'subtotal' => $subtotal,
                 ]);
@@ -275,12 +280,22 @@ class SalesOrderController extends Controller
 
             $salesOrder->update(['total_amount' => $totalAmount]);
 
+            if ($request->status === 'completed') {
+                $salesOrder->load('items');
+                $this->processStockDeductionForCompletedSO($salesOrder);
+            }
+
             DB::commit();
 
             return redirect()->route('sales-order.show', $salesOrder)->with('success', 'Sales Order berhasil dibuat.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            $message = $e->getMessage();
+            if (str_contains($message, 'Stok tidak mencukupi')) {
+                return back()->with('error', $message)->withInput();
+            }
 
             return back()->with('error', 'Terjadi kesalahan saat membuat Sales Order. Silakan coba lagi.')->withInput();
         }
@@ -310,6 +325,7 @@ class SalesOrderController extends Controller
                 'quantity' => (int) $it->quantity,
                 'unit_name' => $it->unit_name,
                 'unit_factor' => (int) ($it->unit_factor ?? 1),
+                'warehouse_id' => $it->warehouse_id,
             ])->values()->all()
         );
 
@@ -336,6 +352,7 @@ class SalesOrderController extends Controller
             'items.*.price' => 'required|numeric|min:0',
             'items.*.unit_name' => 'nullable|string|max:50',
             'items.*.unit_factor' => 'nullable|integer|min:1',
+            'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
         ]);
 
         try {
@@ -366,6 +383,7 @@ class SalesOrderController extends Controller
                     'quantity' => $qty,
                     'unit_name' => $item['unit_name'] ?? null,
                     'unit_factor' => (int) ($item['unit_factor'] ?? 1),
+                    'warehouse_id' => $item['warehouse_id'] ?? null,
                     'price' => $price,
                     'subtotal' => $subtotal,
                 ]);
@@ -373,12 +391,26 @@ class SalesOrderController extends Controller
 
             $salesOrder->update(['total_amount' => $totalAmount]);
 
+            // Refresh items after delete+recreate
+            $salesOrder->load('items');
+
+            // Detect if status just changed to completed → deduct stock
+            $wasCompleted = in_array($salesOrder->getOriginal('status'), ['completed']);
+            if ($request->status === 'completed' && !$wasCompleted) {
+                $this->processStockDeductionForCompletedSO($salesOrder);
+            }
+
             DB::commit();
 
             return redirect()->route('sales-order.show', $salesOrder)->with('success', 'Sales Order berhasil diperbarui.');
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            $message = $e->getMessage();
+            if (str_contains($message, 'Stok tidak mencukupi')) {
+                return back()->with('error', $message)->withInput();
+            }
 
             return back()->with('error', 'Terjadi kesalahan saat memperbarui Sales Order. Silakan coba lagi.')->withInput();
         }
@@ -411,5 +443,95 @@ class SalesOrderController extends Controller
     private function generateSoNumber(): string
     {
         return ReferenceNumberService::generateSoNumber();
+    }
+
+    /**
+     * Deduct product stock when Sales Order is completed.
+     * Deduction is per-item based on each item's warehouse_id.
+     * If an item has no warehouse specified, falls back to FIFO across all warehouses.
+     * Must be called inside a DB transaction.
+     *
+     * @throws \Exception if stock is insufficient
+     */
+    private function processStockDeductionForCompletedSO(SalesOrder $salesOrder): void
+    {
+        $salesOrder->load(['items.product', 'items.warehouse']);
+
+        $grouped = [];
+        foreach ($salesOrder->items as $item) {
+            $qty = (int) $item->quantity;
+            if ($qty <= 0) continue;
+
+            $warehouseId = $item->warehouse_id;
+            $key = $item->product_id . '|' . ($warehouseId ?? 'null');
+
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = [
+                    'product_id'  => $item->product_id,
+                    'quantity'    => 0,
+                    'warehouse_id'=> $warehouseId,
+                    'warehouse_name' => $item->warehouse?->name,
+                    'product_name'   => $item->product?->name ?? 'ID: '.$item->product_id,
+                ];
+            }
+            $grouped[$key]['quantity'] += $qty;
+        }
+
+        if (empty($grouped)) return;
+
+        $reference = 'SO-'.$salesOrder->so_number;
+        $userId = Auth::id();
+
+        foreach ($grouped as $entry) {
+            $productName = $entry['product_name'];
+
+            if ($entry['warehouse_id']) {
+                // Validate warehouse-specific stock
+                $error = StockService::validateWarehouseStock(
+                    [['product_id' => $entry['product_id'], 'quantity' => $entry['quantity'], 'name' => $productName]],
+                    $entry['warehouse_id']
+                );
+                if ($error) {
+                    throw new \Exception(
+                        "Stok di gudang {$entry['warehouse_name']} tidak mencukupi untuk {$error['product']}. Tersedia: {$error['available']}, dibutuhkan: {$error['requested']}."
+                    );
+                }
+
+                $notes = '[SO] Sales Order #'.$salesOrder->so_number.' (Gudang: '.($entry['warehouse_name'] ?? '-').')';
+
+                StockService::deductGlobalStock($entry['product_id'], $entry['quantity']);
+                StockService::deductSpecificWarehouseStock(
+                    $entry['product_id'],
+                    $entry['quantity'],
+                    $entry['warehouse_id'],
+                    $reference,
+                    'sales_order',
+                    $notes,
+                    $userId
+                );
+            } else {
+                // No warehouse — FIFO across all warehouses
+                $error = StockService::validateStock(
+                    [['product_id' => $entry['product_id'], 'quantity' => $entry['quantity'], 'name' => $productName]]
+                );
+                if ($error) {
+                    throw new \Exception(
+                        "Stok tidak mencukupi untuk {$error['product']}. Tersedia: {$error['available']}, dibutuhkan: {$error['requested']}."
+                    );
+                }
+
+                $notes = '[SO] Sales Order #'.$salesOrder->so_number;
+
+                StockService::deductGlobalStock($entry['product_id'], $entry['quantity']);
+                StockService::deductWarehouseStockFIFO(
+                    $entry['product_id'],
+                    $entry['quantity'],
+                    $reference,
+                    'sales_order',
+                    $notes,
+                    $userId
+                );
+            }
+        }
     }
 }

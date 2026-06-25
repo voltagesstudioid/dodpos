@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomerCreditPayment;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseReturn;
+use App\Models\SalesOrder;
 use App\Models\StoreSetting;
 use App\Models\SupplierDebtPayment;
 use App\Models\Transaction;
@@ -94,5 +95,16 @@ class PrintController extends Controller
         $kredit->load(['customerCredit.customer', 'createdBy']);
 
         return view('print.customer_credit_payment', compact('kredit'));
+    }
+
+    /**
+     * Cetak Faktur Sales Order (A4)
+     */
+    public function printSalesOrder(SalesOrder $salesOrder)
+    {
+        $salesOrder->load(['items.product', 'items.warehouse', 'customer', 'user']);
+        $storeSetting = StoreSetting::current();
+
+        return view('print.sales-order', compact('salesOrder', 'storeSetting'));
     }
 }

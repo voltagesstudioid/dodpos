@@ -178,7 +178,7 @@
                         </label>
                         <div class="pe-rp-wrap">
                             <span class="pe-rp-prefix">Rp</span>
-                            <input type="number" name="harga_modal" value="{{ old('harga_modal', $produk->harga_modal) }}" placeholder="0" min="0" class="pe-input pe-rp-input">
+                            <input type="text" inputmode="numeric" data-currency name="harga_modal" value="{{ old('harga_modal', (int) $produk->harga_modal) }}" placeholder="0" class="pe-input pe-rp-input">
                         </div>
                         <div class="pe-hint"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Harga beli dari supplier</div>
                         @error('harga_modal')<div class="pe-error"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{{ $message }}</div>@enderror
@@ -190,7 +190,7 @@
                         </label>
                         <div class="pe-rp-wrap">
                             <span class="pe-rp-prefix">Rp</span>
-                            <input type="number" name="harga_jual" value="{{ old('harga_jual', $produk->harga_jual) }}" required placeholder="0" min="0" class="pe-input pe-rp-input">
+                            <input type="text" inputmode="numeric" data-currency name="harga_jual" value="{{ old('harga_jual', (int) $produk->harga_jual) }}" required placeholder="0" class="pe-input pe-rp-input">
                         </div>
                         <div class="pe-hint"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Harga jual ke pelanggan</div>
                         @error('harga_jual')<div class="pe-error"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{{ $message }}</div>@enderror

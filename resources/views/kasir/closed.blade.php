@@ -42,7 +42,7 @@
                     <div class="form-row">
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Modal Awal {{ $kasirLabel }} (Rp)</label>
-                            <input type="number" name="opening_amount" value="{{ old('opening_amount') }}" min="0" class="form-input @error('opening_amount') input-error @enderror" placeholder="0" required>
+                            <input type="text" inputmode="numeric" data-currency name="opening_amount" value="{{ old('opening_amount') }}" class="form-input @error('opening_amount') input-error @enderror" placeholder="0" required>
                             @error('opening_amount') <span class="form-error">{{ $message }}</span> @enderror
                         </div>
                         <div class="form-group" style="margin-bottom:0;">

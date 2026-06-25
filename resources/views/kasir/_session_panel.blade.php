@@ -99,7 +99,7 @@
                 <label>Uang Fisik Laci (Aktual)</label>
                 <div class="sp-input-wrap">
                     <span class="sp-input-prefix">Rp</span>
-                    <input type="number" name="actual_cash" id="actual-{{ $type }}" min="0" step="1" required placeholder="0" oninput="calcVariance('{{ $type }}')">
+                    <input type="text" inputmode="numeric" data-currency name="actual_cash" id="actual-{{ $type }}" min="0" required placeholder="0" oninput="calcVariance('{{ $type }}')">
                 </div>
             </div>
             <div class="sp-field">

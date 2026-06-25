@@ -145,6 +145,12 @@
                     {{ session('success') }}
                 </div>
             @endif
+            @if(session('error'))
+                <div class="so-alert" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    {{ session('error') }}
+                </div>
+            @endif
 
             <div class="so-title-bar">
                 <div class="so-title-area">
@@ -159,10 +165,10 @@
                 <div class="so-title-actions">
                     <span class="so-so-badge">{{ $salesOrder->so_number }}</span>
                     <span class="so-status so-status-{{ $salesOrder->status }}">{{ ucfirst($salesOrder->status) }}</span>
-                    <button type="button" onclick="window.print()" class="so-btn so-btn-print">
+                    <a href="{{ route('print.sales-order', $salesOrder->id) }}?preview=1" target="_blank" class="so-btn so-btn-print">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                        Cetak
-                    </button>
+                        Cetak Faktur
+                    </a>
                     @if(!in_array($salesOrder->status, ['completed', 'cancelled']))
                         <a href="{{ route('sales-order.edit', $salesOrder->id) }}" class="so-btn so-btn-edit">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -178,11 +184,13 @@
                 <input type="hidden" name="customer_id" value="{{ $salesOrder->customer_id }}">
                 <input type="hidden" name="order_date" value="{{ $salesOrder->order_date ? \Carbon\Carbon::parse($salesOrder->order_date)->format('Y-m-d') : '' }}">
                 <input type="hidden" name="delivery_date" value="{{ $salesOrder->delivery_date ? \Carbon\Carbon::parse($salesOrder->delivery_date)->format('Y-m-d') : '' }}">
+
                 <input type="hidden" name="notes" value="{{ $salesOrder->notes }}">
                 @foreach($salesOrder->items as $idx => $item)
                     <input type="hidden" name="items[{{ $idx }}][product_id]" value="{{ $item->product_id }}">
                     <input type="hidden" name="items[{{ $idx }}][quantity]" value="{{ $item->quantity }}">
                     <input type="hidden" name="items[{{ $idx }}][price]" value="{{ $item->price }}">
+                    <input type="hidden" name="items[{{ $idx }}][warehouse_id]" value="{{ $item->warehouse_id }}">
                 @endforeach
             </form>
 
@@ -276,6 +284,11 @@
                                                 <div class="so-item-name">{{ $item->product?->name ?? ('Produk ID ' . $item->product_id) }}</div>
                                                 @if($item->product?->sku || $item->product?->barcode)
                                                     <div class="so-item-meta">{{ $item->product?->sku ?? '' }} {{ $item->product?->barcode ? '('.$item->product->barcode.')' : '' }}</div>
+                                                @endif
+                                                @if($item->warehouse)
+                                                    <div class="so-item-meta" style="margin-top:4px;">
+                                                        <span style="background:#eef2ff;color:#4f46e5;padding:2px 8px;border-radius:5px;font-size:.65rem;font-weight:700;">{{ $item->warehouse->name }}</span>
+                                                    </div>
                                                 @endif
                                             </div>
                                             @php

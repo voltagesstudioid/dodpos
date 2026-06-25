@@ -17,6 +17,8 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
+        return redirect()->route('master.produk', ['tab' => 'produk']);
+
         $query = Product::with(['category', 'unit', 'unitConversions.unit']);
 
         if ($request->search) {

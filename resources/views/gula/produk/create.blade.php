@@ -177,7 +177,7 @@
                         </label>
                         <div class="pc-rp-wrap">
                             <span class="pc-rp-prefix">Rp</span>
-                            <input type="number" name="harga_modal" value="{{ old('harga_modal') }}" placeholder="0" min="0" class="pc-input pc-rp-input">
+                            <input type="text" inputmode="numeric" data-currency name="harga_modal" value="{{ old('harga_modal') }}" placeholder="0" class="pc-input pc-rp-input">
                         </div>
                         <div class="pc-hint">
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -192,7 +192,7 @@
                         </label>
                         <div class="pc-rp-wrap">
                             <span class="pc-rp-prefix">Rp</span>
-                            <input type="number" name="harga_jual" value="{{ old('harga_jual') }}" required placeholder="0" min="0" class="pc-input pc-rp-input">
+                            <input type="text" inputmode="numeric" data-currency name="harga_jual" value="{{ old('harga_jual') }}" required placeholder="0" class="pc-input pc-rp-input">
                         </div>
                         <div class="pc-hint">
                             <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>

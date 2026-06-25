@@ -337,7 +337,7 @@
                                 @csrf
                                 <div class="hs-fg">
                                     <label class="hs-fl">Jumlah Bayar <span style="color:#ef4444;">*</span></label>
-                                    <input type="number" name="jumlah" class="hs-fi" min="1" max="{{ $effectiveSisa }}" value="{{ old('jumlah') }}" placeholder="Maks: Rp {{ number_format($effectiveSisa, 0, ',', '.') }}" required>
+                                    <input type="text" inputmode="numeric" data-currency name="jumlah" class="hs-fi" value="{{ old('jumlah') }}" placeholder="Maks: Rp {{ number_format($effectiveSisa, 0, ',', '.') }}" required>
                                     @error('jumlah') <div style="font-size:.72rem; color:#ef4444; margin-top:4px;">{{ $message }}</div> @enderror
                                 </div>
 

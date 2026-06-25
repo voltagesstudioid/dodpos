@@ -505,7 +505,7 @@
                 '</div>' +
                 '<div class="ti-item-ctrl">' +
                     '<input type="number" class="ti-qty" min="1" max="' + item.stock + '" value="' + item.qty + '" onchange="setQty(' + i + ',this.value)" title="Qty">' +
-                    '<input type="text" class="ti-price" value="' + item.price.toLocaleString('id-ID') + '" onchange="setPrice(' + i + ',this.value)" title="Harga">' +
+                    '<input type="text" inputmode="numeric" data-currency class="ti-price" value="' + item.price.toLocaleString('id-ID') + '" onchange="setPrice(' + i + ',this.value)" title="Harga">' +
                     '<div class="ti-subtotal">Rp ' + subtotal.toLocaleString('id-ID') + '</div>' +
                     '<button class="ti-remove" onclick="removeItem(' + i + ')" title="Hapus">' +
                         '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>' +

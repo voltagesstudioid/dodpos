@@ -1,5 +1,5 @@
 <x-guest-layout>
-<x-auth-page title="Selamat Datang" subtitle="Masuk ke akun DODPOS Anda untuk melanjutkan">
+<x-auth-page title="Masuk ke Akun" subtitle="Gunakan email dan password yang terdaftar">
     <form action="{{ route('login') }}" method="POST">
         @csrf
 
@@ -8,18 +8,18 @@
             <label for="email" class="form-label">Alamat Email</label>
             <div class="input-wrap">
                 <span class="input-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
                     </svg>
                 </span>
                 <input id="email" name="email" type="email" autocomplete="email" required autofocus
-                    class="form-input"
+                    class="form-input @error('email') error @enderror"
                     value="{{ old('email') }}"
                     placeholder="nama@perusahaan.com">
             </div>
             @error('email')
                 <div class="form-error">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     {{ $message }}
                 </div>
             @enderror
@@ -30,12 +30,12 @@
             <label for="password" class="form-label">Password</label>
             <div class="input-wrap">
                 <span class="input-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
                 </span>
                 <input id="password" name="password" type="password" autocomplete="current-password" required
-                    class="form-input has-toggle"
+                    class="form-input has-toggle @error('password') error @enderror"
                     placeholder="••••••••">
                 <button type="button" class="toggle-pw" onclick="togglePassword()" id="pw-toggle-btn" title="Tampilkan password">
                     <svg id="pw-eye" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,7 +48,7 @@
             </div>
             @error('password')
                 <div class="form-error">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     {{ $message }}
                 </div>
             @enderror
@@ -82,7 +82,7 @@
     
     <x-slot name="footer">
         @if (Route::has('register'))
-            Belum punya akun? <a href="{{ route('register') }}" class="forgot-link" style="margin-left:5px">Daftar sekarang</a>
+            Belum punya akun? <a href="{{ route('register') }}">Daftar sekarang</a>
         @endif
     </x-slot>
 </x-auth-page>
@@ -104,11 +104,10 @@ function togglePassword() {
     }
 }
 
-// Add simple loading state to button
 document.querySelector('form').addEventListener('submit', function() {
     const btn = document.getElementById('login-btn');
     btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Memproses...`;
-    btn.style.opacity = '0.7';
+    btn.style.opacity = '0.8';
     btn.style.cursor = 'not-allowed';
 });
 </script>

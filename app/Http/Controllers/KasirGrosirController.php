@@ -57,7 +57,7 @@ class KasirGrosirController extends Controller
 
         $storeSetting = StoreSetting::current();
 
-        return view('kasir.grosir', compact('products', 'customers', 'vehicles', 'storeSetting'));
+        return view('kasir.grosir', compact('products', 'customers', 'vehicles', 'storeSetting') + ['userRole' => Auth::user()->role]);
     }
 
     public function searchProducts(Request $request)
@@ -98,6 +98,7 @@ class KasirGrosirController extends Controller
             'items.*.warehouse_id' => 'required|exists:warehouses,id',
             'items.*.unit_qty' => 'required|integer|min:1',
             'items.*.unit_conversion_id' => 'nullable|exists:product_unit_conversions,id',
+            'items.*.price' => 'nullable|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
             'payment_method' => 'required|string',
             'payment_reference' => 'nullable|string|max:100',
@@ -167,6 +168,21 @@ class KasirGrosirController extends Controller
 
                 // Calculate price
                 $unitPrice = $this->transactionService->calculatePrice($conversion, $priceTier, $product->price);
+
+                // Allow price override for authorized roles (admin1, admin2, supervisor)
+                $allowedRoles = ['admin1', 'admin2', 'supervisor'];
+                if (isset($item['price']) && $item['price'] > 0 && in_array(Auth::user()->role, $allowedRoles)) {
+                    $customPrice = (float) $item['price'];
+                    if ($conversion) {
+                        $purchasePrice = $this->transactionService->getPriceService()->parseNumber($conversion->purchase_price ?? 0);
+                        $minimalPrice = $purchasePrice * 1.05;
+                        if ($purchasePrice > 0 && $customPrice < $minimalPrice) {
+                            throw new \Exception('Harga untuk "' . $product->name . '" tidak boleh di bawah Rp ' . number_format($minimalPrice, 0, ',', '.') . ' (minimal 5% di atas harga modal Rp ' . number_format($purchasePrice, 0, ',', '.') . ').');
+                        }
+                    }
+                    $unitPrice = $customPrice;
+                }
+
                 $subtotal = round($unitPrice * $unitQty, 2);
 
                 $pricePerBase = $baseFactor > 0 ? ($subtotal / $baseQty) : $unitPrice;

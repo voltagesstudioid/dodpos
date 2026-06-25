@@ -140,7 +140,7 @@
                         </div>
                         <div class="pj-fld">
                             <label class="pj-lbl">Harga Satuan <span class="pj-req">*</span></label>
-                            <div class="pj-money"><span class="pj-money-pfx">Rp</span><input type="number" name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan') }}" min="0" step="100" class="pj-inp" required></div>
+                            <div class="pj-money"><span class="pj-money-pfx">Rp</span><input type="text" inputmode="numeric" data-currency name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan') }}" class="pj-inp" required></div>
                             <div id="harga-source" style="font-size:11px;font-weight:600;margin-top:4px;display:none;"></div>
                         </div>
                     </div>
@@ -168,7 +168,7 @@
                     </div>
                     <div class="pj-fld" id="fld-bayar" style="display:none;">
                         <label class="pj-lbl">Jumlah Bayar (DP)</label>
-                        <div class="pj-money"><span class="pj-money-pfx">Rp</span><input type="number" name="bayar" id="inp-bayar" value="{{ old('bayar', 0) }}" min="0" step="100" class="pj-inp"></div>
+                        <div class="pj-money"><span class="pj-money-pfx">Rp</span><input type="text" inputmode="numeric" data-currency name="bayar" id="inp-bayar" value="{{ old('bayar', 0) }}" class="pj-inp"></div>
                     </div>
 
                     {{-- Transfer Fields --}}
@@ -294,12 +294,12 @@
             }
 
             if (regionalHarga !== null && regionalHarga > 0) {
-                inpHarga.value = regionalHarga;
+                inpHarga.value = formatCurrency(regionalHarga);
                 hargaSource.style.display = 'block';
                 hargaSource.style.color = '#059669';
                 hargaSource.textContent = '\u2713 Harga Regional (' + fmt(regionalHarga) + ')';
             } else {
-                inpHarga.value = defaultHarga;
+                inpHarga.value = formatCurrency(defaultHarga);
                 hargaSource.style.display = 'block';
                 hargaSource.style.color = '#94a3b8';
                 hargaSource.textContent = '\u2022 Harga Default produk';
@@ -308,7 +308,7 @@
         }
 
         function updateSummary() {
-            var qty = parseInt(inpJumlah.value) || 0, price = parseFloat(inpHarga.value) || 0, total = qty * price;
+            var qty = parseInt(inpJumlah.value) || 0, price = parseInt(parseCurrency(inpHarga.value)) || 0, total = qty * price;
             if (qty > 0 && price > 0) { sumBox.style.display = 'block'; sumQty.textContent = qty + ' unit'; sumPrice.textContent = fmt(price); sumTotal.textContent = fmt(total); }
             else { sumBox.style.display = 'none'; }
         }

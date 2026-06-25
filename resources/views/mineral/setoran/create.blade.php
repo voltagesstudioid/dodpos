@@ -96,7 +96,7 @@
                 <div class="st-sec-body">
                     <div class="st-fld">
                         <label class="st-lbl">Total Setor <span class="st-req">*</span></label>
-                        <div class="st-money"><span class="st-money-pfx">Rp</span><input type="number" name="total_setor" value="{{ old('total_setor') }}" min="0" step="100" class="st-inp" placeholder="0" required></div>
+                        <div class="st-money"><span class="st-money-pfx">Rp</span><input type="text" inputmode="numeric" data-currency name="total_setor" value="{{ old('total_setor') }}" class="st-inp" placeholder="0" required></div>
                         @error('total_setor')<div class="st-err">{{ $message }}</div>@enderror
                     </div>
                     <div class="st-fld">

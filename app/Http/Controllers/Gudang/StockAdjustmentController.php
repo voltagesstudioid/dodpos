@@ -15,6 +15,8 @@ class StockAdjustmentController extends Controller
 {
     public function index(Request $request)
     {
+        return redirect()->route('master.produk', ['tab' => 'stok']);
+
         $search     = $request->input('search');
         $tipe       = $request->input('tipe');
         $warehouse_id = $request->input('warehouse_id');

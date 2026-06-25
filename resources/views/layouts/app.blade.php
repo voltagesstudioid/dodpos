@@ -1322,8 +1322,8 @@
             @endif
 
             {{-- Master Data --}}
-            @canany(['view_master_produk', 'view_master_kategori', 'view_master_satuan', 'view_master_supplier', 'view_master_gudang'])
-            @php $masterActive = request()->routeIs('products.*','master.*'); @endphp
+            @canany(['view_master_produk', 'view_master_supplier', 'view_master_gudang'])
+            @php $masterActive = request()->routeIs('master.produk*','master.supplier*','master.gudang*'); @endphp
             <div class="nav-group {{ $masterActive ? 'open' : '' }}" id="grp-master">
                 <button class="nav-group-header" onclick="toggleGroup('grp-master')" type="button">
                     <span class="nav-group-label">📦 MASTER DATA</span>
@@ -1331,13 +1331,7 @@
                 </button>
                 <div class="nav-group-items">
                     @can('view_master_produk')
-                    <a href="{{ route('products.index') }}" class="nav-item {{ request()->routeIs('products.*') ? 'active' : '' }}"><span class="nav-item-icon">🏷️</span><span>Data Produk</span></a>
-                    @endcan
-                    @can('view_master_kategori')
-                    <a href="{{ route('master.kategori') }}" class="nav-item {{ request()->routeIs('master.kategori*') ? 'active' : '' }}"><span class="nav-item-icon">🗂️</span><span>Kategori</span></a>
-                    @endcan
-                    @can('view_master_satuan')
-                    <a href="{{ route('master.satuan') }}" class="nav-item {{ request()->routeIs('master.satuan*') ? 'active' : '' }}"><span class="nav-item-icon">⚖️</span><span>Satuan Barang</span></a>
+                    <a href="{{ route('master.produk') }}" class="nav-item {{ request()->routeIs('master.produk*') ? 'active' : '' }}"><span class="nav-item-icon">🏷️</span><span>Master Produk</span></a>
                     @endcan
                     @can('view_master_supplier')
                     <a href="{{ route('master.supplier') }}" class="nav-item {{ request()->routeIs('master.supplier*') ? 'active' : '' }}"><span class="nav-item-icon">🏭</span><span>Supplier</span></a>
@@ -1638,5 +1632,71 @@
     @endif
 
     @stack('scripts')
+
+    {{-- Global Auto-Currency Formatting --}}
+    <script>
+    (function(){
+        // Format number with dots as thousand separators (Indonesian)
+        function formatCurrency(raw){
+            var s = String(raw).replace(/[^0-9]/g,'');
+            if(!s) return '';
+            return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+        // Strip formatting to raw digits
+        function parseCurrency(formatted){
+            return String(formatted).replace(/[^0-9]/g,'') || '0';
+        }
+        // Auto-format on input (event delegation for dynamic inputs too)
+        document.addEventListener('input', function(e){
+            var el = e.target;
+            if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
+            var cursor = el.selectionStart || 0;
+            var oldVal = el.value;
+            var rawBefore = parseCurrency(oldVal);
+            // Count digits before cursor
+            var digitsBefore = 0;
+            for(var i=0; i<cursor && i<oldVal.length; i++){
+                if(oldVal[i] >= '0' && oldVal[i] <= '9') digitsBefore++;
+            }
+            var formatted = formatCurrency(rawBefore);
+            el.value = formatted;
+            // Restore cursor position based on digit count
+            var newCursor = 0;
+            var digitCount = 0;
+            for(var j=0; j<formatted.length; j++){
+                if(formatted[j] >= '0' && formatted[j] <= '9') digitCount++;
+                if(digitCount === digitsBefore){ newCursor = j+1; break; }
+            }
+            if(digitCount < digitsBefore) newCursor = formatted.length;
+            el.setSelectionRange(newCursor, newCursor);
+        }, true);
+        // On focus: format existing value
+        document.addEventListener('focusin', function(e){
+            var el = e.target;
+            if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
+            if(el.value && !el.value.includes('.')){
+                el.value = formatCurrency(el.value);
+            }
+        }, true);
+        // Before form submit: strip formatting to raw digits
+        document.addEventListener('submit', function(e){
+            var form = e.target;
+            if(!form || !form.querySelectorAll) return;
+            var inputs = form.querySelectorAll('[data-currency]');
+            inputs.forEach(function(el){
+                if(el.value) el.value = parseCurrency(el.value);
+            });
+            // Re-format after a microtask (in case submit is prevented)
+            setTimeout(function(){
+                inputs.forEach(function(el){
+                    if(el.value) el.value = formatCurrency(el.value);
+                });
+            }, 0);
+        }, true);
+        // Expose helpers globally
+        window.formatCurrency = formatCurrency;
+        window.parseCurrency = parseCurrency;
+    })();
+    </script>
 </body>
 </html>

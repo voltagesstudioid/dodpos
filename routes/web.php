@@ -16,6 +16,7 @@ use App\Http\Controllers\SupplierDebtController;
 use App\Http\Controllers\TransferController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\MasterProdukController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -45,6 +46,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('print.purchase')
         ->middleware('can:view_laporan_pembelian');
     Route::get('/print/return/{retur}', [PrintController::class, 'printReturn'])->name('print.return');
+    Route::get('/print/sales-order/{sales_order}', [PrintController::class, 'printSalesOrder'])
+        ->whereNumber('sales_order')
+        ->name('print.sales-order');
 
     // =========================================================
     // ADMIN SALES DASHBOARD
@@ -272,6 +276,57 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::delete('/master/gudang/{gudang}', [WarehouseController::class, 'destroy'])
         ->name('master.gudang.destroy')
         ->middleware('can:delete_master_gudang');
+
+    // ── MASTER PRODUK (Unified: Produk + Kategori + Satuan + Stok) ──
+    Route::get('/master/produk', [MasterProdukController::class, 'index'])
+        ->name('master.produk')
+        ->middleware('can:view_master_produk');
+    // AJAX search endpoints
+    Route::get('/master/produk/search/products', [MasterProdukController::class, 'searchProducts'])
+        ->name('master.produk.search.products')
+        ->middleware('can:view_master_produk');
+    Route::get('/master/produk/search/categories', [MasterProdukController::class, 'searchCategories'])
+        ->name('master.produk.search.categories')
+        ->middleware('can:view_master_kategori');
+    Route::get('/master/produk/search/units', [MasterProdukController::class, 'searchUnits'])
+        ->name('master.produk.search.units')
+        ->middleware('can:view_master_satuan');
+    Route::get('/master/produk/search/adjustments', [MasterProdukController::class, 'searchAdjustments'])
+        ->name('master.produk.search.adjustments')
+        ->middleware('can:view_penyesuaian_stok');
+    Route::get('/master/produk/{product}', [MasterProdukController::class, 'showProduct'])
+        ->name('master.produk.show')
+        ->middleware('can:view_master_produk');
+    Route::post('/master/produk', [MasterProdukController::class, 'storeProduct'])
+        ->name('master.produk.store')
+        ->middleware('can:create_master_produk');
+    Route::put('/master/produk/{product}', [MasterProdukController::class, 'updateProduct'])
+        ->name('master.produk.update')
+        ->middleware('can:edit_master_produk');
+    Route::delete('/master/produk/{product}', [MasterProdukController::class, 'destroyProduct'])
+        ->name('master.produk.destroy')
+        ->middleware('can:delete_master_produk');
+    Route::post('/master/produk/kategori', [MasterProdukController::class, 'storeCategory'])
+        ->name('master.produk.kategori.store')
+        ->middleware('can:create_master_kategori');
+    Route::put('/master/produk/kategori/{kategori}', [MasterProdukController::class, 'updateCategory'])
+        ->name('master.produk.kategori.update')
+        ->middleware('can:edit_master_kategori');
+    Route::delete('/master/produk/kategori/{kategori}', [MasterProdukController::class, 'destroyCategory'])
+        ->name('master.produk.kategori.destroy')
+        ->middleware('can:delete_master_kategori');
+    Route::post('/master/produk/satuan', [MasterProdukController::class, 'storeUnit'])
+        ->name('master.produk.satuan.store')
+        ->middleware('can:create_master_satuan');
+    Route::put('/master/produk/satuan/{satuan}', [MasterProdukController::class, 'updateUnit'])
+        ->name('master.produk.satuan.update')
+        ->middleware('can:edit_master_satuan');
+    Route::delete('/master/produk/satuan/{satuan}', [MasterProdukController::class, 'destroyUnit'])
+        ->name('master.produk.satuan.destroy')
+        ->middleware('can:delete_master_satuan');
+    Route::post('/master/produk/stok', [MasterProdukController::class, 'storeAdjustment'])
+        ->name('master.produk.stok.store')
+        ->middleware('can:create_stok_masuk');
 
     // =========================================================
     // MANAJEMEN GUDANG

@@ -142,7 +142,7 @@
                 <input type="hidden" name="type" value="eceran">
                 <div class="k-form-group">
                     <label>Modal Awal (Rp)</label>
-                    <input type="number" name="opening_amount" min="0" value="{{ old('opening_amount') }}" placeholder="0" required autofocus>
+                    <input type="text" inputmode="numeric" data-currency name="opening_amount" min="0" value="{{ old('opening_amount') }}" placeholder="0" required autofocus>
                 </div>
                 <div class="k-form-group">
                     <label>Catatan (opsional)</label>

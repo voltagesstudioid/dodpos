@@ -99,6 +99,8 @@
         .so-act-view:hover{background:#dbeafe;}
         .so-act-edit{background:#eef2ff;color:#4f46e5;border-color:#c7d2fe;}
         .so-act-edit:hover{background:#e0e7ff;}
+        .so-act-print{background:#f0fdf4;color:#059669;border-color:#a7f3d0;}
+        .so-act-print:hover{background:#dcfce7;}
 
         /* ── empty state ── */
         .so-empty{padding:3rem 1.5rem;text-align:center;}
@@ -364,6 +366,10 @@
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                         Detail
                                     </a>
+                                    <a href="{{ route('print.sales-order', $so->id) }}?preview=1" target="_blank" class="so-act so-act-print">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                        Faktur
+                                    </a>
                                     @can('edit_sales_order')
                                     @if(!in_array($so->status, ['completed', 'cancelled']))
                                     <a href="{{ route('sales-order.edit', $so->id) }}" class="so-act so-act-edit">
@@ -377,7 +383,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="8">
                                 <div class="so-empty">
                                     <div class="so-empty-ico">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>

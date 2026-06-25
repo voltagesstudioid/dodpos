@@ -193,6 +193,14 @@ class PosTransactionService
      *
      * @throws \Exception
      */
+    /**
+     * Get the PriceService instance.
+     */
+    public function getPriceService(): PriceService
+    {
+        return $this->priceService;
+    }
+
     public function validatePosSession(string $type = 'eceran'): void
     {
         $activeSession = \App\Models\PosSession::where('status', 'open')

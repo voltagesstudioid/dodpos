@@ -411,7 +411,7 @@ function renderItems() {
         if (IS_SALES) {
             html += '<div style="padding:0.4rem 0.6rem;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:0.78rem;font-weight:700;color:#64748b;text-align:right;">' + item.harga.toLocaleString('id-ID') + '</div>';
         } else {
-            html += '<input type="text" class="pj-price-inp" value="' + item.harga + '" onchange="setHarga(' + idx + ',this.value)">';
+            html += '<input type="text" inputmode="numeric" data-currency class="pj-price-inp" value="' + formatCurrency(item.harga) + '" onchange="setHarga(' + idx + ',this.value)">';
         }
         html += '</div>';
 

@@ -11,6 +11,8 @@ class KategoriController extends Controller
 {
     public function index(Request $request)
     {
+        return redirect()->route('master.produk', ['tab' => 'kategori']);
+
         $query = Category::withCount(['products as products_count' => function ($q) {
             $q->withTrashed();
         }]);

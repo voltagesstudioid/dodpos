@@ -211,8 +211,8 @@
 
         // Variance calculator (parameterized)
         function calcVariance(type) {
-            var expected = parseFloat(document.getElementById('expected-' + type).value) || 0;
-            var actual = parseFloat(document.getElementById('actual-' + type).value) || 0;
+            var expected = parseInt(parseCurrency(document.getElementById('expected-' + type).value)) || 0;
+            var actual = parseInt(parseCurrency(document.getElementById('actual-' + type).value)) || 0;
             var variance = actual - expected;
             var display = document.getElementById('var-amt-' + type);
             var badge = document.getElementById('var-badge-' + type);
@@ -235,8 +235,8 @@
         }
 
         function confirmClose(type) {
-            var expected = parseFloat(document.getElementById('expected-' + type).value) || 0;
-            var actual = parseFloat(document.getElementById('actual-' + type).value) || 0;
+            var expected = parseInt(parseCurrency(document.getElementById('expected-' + type).value)) || 0;
+            var actual = parseInt(parseCurrency(document.getElementById('actual-' + type).value)) || 0;
             var variance = actual - expected;
             var msg = 'Apakah Anda yakin ingin menutup sesi kasir ' + type + '?';
             if (variance !== 0) {

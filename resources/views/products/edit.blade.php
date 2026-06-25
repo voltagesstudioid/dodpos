@@ -613,7 +613,26 @@
         const vis = row.querySelector(`input[type="text"][data-visible="${key}"]`);
         if (!el || !vis) return;
         vis.value = formatMoney(el.value);
-        vis.addEventListener('input', () => { el.value = String(parseMoney(vis.value)); });
+        vis.addEventListener('input', function () {
+            var cursor = this.selectionStart || 0;
+            var oldVal = this.value;
+            var digitsOnly = oldVal.replace(/[^\d]/g, '');
+            var digitCount = 0;
+            for (var i = 0; i < cursor && i < oldVal.length; i++) {
+                if (oldVal[i] >= '0' && oldVal[i] <= '9') digitCount++;
+            }
+            el.value = digitsOnly || '0';
+            var n = Math.max(0, Math.floor(Number(digitsOnly || 0)));
+            var formatted = n ? n.toLocaleString('id-ID') : '';
+            this.value = formatted;
+            var newPos = 0, d = 0;
+            for (var j = 0; j < formatted.length; j++) {
+                if (formatted[j] >= '0' && formatted[j] <= '9') d++;
+                if (d === digitCount) { newPos = j + 1; break; }
+            }
+            if (d < digitCount) newPos = formatted.length;
+            this.setSelectionRange(newPos, newPos);
+        });
         vis.addEventListener('blur', () => { vis.value = formatMoney(el.value); });
     }
     function applyMarkup() {

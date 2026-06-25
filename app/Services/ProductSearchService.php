@@ -74,14 +74,17 @@ class ProductSearchService
                 'id'      => $uc->id,
                 'name'    => $uc->unit->name,
                 'factor'  => $uc->conversion_factor,
-                'prices'  => $this->priceService->getAllPrices($uc, $productDefaultPrice),
-                'is_base' => $uc->is_base_unit,
+                'prices'         => $this->priceService->getAllPrices($uc, $productDefaultPrice),
+                'purchase_price' => $this->priceService->parseNumber($uc->purchase_price ?? 0),
+                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->purchase_price ?? 0) * 1.05),
+                'is_base'        => $uc->is_base_unit,
             ])->values()->toArray();
 
         // Jika tidak ada unit konversi, buat virtual unit dari kolom price
         if (empty($units)) {
             $basePrice = $productDefaultPrice;
             $unitName  = $product->unit?->name ?? 'pcs';
+            $productPurchasePrice = $this->priceService->parseNumber($product->purchase_price ?? 0);
             $units = [[
                 'id'      => null,
                 'name'    => $unitName,
@@ -94,6 +97,8 @@ class ProductSearchService
                     'jual3'  => $basePrice,
                     'minimal'=> $basePrice,
                 ],
+                'purchase_price' => $productPurchasePrice,
+                'minimal_price'  => max(0, $productPurchasePrice * 1.05),
                 'is_base' => true,
             ]];
         }
@@ -141,14 +146,17 @@ class ProductSearchService
                 'id'      => $uc->id,
                 'name'    => $uc->unit->name,
                 'factor'  => $uc->conversion_factor,
-                'prices'  => $this->priceService->getAllPrices($uc, $productDefaultPrice),
-                'is_base' => $uc->is_base_unit,
+                'prices'         => $this->priceService->getAllPrices($uc, $productDefaultPrice),
+                'purchase_price' => $this->priceService->parseNumber($uc->purchase_price ?? 0),
+                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->purchase_price ?? 0) * 1.05),
+                'is_base'        => $uc->is_base_unit,
             ])->values()->toArray();
 
         // Jika tidak ada unit konversi, buat virtual unit dari kolom price
         if (empty($units)) {
             $basePrice = $productDefaultPrice;
             $unitName  = $product->unit?->name ?? 'pcs';
+            $productPurchasePrice = $this->priceService->parseNumber($product->purchase_price ?? 0);
             $units = [[
                 'id'      => null,
                 'name'    => $unitName,
@@ -161,6 +169,8 @@ class ProductSearchService
                     'jual3'  => $basePrice,
                     'minimal'=> $basePrice,
                 ],
+                'purchase_price' => $productPurchasePrice,
+                'minimal_price'  => max(0, $productPurchasePrice * 1.05),
                 'is_base' => true,
             ]];
         }

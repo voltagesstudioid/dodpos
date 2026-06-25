@@ -95,7 +95,7 @@
                 @csrf
                 <div class="kb-form-group">
                     <label>Nominal (Rp) <span class="text-danger">*</span></label>
-                    <input type="number" name="amount" min="1" class="kb-input" required placeholder="Contoh: 500000">
+                    <input type="text" inputmode="numeric" data-currency name="amount" class="kb-input" required placeholder="Contoh: 500.000">
                 </div>
                 <div class="kb-form-group">
                     <label>Keterangan / Tujuan <span class="text-danger">*</span></label>

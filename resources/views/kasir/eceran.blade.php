@@ -100,6 +100,10 @@
         .qty-btn:hover{background:var(--accent-light);color:var(--accent-dark)}
         .qty-num{min-width:22px;text-align:center;font-weight:800;font-size:0.8rem}
         .ci-subtotal{font-size:0.75rem;font-weight:800;color:var(--accent-dark);white-space:nowrap;font-family:ui-monospace,monospace}
+        .ci-price-edit{display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0}
+        .ci-price-input{width:90px;background:#fff;border:1px solid var(--accent);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.68rem;font-weight:700;color:var(--text);font-family:ui-monospace,monospace;text-align:center;outline:none;transition:0.15s}
+        .ci-price-input:focus{border-color:var(--amber);box-shadow:0 0 0 2px rgba(245,158,11,0.15)}
+        .ci-min-label{font-size:0.55rem;color:var(--red);font-weight:700;white-space:nowrap}
 
         /* ── CART FOOTER ── */
         .cart-footer{border-top:1px solid var(--border);padding:0.875rem 1rem;flex-shrink:0}
@@ -251,7 +255,7 @@
         </div>
         <div id="cashSec">
             <label class="form-label" id="lblPaid">Uang Diterima</label>
-            <input type="number" class="form-input" id="paidInput" placeholder="0">
+            <input type="text" inputmode="numeric" data-currency class="form-input" id="paidInput" placeholder="0">
             <div class="quick-cash" id="quickCash"></div>
         </div>
         <div id="transferSec" style="display:none">
@@ -306,6 +310,9 @@
 <template id="storeSettingJson">@json($storeSettingData)</template>
 
 <script>
+const USER_ROLE = '{{ $userRole }}';
+const ALLOW_PRICE_OVERRIDE = ['admin1', 'admin2', 'supervisor'].includes(USER_ROLE);
+
 let lastTransactionId = null;
 function printReceipt() { if(lastTransactionId) window.open('/print/receipt/' + lastTransactionId, '_blank'); }
 
@@ -345,7 +352,7 @@ function resolveUnitPrice(u){
 }
 
 function refreshCartPrices(){
-    cart.forEach(item => { const u = item.units.find(x => x.id == item.unitId); if(u) item.price = resolveUnitPrice(u); });
+    cart.forEach(item => { const u = item.units.find(x => x.id == item.unitId); if(u) { item.price = resolveUnitPrice(u); item.originalPrice = item.price; } });
     render(); renderCart();
 }
 
@@ -410,7 +417,7 @@ function addToCart(id){
         ex.qty = newQty;
     } else {
         if(1 * factor > wh.qty) return alert(`Stok di gudang ini (${wh.qty} base unit) tidak cukup untuk satuan ${u.name} (butuh ${factor} base unit)!`);
-        cart.push({key, id, name:p.name, units:units, unitId:u.id, unitName:u.name, factor:factor, price:unitPrice, qty:1, warehouse_id:wh.warehouse_id, breakdowns:p.stock_breakdown||[]});
+        cart.push({key, id, name:p.name, units:units, unitId:u.id, unitName:u.name, factor:factor, price:unitPrice, originalPrice:unitPrice, purchasePrice: u.purchase_price || 0, minimalPrice: u.minimal_price || 0, qty:1, warehouse_id:wh.warehouse_id, breakdowns:p.stock_breakdown||[]});
     }
     renderCart();
 }
@@ -434,7 +441,7 @@ function changeUnit(i, uid){
     if(u) {
         const wh = (item.breakdowns||[]).find(b => b.warehouse_id == item.warehouse_id);
         if(wh && (item.qty * u.factor > wh.qty)) { alert(`Stok tidak cukup untuk satuan ${u.name}!`); }
-        else { item.unitId=u.id; item.unitName=u.name; item.factor=u.factor||1; item.price=resolveUnitPrice(u); item.key=`${item.id}_${u.id}_${item.warehouse_id}`; }
+        else { item.unitId=u.id; item.unitName=u.name; item.factor=u.factor||1; item.price=resolveUnitPrice(u); item.originalPrice=item.price; item.purchasePrice=u.purchase_price||0; item.minimalPrice=u.minimal_price||0; item.key=`${item.id}_${u.id}_${item.warehouse_id}`; }
     }
     renderCart();
 }
@@ -451,6 +458,18 @@ function changeQty(i, d){
 }
 
 function clearCart(){ cart = []; renderCart(); }
+
+function setCartPrice(i, val){
+    const n = parseInt(String(val).replace(/[^\d]/g, '')) || 0;
+    const item = cart[i];
+    if(item.minimalPrice > 0 && n < item.minimalPrice) {
+        alert('Harga tidak boleh di bawah Rp ' + fmt(item.minimalPrice) + ' (minimal 5% di atas harga modal).');
+        document.querySelectorAll('.ci-price-input')[i].value = fmt(item.price);
+        return;
+    }
+    item.price = n;
+    renderCart();
+}
 
 function renderCart(){
     const el = document.getElementById('cartItems');
@@ -471,6 +490,7 @@ function renderCart(){
             </select>
             <div class="ci-bottom">
                 ${(c.units||[]).length > 0 ? `<select class="unit-select" onchange="changeUnit(${i}, this.value)">${(c.units||[]).map(u=>`<option value="${u.id}" ${u.id==c.unitId?'selected':''}>${u.name} — Rp ${fmt(resolveUnitPrice(u))}</option>`).join('')}</select>` : `<span class="unit-select" style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem;font-size:.68rem;color:#475569;">${c.unitName||'pcs'} — Rp ${fmt(c.price)}</span>`}
+                ${ALLOW_PRICE_OVERRIDE ? `<div class="ci-price-edit"><input type="text" inputmode="numeric" data-currency class="ci-price-input" value="${fmt(c.price)}" onchange="setCartPrice(${i}, this.value)" title="Harga satuan">${c.minimalPrice > 0 ? `<span class="ci-min-label">Min: Rp ${fmt(c.minimalPrice)}</span>` : ''}</div>` : ''}
                 <div class="qty-ctrl">
                     <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
                     <span class="qty-num">${c.qty}</span>
@@ -504,7 +524,7 @@ function openPay(){
 }
 
 function closePay(){ document.getElementById('payModal').classList.remove('show'); }
-function setPaid(v){ document.getElementById('paidInput').value = v; if(method==='kredit') calcDebt(); else calcChange(); }
+function setPaid(v){ document.getElementById('paidInput').value = formatCurrency(v); if(method==='kredit') calcDebt(); else calcChange(); }
 
 function renderBankInfo(){
     const bank = (STORE_SETTING?.bank_name || '').trim(), acc = (STORE_SETTING?.bank_account_number || '').trim(), holder = (STORE_SETTING?.bank_account_holder || '').trim();
@@ -531,7 +551,7 @@ function setM(m){
 }
 
 function calcChange(){
-    const total = getTotal(), paid = parseFloat(document.getElementById('paidInput').value) || 0;
+    const total = getTotal(), paid = parseInt(parseCurrency(document.getElementById('paidInput').value)) || 0;
     const box = document.getElementById('changeBox');
     if(paid > 0 && paid >= total) {
         document.getElementById('changeDisplay').textContent = 'Rp ' + fmt(paid - total);
@@ -542,7 +562,7 @@ function calcChange(){
 }
 
 function calcDebt(){
-    const total = getTotal(), dp = parseFloat(document.getElementById('paidInput').value) || 0;
+    const total = getTotal(), dp = parseInt(parseCurrency(document.getElementById('paidInput').value)) || 0;
     const box = document.getElementById('debtBox');
     if(dp >= total) {
         box.style.display = 'none';
@@ -555,8 +575,8 @@ function calcDebt(){
 function doPayment(){
     const total = getTotal();
     let paid = total;
-    if(method === 'cash') paid = parseFloat(document.getElementById('paidInput').value) || 0;
-    else if(method === 'kredit') paid = parseFloat(document.getElementById('paidInput').value) || 0;
+    if(method === 'cash') paid = parseInt(parseCurrency(document.getElementById('paidInput').value)) || 0;
+    else if(method === 'kredit') paid = parseInt(parseCurrency(document.getElementById('paidInput').value)) || 0;
     if(method === 'cash' && paid < total) { alert('Uang tunai yang diterima kurang!'); return; }
     let paymentRef = null;
     if(method === 'transfer') { paymentRef = (document.getElementById('transferRefInput')?.value || '').trim(); if(!paymentRef) { alert('ID transaksi transfer wajib diisi.'); return; } }
@@ -566,7 +586,11 @@ function doPayment(){
     const change = method === 'cash' ? Math.max(0, paid - total) : 0;
     const payload = {
         price_tier: priceTier,
-        items: cart.map(c => ({ product_id: c.id, unit_qty: c.qty, unit_conversion_id: c.unitId, warehouse_id: c.warehouse_id })),
+        items: cart.map(c => {
+            const item = { product_id: c.id, unit_qty: c.qty, unit_conversion_id: c.unitId, warehouse_id: c.warehouse_id };
+            if (ALLOW_PRICE_OVERRIDE && c.price !== c.originalPrice) item.price = c.price;
+            return item;
+        }),
         total_amount: total, paid_amount: paid, payment_method: method, payment_reference: paymentRef,
         customer_id: custId ? custId : null
     };
@@ -598,6 +622,33 @@ function doPayment(){
 
 function newTrx(){ cart=[]; method='cash'; document.getElementById('priceTier').value='eceran'; priceTier='eceran'; document.getElementById('customerId').value=''; document.getElementById('customerInfo').style.display='none'; renderCart(); document.getElementById('successOverlay').classList.remove('show'); fetchProducts(document.querySelector('.search-input').value); }
 function fmt(n){ return Math.round(n).toLocaleString('id-ID'); }
+
+/* ── Auto-Currency Formatting ── */
+(function(){
+    function formatCurrency(raw){
+        var s=String(raw).replace(/[^0-9]/g,'');
+        if(!s)return '';
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    }
+    function parseCurrency(f){ return String(f).replace(/[^0-9]/g,'')||'0'; }
+    document.addEventListener('input',function(e){
+        var el=e.target;
+        if(!el||!el.hasAttribute||!el.hasAttribute('data-currency'))return;
+        var cur=el.selectionStart||0,old=el.value,raw=parseCurrency(old);
+        var db=0;for(var i=0;i<cur&&i<old.length;i++){if(old[i]>='0'&&old[i]<='9')db++;}
+        var fm=formatCurrency(raw);el.value=fm;
+        var nc=0,dc=0;for(var j=0;j<fm.length;j++){if(fm[j]>='0'&&fm[j]<='9')dc++;if(dc===db){nc=j+1;break;}}
+        if(dc<db)nc=fm.length;
+        el.setSelectionRange(nc,nc);
+    },true);
+    document.addEventListener('focusin',function(e){
+        var el=e.target;
+        if(!el||!el.hasAttribute||!el.hasAttribute('data-currency'))return;
+        if(el.value&&!el.value.includes('.')){el.value=formatCurrency(el.value);}
+    },true);
+    window.formatCurrency=formatCurrency;
+    window.parseCurrency=parseCurrency;
+})();
 </script>
 </body>
 </html>

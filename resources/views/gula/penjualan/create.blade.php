@@ -245,7 +245,7 @@
                     </div>
                     <div class="pg-fg">
                         <label class="pg-lbl">Harga Satuan <span class="pg-req">*</span></label>
-                        <input type="number" name="harga_satuan" id="harga_satuan" class="pg-inp" value="{{ old('harga_satuan') }}" required min="0" placeholder="0" oninput="calculateTotal()">
+                        <input type="text" inputmode="numeric" data-currency name="harga_satuan" id="harga_satuan" class="pg-inp" value="{{ old('harga_satuan') }}" required placeholder="0" oninput="calculateTotal()">
                         @error('harga_satuan')<div class="pg-err">{{ $message }}</div>@enderror
                     </div>
                 </div>
@@ -279,7 +279,7 @@
                 <div class="pg-tunai-section" id="tunaiSection" style="display:{{ old('tipe_bayar', 'tunai') === 'tunai' ? 'block' : 'none' }};">
                     <div class="pg-fg" style="margin-bottom:0;">
                         <label class="pg-lbl">Uang Diterima</label>
-                        <input type="number" name="bayar_tunai" id="bayarTunaiInput" class="pg-inp" value="{{ old('bayar', '') }}" min="0" step="1000" placeholder="Masukkan uang tunai..." oninput="calculateKembalian()">
+                        <input type="text" inputmode="numeric" data-currency name="bayar_tunai" id="bayarTunaiInput" class="pg-inp" value="{{ old('bayar', '') }}" placeholder="Masukkan uang tunai..." oninput="calculateKembalian()">
                         <span class="pg-hint">Kosongkan jika pas</span>
                     </div>
                     <div class="pg-kembalian-box" id="kembalianBox" style="display:none;">
@@ -293,7 +293,7 @@
                     <div class="pg-hutang-info" id="hutangInfoBox" style="display:none;"></div>
                     <div class="pg-fg" style="margin-bottom:0;">
                         <label class="pg-lbl">Uang Muka (DP)</label>
-                        <input type="number" name="bayar" id="bayarInput" class="pg-inp" value="{{ old('bayar', '0') }}" min="0" step="1000" placeholder="0" oninput="calculateTotal()">
+                        <input type="text" inputmode="numeric" data-currency name="bayar" id="bayarInput" class="pg-inp" value="{{ old('bayar', '0') }}" placeholder="0" oninput="calculateTotal()">
                         <span class="pg-hint">Sisa akan menjadi hutang pelanggan</span>
                     </div>
                 </div>
@@ -526,7 +526,7 @@ function onProdukChange() {
     if (!opt || !opt.value) return;
 
     if (opt.dataset.harga) {
-        document.getElementById('harga_satuan').value = opt.dataset.harga;
+        document.getElementById('harga_satuan').value = formatCurrency(opt.dataset.harga);
     }
     document.getElementById('qtyUnit').textContent = opt.dataset.satuan || '—';
 
@@ -542,7 +542,7 @@ function onProdukChange() {
 
 function calculateTotal() {
     var jumlah = parseInt(document.getElementById('jumlah').value) || 0;
-    var harga = parseInt(document.getElementById('harga_satuan').value) || 0;
+    var harga = parseInt(parseCurrency(document.getElementById('harga_satuan').value)) || 0;
     var total = jumlah * harga;
     document.getElementById('grandTotal').textContent = formatRp(total);
     calculateKembalian();
@@ -553,9 +553,9 @@ function calculateKembalian() {
     var method = document.getElementById('tipeBayar').value;
     if (method !== 'tunai') return;
     var jumlah = parseInt(document.getElementById('jumlah').value) || 0;
-    var harga = parseInt(document.getElementById('harga_satuan').value) || 0;
+    var harga = parseInt(parseCurrency(document.getElementById('harga_satuan').value)) || 0;
     var total = jumlah * harga;
-    var bayar = parseInt(document.getElementById('bayarTunaiInput').value) || 0;
+    var bayar = parseInt(parseCurrency(document.getElementById('bayarTunaiInput').value)) || 0;
     var kembalianBox = document.getElementById('kembalianBox');
     var kembalianVal = document.getElementById('kembalianVal');
     if (bayar > 0 && bayar >= total) {
