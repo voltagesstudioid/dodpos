@@ -1052,26 +1052,30 @@
                 @else
                     {{-- Sales Minyak navigation (limited) --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
-                        <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
-                        <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Transaksi & Kunjungan</div>
+                        <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
+                        <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
-                        <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Kelola Stok</div>
                         <a href="{{ route('minyak.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('minyak.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
-                        <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
-                        <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
+                        <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
+                        <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                         <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
                         <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
                         <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
                         <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
-                        <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
+                        <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
+                        <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
                     </div>
                 @endif
                 </div>
