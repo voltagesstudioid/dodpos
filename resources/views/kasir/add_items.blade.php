@@ -266,6 +266,14 @@
                             <div class="ti-method-lbl">QRIS</div>
                             <div class="ti-method-desc">Scan QR</div>
                         </label>
+                        @if($transaction->customer_id)
+                        <label class="ti-method {{ $transaction->payment_method === 'kredit' ? 'sel' : '' }}" onclick="selMethod(this,'kredit')">
+                            <input type="radio" name="payMethod" value="kredit" {{ $transaction->payment_method === 'kredit' ? 'checked' : '' }}>
+                            <div class="ti-method-ico">💳</div>
+                            <div class="ti-method-lbl">Kredit</div>
+                            <div class="ti-method-desc">Hutang</div>
+                        </label>
+                        @endif
                     </div>
                 </div>
 
@@ -595,11 +603,19 @@
         const totalAmount = items.reduce((s, i) => s + (i.price * i.quantity), 0);
         const payment = getPayValue();
 
-        if (payment <= 0) { alert('Pembayaran tambahan wajib diisi.'); payInput.focus(); return; }
-        if (payment < totalAmount) {
-            alert('Pembayaran kurang!\nTotal: Rp ' + totalAmount.toLocaleString('id-ID') + '\nDibayar: Rp ' + payment.toLocaleString('id-ID'));
-            payInput.focus();
-            return;
+        if (method !== 'kredit') {
+            if (payment <= 0) { alert('Pembayaran tambahan wajib diisi.'); payInput.focus(); return; }
+            if (payment < totalAmount) {
+                alert('Pembayaran kurang!\nTotal: Rp ' + totalAmount.toLocaleString('id-ID') + '\nDibayar: Rp ' + payment.toLocaleString('id-ID'));
+                payInput.focus();
+                return;
+            }
+        } else {
+            if (payment > totalAmount) {
+                alert('Down Payment (DP) tidak boleh melebihi total tambahan.');
+                payInput.focus();
+                return;
+            }
         }
 
         const ref = document.getElementById('tiPayRef').value;

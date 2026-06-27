@@ -60,7 +60,10 @@ Route::prefix('minyak')->name('minyak.')->middleware('role:supervisor|admin4|sal
     Route::resource('setoran', SetoranController::class);
 
     // Hutang Pelanggan (shared: sales can view & record payment, supervisor can confirm/reject)
-    Route::get('/hutang', [HutangController::class, 'index'])->name('hutang.index');
+    Route::get('/hutang', [HutangController::class, 'index'])->name('hutang.index'); // Fallback
+    Route::get('/hutang/piutang', [HutangController::class, 'piutang'])->name('hutang.piutang');
+    Route::get('/hutang/total', [HutangController::class, 'totalPiutang'])->name('hutang.total');
+    Route::get('/hutang/lunas', [HutangController::class, 'lunas'])->name('hutang.lunas');
     Route::get('/hutang/{hutang}', [HutangController::class, 'show'])->name('hutang.show');
     Route::post('/hutang/{hutang}/bayar', [HutangController::class, 'bayar'])->name('hutang.bayar');
 });

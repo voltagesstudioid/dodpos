@@ -31,7 +31,7 @@
                             <div style="font-size:1.1rem;font-weight:800;color:#ef4444;">Rp {{ number_format($pelanggan->current_debt, 0, ',', '.') }}</div>
                         </div>
                         <div style="padding:0.875rem;background:#eff6ff;border-radius:10px;text-align:center;">
-                            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Limit Kredit</div>
+                            <div style="font-size:0.7rem;color:#94a3b8;margin-bottom:0.25rem;">Limit</div>
                             <div style="font-size:1.1rem;font-weight:800;color:#3b82f6;">Rp {{ number_format($pelanggan->credit_limit, 0, ',', '.') }}</div>
                         </div>
                         <div style="padding:0.875rem;background:#f0fdf4;border-radius:10px;text-align:center;">
@@ -149,9 +149,9 @@
 
                 {{-- Recent credit history --}}
                 <div class="card">
-                    <div style="padding:1rem 1.5rem;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b;font-size:0.875rem;">📋 Riwayat Kredit Terakhir</div>
+                    <div style="padding:1rem 1.5rem;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e293b;font-size:0.875rem;">📋 Riwayat Limit Terakhir</div>
                     @if($recentCredits->isEmpty())
-                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Belum ada riwayat kredit.</div>
+                        <div style="padding:2rem;text-align:center;color:#94a3b8;">Belum ada riwayat limit.</div>
                     @else
                     <div class="table-wrapper">
                         <table class="data-table">

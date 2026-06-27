@@ -253,7 +253,7 @@
                         <div class="pcf-card-hdr-ico" style="background:linear-gradient(135deg,#ec4899,#db2777); color:#fff;">📸</div>
                         <div>
                             <div class="pcf-card-hdr-title">Foto Toko</div>
-                            <div class="pcf-card-hdr-desc">@if($isSalesRole)Wajib: untuk penilaian limit kredit oleh supervisor @else Opsional @endif</div>
+                            <div class="pcf-card-hdr-desc">@if($isSalesRole)Wajib: untuk penilaian limit oleh supervisor @else Opsional @endif</div>
                         </div>
                     </div>
                     <div class="pcf-card-body">
@@ -272,9 +272,9 @@
                                 <div style="font-size:0.75rem; color:#64748b; line-height:1.5;">
                                     @if($isSalesRole)
                                     <strong style="color:#be185d;">⚠️ Wajib upload foto toko</strong><br>
-                                    Supervisor akan menentukan limit kredit berdasarkan kondisi toko.
+                                    Supervisor akan menentukan limit berdasarkan kondisi toko.
                                     @else
-                                    Foto toko membantu menilai kelayakan kredit pelanggan.
+                                    Foto toko membantu menilai kelayakan limit pelanggan.
                                     @endif
                                 </div>
                             </div>

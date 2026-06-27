@@ -132,7 +132,8 @@
 
     {{-- Items --}}
     <div class="rx-card">
-        <table class="rx-table">
+        <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="rx-table">
             <thead>
                 <tr>
                     <th style="width:45%">Barang</th>
@@ -157,6 +158,7 @@
                 @endforeach
             </tbody>
         </table>
+</div>
         <div class="rx-total">
             <div class="rx-total-label">TOTAL</div>
             <div class="rx-total-value">Rp {{ number_format($penjualan->total, 0, ',', '.') }}</div>

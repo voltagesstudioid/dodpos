@@ -159,7 +159,7 @@
                     <div class="hp-stat-ico">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     </div>
-                    <div class="hp-stat-lbl">Total Piutang / Kredit</div>
+                    <div class="hp-stat-lbl">Total Piutang / Limit</div>
                 </div>
                 <div class="hp-stat-val">Rp {{ number_format($totalCredit, 0, ',', '.') }}</div>
                 <div class="hp-stat-sub">Piutang yang belum diterima</div>

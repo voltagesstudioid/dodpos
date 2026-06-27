@@ -840,7 +840,10 @@
                     <a href="{{ route('pelanggan.index') }}" class="nav-item {{ request()->routeIs('pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Pelanggan</span></a>
                     @endcan
                     @can('view_hutang_piutang')
-                    <a href="{{ route('hutang.index') }}" class="nav-item {{ request()->routeIs('hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang &amp; Piutang</span></a>
+                    <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                    <a href="{{ route('hutang.piutang') }}" class="nav-item {{ request()->routeIs('hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                    <a href="{{ route('hutang.total') }}" class="nav-item {{ request()->routeIs('hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                    <a href="{{ route('hutang.lunas') }}" class="nav-item {{ request()->routeIs('hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                     @endcan
                     @can('view_daftar_harga')
                     <a href="{{ route('harga.index') }}" class="nav-item {{ request()->routeIs('harga.*') ? 'active' : '' }}"><span class="nav-item-icon">💲</span><span>Daftar Harga</span></a>
@@ -866,7 +869,7 @@
                 <div class="nav-group-items">
                     {{-- 1. Informasi Stok --}}
                     @can('view_stok_gudang')
-                    <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Informasi Stok</span></a>
+                    <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Monitoring Stok</span></a>
                     @endcan
 
                     {{-- 2. Permintaan Barang --}}
@@ -942,7 +945,7 @@
                     <a href="{{ route('gudang.stock-adjustment.index') }}" class="nav-item {{ request()->routeIs('gudang.stock-adjustment.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penyesuaian Stok</span></a>
                     @endcan
                     @can('view_opname_stok')
-                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Hitung Fisik</span>@if(isset($pendingOpnameCount) && $pendingOpnameCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;">{{ $pendingOpnameCount }}</span> @endif</a>
+                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Gudang</span>@if(isset($pendingOpnameCount) && $pendingOpnameCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;">{{ $pendingOpnameCount }}</span> @endif</a>
                     @endcan
                     @endcanany
                 </div>
@@ -1022,7 +1025,10 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('minyak.hutang.index') }}" class="nav-item {{ request()->routeIs('minyak.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                         <a href="{{ route('minyak.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('minyak.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
@@ -1061,7 +1067,10 @@
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('minyak.hutang.index') }}" class="nav-item {{ request()->routeIs('minyak.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                     </div>
                 @endif
@@ -1109,7 +1118,10 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('mineral.hutang.index') }}" class="nav-item {{ request()->routeIs('mineral.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                         <a href="{{ route('mineral.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('mineral.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
@@ -1148,7 +1160,10 @@
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('mineral.hutang.index') }}" class="nav-item {{ request()->routeIs('mineral.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                     </div>
                 @endif
@@ -1195,7 +1210,10 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('gula.hutang.index') }}" class="nav-item {{ request()->routeIs('gula.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('gula.hutang.piutang') }}" class="nav-item {{ request()->routeIs('gula.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('gula.hutang.total') }}" class="nav-item {{ request()->routeIs('gula.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('gula.hutang.lunas') }}" class="nav-item {{ request()->routeIs('gula.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                         <a href="{{ route('gula.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('gula.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
@@ -1235,7 +1253,10 @@
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
-                        <a href="{{ route('gula.hutang.index') }}" class="nav-item {{ request()->routeIs('gula.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
+                        <a href="{{ route('gula.hutang.piutang') }}" class="nav-item {{ request()->routeIs('gula.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
+                        <a href="{{ route('gula.hutang.total') }}" class="nav-item {{ request()->routeIs('gula.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('gula.hutang.lunas') }}" class="nav-item {{ request()->routeIs('gula.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                     </div>
                 @endif
                 </div>
@@ -1314,7 +1335,6 @@
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('pasgar.setoran.index') }}" class="nav-item {{ request()->routeIs('pasgar.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
-                        <a href="{{ route('pasgar.hutang.index') }}" class="nav-item {{ request()->routeIs('pasgar.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                     </div>
                 @endif
                 </div>
@@ -1424,12 +1444,7 @@
             </div>
             @endcanany
 
-            @if(auth()->check() && !in_array(strtolower((string) auth()->user()->role), ['supervisor', 'admin', 'admin1', 'admin2', 'admin3', 'admin4', 'sales']))
-            <div class="sidebar-divider"></div>
-            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">🧑‍💼 KARYAWAN</span></div>
-            <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Gaji Saya</span></a>
-            <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self*') ? 'active' : '' }}"><span class="nav-item-icon">🏖️</span><span>Pengajuan Cuti</span></a>
-            @endif
+
 
             <div class="sidebar-divider"></div>
 

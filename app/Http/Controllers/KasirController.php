@@ -774,7 +774,7 @@ class KasirController extends Controller
             'items.*.unit_name' => 'nullable|string',
             'items.*.unit_id' => 'nullable|integer',
             'additional_payment' => 'required|numeric|min:0',
-            'payment_method' => 'nullable|in:cash,transfer,qris',
+            'payment_method' => 'nullable|in:cash,transfer,qris,kredit',
             'payment_reference' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -931,6 +931,22 @@ class KasirController extends Controller
                 $pickOrderService = app(\App\Services\PosPickOrderService::class);
                 $newPickOrder = $pickOrderService->createFromTransaction($additionalTransaction, $transaction->sale_type ?? 'eceran', $transaction->invoice_number);
                 $pickOrderNumber = $newPickOrder ? $newPickOrder->pick_number : null;
+            }
+            if ($paymentMethod === 'kredit') {
+                $debtAmount = $totalAmount - $additionalPayment;
+                if ($debtAmount > 0 && $transaction->customer_id) {
+                    $customer = \App\Models\Customer::find($transaction->customer_id);
+                    if ($customer) {
+                        $transactionService = app(\App\Services\PosTransactionService::class);
+                        $transactionService->createCustomerCredit(
+                            $customer->id,
+                            $additionalTransaction->id,
+                            $debtAmount,
+                            'Tambahan Item POS - #' . ($transaction->invoice_number ?? $transaction->id)
+                        );
+                        $customer->refreshDebt();
+                    }
+                }
             }
 
             DB::commit();

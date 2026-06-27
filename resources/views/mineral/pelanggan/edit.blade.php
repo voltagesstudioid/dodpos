@@ -381,7 +381,7 @@
                             <div style="font-size:0.75rem; color:#64748b; line-height:1.5;">
                                 @if($isSalesRole)
                                 <strong style="color:#be185d;">Wajib upload foto toko.</strong><br>
-                                Supervisor akan menentukan limit kredit berdasarkan kondisi toko.
+                                Supervisor akan menentukan limit berdasarkan kondisi toko.
                                 @else
                                 Kosongkan jika tidak ingin mengubah foto.
                                 @endif

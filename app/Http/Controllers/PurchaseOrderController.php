@@ -159,8 +159,8 @@ class PurchaseOrderController extends Controller
         // Data grafik PO per hari/bulan
         $chartData = PurchaseOrder::whereBetween('order_date', [$startDate, $endDate])
             ->selectRaw('DATE(order_date) as date, COUNT(*) as count, SUM(total_amount) as total')
-            ->groupBy('date')
-            ->orderBy('date')
+            ->groupBy(DB::raw('DATE(order_date)'))
+            ->orderBy(DB::raw('DATE(order_date)'))
             ->get();
 
         // Top supplier

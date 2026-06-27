@@ -137,7 +137,7 @@
             {{-- Pembayaran --}}
             <div class="rpt-section" style="text-align:center;">
                 @php
-                    $badgeLabel = $penjualan->tipe_bayar === 'tunai' ? '💵 TUNAI / CASH' : ($penjualan->tipe_bayar === 'hutang' ? '📄 KREDIT / HUTANG' : '🏦 TRANSFER');
+                    $badgeLabel = $penjualan->tipe_bayar === 'tunai' ? '💵 TUNAI / CASH' : ($penjualan->tipe_bayar === 'hutang' ? '📄 LIMIT / HUTANG' : '🏦 TRANSFER');
                 @endphp
                 <div class="rpt-badge {{ $penjualan->tipe_bayar }}">{{ $badgeLabel }}</div>
             </div>
@@ -166,7 +166,7 @@
                 </div>
                 @if($penjualan->pelanggan && $penjualan->pelanggan->limit_hutang > 0)
                 <div class="rpt-hutang-row">
-                    <span class="rpt-hutang-key">Limit Kredit</span>
+                    <span class="rpt-hutang-key">Limit</span>
                     <span class="rpt-hutang-val">Rp {{ number_format($penjualan->pelanggan->limit_hutang, 0, ',', '.') }}</span>
                 </div>
                 <div class="rpt-hutang-row">
@@ -297,7 +297,7 @@
                 r += formatLine('Kembali', 'Rp {{ number_format($kembalian, 0, ",", ".") }}') + LF;
                 @endif
             } else if (tipeBayar === 'hutang') {
-                r += BOLD_ON + '[ KREDIT / HUTANG ]' + BOLD_OFF + LF;
+                r += BOLD_ON + '[ LIMIT / HUTANG ]' + BOLD_OFF + LF;
                 r += formatLine('Dibayar (DP)', 'Rp {{ number_format($penjualan->bayar ?? 0, 0, ",", ".") }}') + LF;
                 r += BOLD_ON + formatLine('Sisa Hutang', 'Rp {{ number_format($penjualan->hutang ?? 0, 0, ",", ".") }}') + BOLD_OFF + LF;
 
@@ -308,7 +308,7 @@
                 r += BOLD_ON + 'INFO HUTANG PELANGGAN' + BOLD_OFF + LF;
                 r += formatLine('Total Hutang', 'Rp ' + totalHutang.toLocaleString('id-ID')) + LF;
                 if (limit > 0) {
-                    r += formatLine('Limit Kredit', 'Rp ' + limit.toLocaleString('id-ID')) + LF;
+                    r += formatLine('Limit', 'Rp ' + limit.toLocaleString('id-ID')) + LF;
                     r += formatLine('Sisa Limit', 'Rp ' + Math.max(0, limit - totalHutang).toLocaleString('id-ID')) + LF;
                 }
                 @endif

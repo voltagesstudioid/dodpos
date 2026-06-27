@@ -201,7 +201,6 @@
         .mp-check-label input { accent-color: #e11d48; }
 
         .mp-add-btn {
-            margin-left: auto;
             display: inline-flex; align-items: center; gap: 0.4rem;
             padding: 0 1.125rem; height: 36px;
             background: linear-gradient(135deg, #6366f1, #4f46e5);
@@ -209,10 +208,28 @@
             border: none; border-radius: 99px; cursor: pointer;
             box-shadow: 0 4px 14px rgba(79,70,229,0.35);
             transition: all 0.25s cubic-bezier(0.34,1.56,.64,1);
-            white-space: nowrap;
+            white-space: nowrap; text-decoration: none;
         }
-        .mp-add-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,70,229,0.4); }
+        .mp-add-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,70,229,0.4); color: #fff; }
         .mp-add-btn svg { flex-shrink: 0; }
+
+        .mp-import-btn {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            padding: 0 1.125rem; height: 36px;
+            background: #fff; border: 1.5px solid #e2e8f0;
+            color: #475569; font-family: inherit; font-size: 0.8125rem; font-weight: 700;
+            border-radius: 99px; cursor: pointer; text-decoration: none;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .mp-import-btn:hover { background: #f8fafc; border-color: #cbd5e1; color: #334155; transform: translateY(-1px); }
+        .mp-import-btn svg { flex-shrink: 0; }
+        
+        .mp-toolbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
 
         /* Table Enhancements */
         .mp-table { width: 100%; min-width: 620px; border-collapse: separate; border-spacing: 0; }
@@ -327,6 +344,7 @@
         .unit-grid { display: grid; grid-template-columns: 140px 90px 1fr 1fr 1fr auto; gap: 0.5rem; align-items: start; padding: 0.75rem; background: #fafbff; border: 1px solid #eef2ff; border-radius: 10px; margin-bottom: 0.5rem; }
         .unit-grid .form-group { margin-bottom: 0; }
         .unit-grid-label { font-size: 0.65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+        .unit-grid-full { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 0.25rem; padding-top: 0.5rem; border-top: 1px dashed #e2e8f0; }
 
         /* Panel anim */
         @keyframes mp-panel-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -701,9 +719,27 @@
                                             <input type="number" :name="`units[${idx}][sell_price_grosir]`" class="form-input" x-model="row.grosir" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
                                         </div>
                                         <button type="button" class="act-btn act-btn-del" @click="unitRows.splice(idx,1)" style="margin-top:18px;height:36px;width:36px;display:flex;align-items:center;justify-content:center;" x-show="unitRows.length > 0">&times;</button>
+                                        <div class="unit-grid-full">
+                                            <div class="form-group">
+                                                <label class="unit-grid-label">Jual 1</label>
+                                                <input type="number" :name="`units[${idx}][sell_price_jual1]`" class="form-input" x-model="row.jual1" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="unit-grid-label">Jual 2</label>
+                                                <input type="number" :name="`units[${idx}][sell_price_jual2]`" class="form-input" x-model="row.jual2" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="unit-grid-label">Jual 3</label>
+                                                <input type="number" :name="`units[${idx}][sell_price_jual3]`" class="form-input" x-model="row.jual3" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="unit-grid-label">Minimal</label>
+                                                <input type="number" :name="`units[${idx}][sell_price_minimal]`" class="form-input" x-model="row.minimal" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                            </div>
+                                        </div>
                                     </div>
                                 </template>
-                                <button type="button" class="btn-secondary btn-sm" @click="unitRows.push({unit_id:'',factor:'',beli:'',ecer:'',grosir:''})">+ Tambah Baris Satuan</button>
+                                <button type="button" class="btn-secondary btn-sm" @click="unitRows.push({unit_id:'',factor:'',beli:'',ecer:'',grosir:'',jual1:'',jual2:'',jual3:'',minimal:''})">+ Tambah Baris Satuan</button>
                             </div>
                         </div>
                     </div>
@@ -856,9 +892,27 @@
                                                     <input type="number" :name="`units[${idx}][sell_price_grosir]`" class="form-input" x-model="row.grosir" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
                                                 </div>
                                                 <button type="button" class="act-btn act-btn-del" @click="editUnitRows.splice(idx,1)" style="margin-top:18px;height:36px;width:36px;display:flex;align-items:center;justify-content:center;">&times;</button>
+                                                <div class="unit-grid-full">
+                                                    <div class="form-group">
+                                                        <label class="unit-grid-label">Jual 1</label>
+                                                        <input type="number" :name="`units[${idx}][sell_price_jual1]`" class="form-input" x-model="row.jual1" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="unit-grid-label">Jual 2</label>
+                                                        <input type="number" :name="`units[${idx}][sell_price_jual2]`" class="form-input" x-model="row.jual2" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="unit-grid-label">Jual 3</label>
+                                                        <input type="number" :name="`units[${idx}][sell_price_jual3]`" class="form-input" x-model="row.jual3" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="unit-grid-label">Minimal</label>
+                                                        <input type="number" :name="`units[${idx}][sell_price_minimal]`" class="form-input" x-model="row.minimal" style="height:36px;font-size:.8125rem;" min="0" step="0.01" placeholder="0">
+                                                    </div>
+                                                </div>
                                             </div>
                                         </template>
-                                        <button type="button" class="btn-secondary btn-sm" @click="editUnitRows.push({unit_id:'',factor:'',beli:'',ecer:'',grosir:''})">+ Tambah Baris Satuan</button>
+                                        <button type="button" class="btn-secondary btn-sm" @click="editUnitRows.push({unit_id:'',factor:'',beli:'',ecer:'',grosir:'',jual1:'',jual2:'',jual3:'',minimal:''})">+ Tambah Baris Satuan</button>
                                     </div>
                                 </div>
                             </div>
@@ -1015,14 +1069,60 @@
                         <button type="button" class="modal-close" @click="modals['stok-add']=false">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <div class="form-group">
+                        <div class="form-group" x-data="{
+                            search: '',
+                            open: false,
+                            selectedId: '',
+                            get filteredProducts() {
+                                if(this.search === '' || this.selectedId !== '') return allProducts;
+                                return allProducts.filter(p => (p.name + ' ' + (p.sku || '')).toLowerCase().includes(this.search.toLowerCase()));
+                            },
+                            select(p) {
+                                this.selectedId = p.id;
+                                this.search = p.name + ' (' + (p.sku || '') + ')';
+                                this.open = false;
+                                if (typeof onProdukStokChange === 'function') {
+                                    onProdukStokChange(p.id);
+                                } else if (this.$parent && typeof this.$parent.onProdukStokChange === 'function') {
+                                    this.$parent.onProdukStokChange(p.id);
+                                } else {
+                                    this.onProdukStokChange(p.id);
+                                }
+                            }
+                        }">
                             <label class="form-label">Produk <span class="required">*</span></label>
-                            <select name="product_id" class="form-input" required @change="onProdukStokChange($event.target.value)" x-ref="stokProduk">
-                                <option value="">Pilih produk</option>
-                                <template x-for="p in allProducts" :key="p.id">
-                                    <option :value="p.id" x-text="p.name+' ('+p.sku+')'"></option>
-                                </template>
-                            </select>
+                            
+                            <!-- Hidden input for form submission -->
+                            <input type="hidden" name="product_id" :value="selectedId" required x-ref="stokProduk">
+
+                            <div class="custom-select-wrap" @click.away="open = false" style="position:relative;">
+                                <div class="form-input" style="padding:0; display:flex; align-items:center; background:#fff; overflow:hidden;">
+                                    <input type="text" 
+                                           x-model="search" 
+                                           @focus="open = true; if(selectedId){ search=''; selectedId=''; }"
+                                           @input="open = true; selectedId = ''"
+                                           placeholder="Cari produk..." 
+                                           style="border:none; box-shadow:none; flex-grow:1; width:100%; outline:none; padding:8px 12px; background:transparent;">
+                                    <svg style="width:16px;height:16px;color:#94a3b8;margin-right:12px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                </div>
+                                
+                                <div x-show="open" style="position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #e2e8f0; border-radius:6px; margin-top:4px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); max-height:250px; display:flex; flex-direction:column;" x-transition style="display:none;">
+                                    <div style="overflow-y:auto; flex-grow:1;">
+                                        <template x-for="p in filteredProducts" :key="p.id">
+                                            <div @click="select(p)"
+                                                 style="padding:8px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f5f9; transition:background 0.15s;"
+                                                 :style="selectedId === p.id ? 'background:#f8fafc; font-weight:600; color:#4f46e5;' : 'color:#334155;'"
+                                                 @mouseenter="$el.style.backgroundColor='#f8fafc'"
+                                                 @mouseleave="$el.style.backgroundColor=selectedId === p.id ? '#f8fafc' : 'transparent'">
+                                                <span x-text="p.name + ' (' + (p.sku || '') + ')'"></span>
+                                            </div>
+                                        </template>
+                                        <div x-show="filteredProducts.length === 0" style="padding:12px; text-align:center; color:#94a3b8; font-size:13px;">
+                                            Produk tidak ditemukan
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Gudang <span class="required">*</span></label>
@@ -1273,9 +1373,13 @@
                     beli: uc.purchase_price || '',
                     ecer: uc.sell_price_ecer || '',
                     grosir: uc.sell_price_grosir || '',
+                    jual1: uc.sell_price_jual1 || '',
+                    jual2: uc.sell_price_jual2 || '',
+                    jual3: uc.sell_price_jual3 || '',
+                    minimal: uc.sell_price_minimal || '',
                 }));
                 if (this.editUnitRows.length === 0) {
-                    this.editUnitRows.push({ unit_id: '', factor: '', beli: '', ecer: '', grosir: '' });
+                    this.editUnitRows.push({ unit_id: '', factor: '', beli: '', ecer: '', grosir: '', jual1: '', jual2: '', jual3: '', minimal: '' });
                 }
                 this.modals['produk-edit'] = true;
             },

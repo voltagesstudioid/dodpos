@@ -97,6 +97,13 @@
     .htg-flash.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
 
     @media(max-width:640px){.htg-row{flex-direction:column;align-items:flex-start}.htg-row-amounts{width:100%;justify-content:space-between}.htg-stats{grid-template-columns:repeat(2,1fr)}.htg-toolbar{flex-direction:column}.htg-search{min-width:unset}}
+
+    @media (max-width: 768px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+    @media (max-width: 480px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: 1fr !important; }
+    }
 </style>
 @endpush
 

@@ -90,11 +90,13 @@
             <div class="htb-card-title">Informasi Hutang</div>
         </div>
         <div class="htb-card-body">
-            <table class="htb-info">
+            <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="htb-info">
                 <tr><td>Total Hutang</td><td style="font-weight:700; color:#4f46e5;">Rp {{ number_format($hutang->total_hutang, 0, ',', '.') }}</td></tr>
                 <tr><td>Sudah Dibayar</td><td style="color:#059669;">Rp {{ number_format($hutang->dibayar, 0, ',', '.') }}</td></tr>
                 <tr><td>Jatuh Tempo</td><td>{{ $hutang->jatuh_tempo ? $hutang->jatuh_tempo->format('d M Y') : '-' }}</td></tr>
             </table>
+</div>
             <div class="htb-remaining" style="margin-top:0.75rem;">
                 Sisa yang harus dibayar: <br><strong>Rp {{ number_format($hutang->sisa, 0, ',', '.') }}</strong>
             </div>

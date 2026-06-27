@@ -224,7 +224,7 @@
                                     <option value="">-- Pilih --</option>
                                     <option value="return_to_supplier">Retur ke Supplier (Manual)</option>
                                     <option value="request_replacement">Minta Pengganti (Manual)</option>
-                                    <option value="request_credit_note">Minta Nota Kredit</option>
+                                    <option value="request_credit_note">Minta Nota Limit</option>
                                     <option value="accept_with_note">Terima Barang (Toleransi Reject)</option>
                                     <option value="other">Tindakan Lainnya</option>
                                 </select>

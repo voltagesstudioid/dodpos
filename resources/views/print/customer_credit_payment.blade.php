@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kwitansi Pembayaran Piutang (Kredit) - {{ $kredit->payment_number }}</title>
+    <title>Kwitansi Pembayaran Piutang (Limit) - {{ $kredit->payment_number }}</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 14px; color: #333; margin: 0; padding: 0; background: #e2e8f0; }
         .container { max-width: 210mm; min-height: 148mm; /* A5 half paper size horizontally */ background: #fff; margin: 20px auto; padding: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
@@ -40,7 +40,7 @@
                 <p>Toko Serba Ada<br>Jl. Contoh Alamat No. 123<br>Telp: 08123456789</p>
             </div>
             <div class="header-right">
-                <h2>Bukti Terima Pembayaran (Kredit)</h2>
+                <h2>Bukti Terima Pembayaran (Limit)</h2>
                 <p># {{ $kredit->payment_number }}</p>
             </div>
         </div>
@@ -56,7 +56,7 @@
             </div>
             <div class="row">
                 <div class="col-label">Metode Pembayaran</div>
-                <div class="col-value">{{ ucfirst($kredit->payment_method) }}</div>
+                <div class="col-value">{{ $kredit->payment_method === 'kredit' ? 'Limit' : ucfirst($kredit->payment_method) }}</div>
             </div>
             <div class="row">
                 <div class="col-label">Referensi Piutang</div>

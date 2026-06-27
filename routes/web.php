@@ -135,7 +135,11 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     // HUTANG PIUTANG — specific routes MUST come before {kredit} wildcard
     Route::middleware('can:view_hutang_piutang')->group(function () {
-        Route::get('/hutang-piutang', [\App\Http\Controllers\CustomerCreditController::class, 'index'])->name('hutang.index');
+        Route::get('/hutang-piutang', [\App\Http\Controllers\CustomerCreditController::class, 'index'])->name('hutang.index'); // Keep as fallback/redirect if needed
+        Route::get('/hutang-piutang/piutang', [\App\Http\Controllers\CustomerCreditController::class, 'piutang'])->name('hutang.piutang');
+        Route::get('/hutang-piutang/total', [\App\Http\Controllers\CustomerCreditController::class, 'totalPiutang'])->name('hutang.total');
+        Route::get('/hutang-piutang/lunas', [\App\Http\Controllers\CustomerCreditController::class, 'lunas'])->name('hutang.lunas');
+        
         Route::get('/hutang-piutang/list', [\App\Http\Controllers\CustomerCreditController::class, 'index'])->name('pelanggan.kredit.index');
         Route::get('/hutang-piutang/konsolidasi', [\App\Http\Controllers\CustomerCreditController::class, 'consolidated'])->name('pelanggan.kredit.consolidated');
         Route::get('/hutang-piutang/pelanggan/{customer}', [\App\Http\Controllers\CustomerCreditController::class, 'customerDebt'])->name('pelanggan.kredit.customer');
@@ -896,7 +900,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('setoran', \App\Http\Controllers\Mineral\SetoranController::class);
 
         // Hutang (sales can view & pay, supervisor full access)
-        Route::get('/hutang', [\App\Http\Controllers\Mineral\HutangController::class, 'index'])->name('hutang.index');
+        Route::get('/hutang', [\App\Http\Controllers\Mineral\HutangController::class, 'index'])->name('hutang.index'); // Fallback
+        Route::get('/hutang/piutang', [\App\Http\Controllers\Mineral\HutangController::class, 'piutang'])->name('hutang.piutang');
+        Route::get('/hutang/total', [\App\Http\Controllers\Mineral\HutangController::class, 'totalPiutang'])->name('hutang.total');
+        Route::get('/hutang/lunas', [\App\Http\Controllers\Mineral\HutangController::class, 'lunas'])->name('hutang.lunas');
         Route::get('/hutang/{hutang}', [\App\Http\Controllers\Mineral\HutangController::class, 'show'])->name('hutang.show');
         Route::post('/hutang/{hutang}/bayar', [\App\Http\Controllers\Mineral\HutangController::class, 'bayar'])->name('hutang.bayar');
     });
@@ -999,7 +1006,10 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('setoran', \App\Http\Controllers\Gula\SetoranController::class);
 
         // Hutang Pelanggan (shared — sales can view & pay)
-        Route::get('/hutang', [\App\Http\Controllers\Gula\HutangController::class, 'index'])->name('hutang.index');
+        Route::get('/hutang', [\App\Http\Controllers\Gula\HutangController::class, 'index'])->name('hutang.index'); // Fallback
+        Route::get('/hutang/piutang', [\App\Http\Controllers\Gula\HutangController::class, 'piutang'])->name('hutang.piutang');
+        Route::get('/hutang/total', [\App\Http\Controllers\Gula\HutangController::class, 'totalPiutang'])->name('hutang.total');
+        Route::get('/hutang/lunas', [\App\Http\Controllers\Gula\HutangController::class, 'lunas'])->name('hutang.lunas');
         Route::get('/hutang/{hutang}', [\App\Http\Controllers\Gula\HutangController::class, 'show'])->name('hutang.show');
         Route::post('/hutang/{hutang}/bayar', [\App\Http\Controllers\Gula\HutangController::class, 'bayar'])->name('hutang.bayar');
     });
@@ -1087,6 +1097,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/loading/{id}/edit', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'edit'])->name('loading.edit');
         Route::put('/loading/{id}', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'update'])->name('loading.update');
         Route::get('/loading/{id}', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'show'])->name('loading.show');
+        Route::get('/loading/{id}/print', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'print'])->name('loading.print');
         Route::post('/loading/{id}/pickup', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'pickup'])->name('loading.pickup');
         Route::post('/loading/{id}/load-vehicle', [\App\Http\Controllers\Pasgar\PasgarLoadingController::class, 'loadIntoVehicle'])->name('loading.loadVehicle');
 
@@ -1104,13 +1115,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/opname/create', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'create'])->name('opname.create');
         Route::post('/opname', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'store'])->name('opname.store');
         Route::get('/opname/{id}', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'show'])->name('opname.show');
-
-        // Hutang Pelanggan (shared: all pasgar roles)
-        Route::get('/hutang', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'index'])->name('hutang.index');
-        Route::get('/hutang/{id}', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'show'])->name('hutang.show');
-        Route::get('/hutang/{id}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'bayar'])->name('hutang.bayar');
-        Route::post('/hutang/{id}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'storeBayar'])->name('hutang.storeBayar');
-        Route::post('/hutang/bayar/{bayarId}/confirm', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'confirm'])->name('hutang.confirm');
     });
 
     // --- Supervisor, Admin & Pasgar only (full access features) ---

@@ -235,7 +235,8 @@
 
     {{-- Table --}}
     <div class="si-table-wrap">
-        <table class="si-table">
+        <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="si-table">
             <thead>
                 <tr>
                     <th>Tanggal</th>
@@ -316,6 +317,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
         @if($setorans->hasPages())
         <div class="si-pagination">{{ $setorans->links() }}</div>
         @endif

@@ -20,8 +20,8 @@ class LeaveRequestController extends Controller
         [$year, $m] = explode('-', $month);
 
         $status = $request->input('status');
-        if (! in_array($status, ['pending', 'approved', 'rejected'], true)) {
-            $status = 'pending';
+        if (! in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
+            $status = 'all';
         }
 
         $query = SdmLeaveRequest::query()
@@ -35,7 +35,7 @@ class LeaveRequestController extends Controller
             ->orderBy('status')
             ->orderBy('start_date');
 
-        if ($status) {
+        if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
 
@@ -62,6 +62,19 @@ class LeaveRequestController extends Controller
             'paid' => 'nullable|in:1',
             'notes' => 'nullable|string|max:500',
         ]);
+
+        $overlap = SdmLeaveRequest::where('user_id', $validated['user_id'])
+            ->where('status', '!=', 'rejected')
+            ->where(function ($q) use ($validated) {
+                $start = Carbon::parse($validated['start_date'])->toDateString();
+                $end = Carbon::parse($validated['end_date'])->toDateString();
+                $q->whereDate('start_date', '<=', $end)
+                  ->whereDate('end_date', '>=', $start);
+            })->exists();
+
+        if ($overlap) {
+            return redirect()->back()->with('error', 'Karyawan sudah memiliki pengajuan cuti/izin pada rentang tanggal tersebut.');
+        }
 
         SdmLeaveRequest::create([
             'user_id' => $validated['user_id'],
@@ -117,6 +130,19 @@ class LeaveRequestController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'notes' => 'nullable|string|max:500',
         ]);
+
+        $overlap = SdmLeaveRequest::where('user_id', $user->id)
+            ->where('status', '!=', 'rejected')
+            ->where(function ($q) use ($validated) {
+                $start = Carbon::parse($validated['start_date'])->toDateString();
+                $end = Carbon::parse($validated['end_date'])->toDateString();
+                $q->whereDate('start_date', '<=', $end)
+                  ->whereDate('end_date', '>=', $start);
+            })->exists();
+
+        if ($overlap) {
+            return redirect()->back()->with('error', 'Anda sudah memiliki pengajuan cuti/izin pada rentang tanggal tersebut.');
+        }
 
         SdmLeaveRequest::create([
             'user_id' => $user->id,

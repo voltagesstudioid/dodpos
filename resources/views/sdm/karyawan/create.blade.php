@@ -74,15 +74,17 @@
                                     <label class="tr-label">Gaji Pokok <span class="tr-text-light font-normal">(Bulanan)</span></label>
                                     <div class="tr-input-prefix-group">
                                         <span class="prefix">Rp</span>
-                                        <input type="number" name="basic_salary" value="{{ old('basic_salary', 0) }}" class="tr-input" min="0" placeholder="0">
+                                        <input type="hidden" name="basic_salary" id="real_basic_salary" value="{{ old('basic_salary', 0) }}">
+                                        <input type="text" id="display_basic_salary" class="tr-input" value="{{ old('basic_salary', 0) }}" placeholder="0" oninput="formatRupiah(this, 'real_basic_salary')">
                                     </div>
                                 </div>
-                                {{-- Uang Kehadiran --}}
+                                {{-- Uang Makan --}}
                                 <div class="tr-form-group">
-                                    <label class="tr-label">Uang Kehadiran <span class="tr-text-light font-normal">(Per Hari)</span></label>
+                                    <label class="tr-label">Uang Makan <span class="tr-text-light font-normal">(Per Hari)</span></label>
                                     <div class="tr-input-prefix-group">
                                         <span class="prefix">Rp</span>
-                                        <input type="number" name="daily_allowance" value="{{ old('daily_allowance', 0) }}" class="tr-input" min="0" placeholder="0">
+                                        <input type="hidden" name="daily_allowance" id="real_daily_allowance" value="{{ old('daily_allowance', 0) }}">
+                                        <input type="text" id="display_daily_allowance" class="tr-input" value="{{ old('daily_allowance', 0) }}" placeholder="0" oninput="formatRupiah(this, 'real_daily_allowance')">
                                     </div>
                                 </div>
                             </div>
@@ -209,5 +211,38 @@
             .tr-btn { width: 100%; }
         }
     </style>
+    @endpush
+
+    @push('scripts')
+    <script>
+        function formatRupiah(el, targetId) {
+            // Hapus karakter selain angka
+            let val = el.value.replace(/[^0-9]/g, '');
+            // Update input hidden untuk dikirim ke server
+            document.getElementById(targetId).value = val;
+            // Format ulang tampilan input
+            if (val) {
+                el.value = parseInt(val, 10).toLocaleString('id-ID');
+            } else {
+                el.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            let displays = [
+                { display: 'display_basic_salary', real: 'real_basic_salary' },
+                { display: 'display_daily_allowance', real: 'real_daily_allowance' }
+            ];
+            
+            displays.forEach(function(item) {
+                let d = document.getElementById(item.display);
+                if (d && d.value) {
+                    let intVal = parseInt(Number(d.value));
+                    d.value = intVal;
+                    formatRupiah(d, item.real);
+                }
+            });
+        });
+    </script>
     @endpush
 </x-app-layout>

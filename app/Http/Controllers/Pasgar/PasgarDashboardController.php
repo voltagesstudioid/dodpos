@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pasgar;
 
 use App\Http\Controllers\Controller;
+use App\Models\PasgarPenjualan;
 use App\Models\PasgarSales;
 use App\Models\PasgarLoading;
 use App\Models\PasgarSetoran;
@@ -21,11 +22,37 @@ class PasgarDashboardController extends Controller
             return redirect()->route('pasgar.sales.dashboard');
         }
 
+        $today = today();
+
         $salesCount = PasgarSales::aktif()->count();
-        $loadingTodayCount = PasgarLoading::whereDate('tanggal', today())->count();
+        $loadingTodayCount = PasgarLoading::whereDate('tanggal', $today)->count();
+        
         $setoranPendingCount = PasgarSetoran::where('status', 'pending')->count();
         
-        return view('pasgar.dashboard', compact('salesCount', 'loadingTodayCount', 'setoranPendingCount'));
+        $totalPenjualanHariIni = PasgarPenjualan::whereDate('tanggal', $today)->sum('total');
+        $totalSetoranHariIni = PasgarSetoran::whereDate('tanggal', $today)->where('status', 'terverifikasi')->sum('total_setor');
+        
+        $recentTransactions = PasgarPenjualan::with(['sales', 'pelanggan'])
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('id', 'desc')
+            ->take(5)
+            ->get();
+            
+        $pendingSetorans = PasgarSetoran::with('sales')
+            ->where('status', 'pending')
+            ->orderBy('tanggal', 'asc')
+            ->take(5)
+            ->get();
+        
+        return view('pasgar.dashboard', compact(
+            'salesCount', 
+            'loadingTodayCount', 
+            'setoranPendingCount',
+            'totalPenjualanHariIni',
+            'totalSetoranHariIni',
+            'recentTransactions',
+            'pendingSetorans'
+        ));
     }
 
     public function sales(Request $request)

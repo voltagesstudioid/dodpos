@@ -162,13 +162,15 @@
                 <div class="pls-card-title">Informasi Toko</div>
             </div>
             <div class="pls-card-body">
-                <table class="pls-info">
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="pls-info">
                     <tr><td>Kode</td><td style="font-weight:700;">{{ $pelanggan->kode_pelanggan }}</td></tr>
                     <tr><td>Nama Toko</td><td style="font-weight:600;">{{ $pelanggan->nama_toko }}</td></tr>
                     <tr><td>Pemilik</td><td>{{ $pelanggan->nama_pemilik }}</td></tr>
                     <tr><td>Tipe</td><td>{{ ucfirst($pelanggan->tipe) }}</td></tr>
                 </table>
             </div>
+</div>
         </div>
 
         {{-- Kontak & Alamat --}}
@@ -178,7 +180,8 @@
                 <div class="pls-card-title">Kontak & Alamat</div>
             </div>
             <div class="pls-card-body">
-                <table class="pls-info">
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="pls-info">
                     <tr><td>No HP</td><td>{{ $pelanggan->no_hp ?? '-' }}</td></tr>
                     <tr><td>Email</td><td>{{ $pelanggan->email ?? '-' }}</td></tr>
                     <tr><td>Alamat</td><td>{{ $pelanggan->alamat ?? '-' }}</td></tr>
@@ -186,6 +189,7 @@
                     <tr><td>Kota</td><td>{{ $pelanggan->kota ?? '-' }}</td></tr>
                 </table>
             </div>
+</div>
         </div>
     </div>
 

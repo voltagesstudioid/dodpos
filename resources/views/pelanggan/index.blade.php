@@ -30,7 +30,7 @@
                 <div class="pg-stat-icon">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
                 </div>
-                <div class="pg-stat-label">Dengan Limit Kredit</div>
+                <div class="pg-stat-label">Dengan Limit</div>
                 <div class="pg-stat-val">{{ $withCredit }}</div>
             </div>
         </div>
@@ -79,7 +79,7 @@
                             <th class="pg-th-num">#</th>
                             <th>Profil Pelanggan</th>
                             <th>Kontak Telepon</th>
-                            <th class="pg-th-r">Limit Kredit</th>
+                            <th class="pg-th-r">Limit</th>
                             <th class="pg-th-r">Hutang Aktif</th>
                             <th class="pg-th-c">Status</th>
                             <th class="pg-th-c">Aksi</th>

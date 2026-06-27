@@ -15,24 +15,40 @@ class KasbonController extends Controller
     {
         $kasbons = SdmCashAdvance::with(['user.employee', 'approver'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(25);
 
-        return view('sdm.kasbon.index', compact('kasbons'));
+        $totalPending = SdmCashAdvance::where('status', 'pending')->count();
+        $totalApproved = SdmCashAdvance::where('status', 'approved')->count();
+        $totalRejected = SdmCashAdvance::where('status', 'rejected')->count();
+        $totalAmountApproved = SdmCashAdvance::where('status', 'approved')->sum('amount');
+
+        return view('sdm.kasbon.index', compact(
+            'kasbons', 'totalPending', 'totalApproved',
+            'totalRejected', 'totalAmountApproved'
+        ));
     }
 
     public function selfIndex()
     {
-        $kasbons = SdmCashAdvance::where('user_id', Auth::id())
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $userId = Auth::id();
 
-        return view('sdm.kasbon.self', compact('kasbons'));
+        $kasbons = SdmCashAdvance::where('user_id', $userId)
+            ->orderBy('created_at', 'desc')
+            ->paginate(25);
+
+        $totalAmount = SdmCashAdvance::where('user_id', $userId)->sum('amount');
+        $totalApproved = SdmCashAdvance::where('user_id', $userId)->where('status', 'approved')->sum('amount');
+        $totalPending = SdmCashAdvance::where('user_id', $userId)->where('status', 'pending')->count();
+
+        return view('sdm.kasbon.self', compact(
+            'kasbons', 'totalAmount', 'totalApproved', 'totalPending'
+        ));
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:1',
+            'amount' => 'required|numeric|min:1000|max:999999999',
             'purpose' => 'required|string|max:500',
         ]);
 
@@ -60,7 +76,7 @@ class KasbonController extends Controller
         DB::beginTransaction();
         try {
             $deductionDate = $request->deduction_month . '-01';
-            
+
             $deduction = SdmDeduction::create([
                 'user_id' => $kasbon->user_id,
                 'date' => $deductionDate,

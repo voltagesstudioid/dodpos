@@ -162,7 +162,7 @@
         'cash'     => 'Tunai',
         'transfer' => 'Transfer',
         'qris'     => 'QRIS',
-        'kredit'   => 'Kredit',
+        'kredit'   => 'Limit',
         default    => ucfirst($transaction->payment_method),
     };
     $paymentClass = match($transaction->payment_method) {
@@ -321,7 +321,7 @@
                 <div class="sum-line"><span class="sl">Total Tagihan</span><span class="sv">Rp {{ number_format($total, 0, ',', '.') }}</span></div>
 
                 @if($isKredit && $hutang > 0)
-                    {{-- Kredit dengan hutang --}}
+                    {{-- Limit dengan hutang --}}
                     <div class="sum-debt">
                         <div class="debt-title">Rincian Hutang</div>
                         <div class="debt-line"><span class="dl">Hutang Sebelumnya</span><span class="dv">Rp {{ number_format($hutangSebelumnya, 0, ',', '.') }}</span></div>
@@ -332,7 +332,7 @@
                         <div class="sum-line" style="padding:0"><span class="sl">Uang Muka (DP)</span><span class="sv">Rp {{ number_format($bayar, 0, ',', '.') }}</span></div>
                     </div>
                 @elseif($isKredit && $hutang == 0)
-                    {{-- Kredit lunas --}}
+                    {{-- Limit lunas --}}
                     <div class="sum-divider"></div>
                     <div class="sum-paid">
                         <div class="sum-line" style="padding:0"><span class="sl">Dibayar (Lunas)</span><span class="sv">Rp {{ number_format($bayar, 0, ',', '.') }}</span></div>

@@ -30,6 +30,7 @@ Route::prefix('pasgar')->name('pasgar.')->group(function () {
     Route::get('/loading/create', [PasgarLoadingController::class, 'create'])->name('loading.create');
     Route::post('/loading', [PasgarLoadingController::class, 'store'])->name('loading.store');
     Route::get('/loading/{id}', [PasgarLoadingController::class, 'show'])->name('loading.show');
+    Route::get('/loading/{id}/print', [PasgarLoadingController::class, 'print'])->name('loading.print');
     Route::post('/loading/{id}/approve', [PasgarLoadingController::class, 'approve'])->name('loading.approve');
     Route::post('/loading/{id}/reject', [PasgarLoadingController::class, 'reject'])->name('loading.reject');
 

@@ -88,6 +88,120 @@ class HutangController extends Controller
         return view('minyak.hutang.index', compact('hutangs', 'pelanggans', 'stats', 'isSalesRole'));
     }
 
+    public function piutang(Request $request)
+    {
+        MinyakHutang::markAllOverdue();
+        $search = $request->input('search');
+        $pelanggan_id = $request->input('pelanggan_id');
+
+        $query = MinyakHutang::with(['pelanggan', 'penjualan'])->where('status', '!=', 'lunas');
+
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile) {
+                $query->whereHas('penjualan', function ($q) use ($profile) {
+                    $q->where('sales_id', $profile->id);
+                });
+            }
+        }
+
+        $hutangs = $query
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('pelanggan', function ($q2) use ($search) {
+                    $q2->where('nama_toko', 'like', "%{$search}%")
+                        ->orWhere('nama_pemilik', 'like', "%{$search}%");
+                });
+            })
+            ->when($pelanggan_id, function ($q) use ($pelanggan_id) {
+                $q->where('pelanggan_id', $pelanggan_id);
+            })
+            ->orderBy('jatuh_tempo', 'asc')
+            ->paginate(15)
+            ->withQueryString();
+
+        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+
+        $baseQuery = MinyakHutang::where('status', '!=', 'lunas');
+        if ($this->isSales()) {
+            $salesProfile = $this->getSalesProfile();
+            if ($salesProfile) {
+                $baseQuery->whereHas('penjualan', function ($q) use ($salesProfile) {
+                    $q->where('sales_id', $salesProfile->id);
+                });
+            }
+        }
+
+        $stats = [
+            'total_hutang' => (clone $baseQuery)->sum('sisa'),
+            'belum_lunas' => (clone $baseQuery)->where('status', 'belum_lunas')->count(),
+            'overdue' => (clone $baseQuery)->overdue()->count(),
+        ];
+
+        $isSalesRole = $this->isSales();
+
+        return view('minyak.hutang.piutang', compact('hutangs', 'pelanggans', 'stats', 'isSalesRole'));
+    }
+
+    public function totalPiutang(Request $request)
+    {
+        $salesProfile = $this->isSales() ? $this->getSalesProfile() : null;
+
+        $pelanggans = MinyakPelanggan::with(['hutangs' => function($q) use ($salesProfile) {
+            $q->where('status', '!=', 'lunas');
+            if ($salesProfile) {
+                $q->whereHas('penjualan', function ($q2) use ($salesProfile) {
+                    $q2->where('sales_id', $salesProfile->id);
+                });
+            }
+        }])->get();
+
+        foreach ($pelanggans as $p) {
+            $p->calculated_debt = $p->hutangs->sum('sisa');
+        }
+
+        $pelanggans = $pelanggans->filter(fn($p) => $p->calculated_debt > 0)->sortByDesc('calculated_debt');
+        $totalDebt = $pelanggans->sum('calculated_debt');
+        $isSalesRole = $this->isSales();
+
+        return view('minyak.hutang.total-piutang', compact('pelanggans', 'totalDebt', 'isSalesRole'));
+    }
+
+    public function lunas(Request $request)
+    {
+        $search = $request->input('search');
+        $pelanggan_id = $request->input('pelanggan_id');
+
+        $query = MinyakHutang::with(['pelanggan', 'penjualan'])->where('status', 'lunas');
+
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile) {
+                $query->whereHas('penjualan', function ($q) use ($profile) {
+                    $q->where('sales_id', $profile->id);
+                });
+            }
+        }
+
+        $hutangs = $query
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('pelanggan', function ($q2) use ($search) {
+                    $q2->where('nama_toko', 'like', "%{$search}%")
+                        ->orWhere('nama_pemilik', 'like', "%{$search}%");
+                });
+            })
+            ->when($pelanggan_id, function ($q) use ($pelanggan_id) {
+                $q->where('pelanggan_id', $pelanggan_id);
+            })
+            ->orderBy('updated_at', 'desc')
+            ->paginate(15)
+            ->withQueryString();
+
+        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $isSalesRole = $this->isSales();
+
+        return view('minyak.hutang.lunas', compact('hutangs', 'pelanggans', 'isSalesRole'));
+    }
+
     public function show(MinyakHutang $hutang)
     {
         $hutang->load(['pelanggan', 'penjualan.sales', 'pembayarans.creator', 'pembayarans.confirmer']);

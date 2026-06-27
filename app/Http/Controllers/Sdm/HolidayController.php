@@ -111,9 +111,9 @@ class HolidayController extends Controller
         ]);
 
         $libur->update([
-            'name' => $validated['name'] ?? $libur->name,
+            'name' => $request->has('name') ? ($validated['name'] ?? null) : $libur->name,
             'is_working_day' => ($validated['is_working_day'] ?? null) === '1',
-            'notes' => $validated['notes'] ?? $libur->notes,
+            'notes' => $request->has('notes') ? ($validated['notes'] ?? null) : $libur->notes,
         ]);
 
         return redirect()->back()->with('success', 'Kalender kerja berhasil diperbarui.');
@@ -158,6 +158,8 @@ class HolidayController extends Controller
             if ($existing) {
                 $existing->update([
                     'is_working_day' => $isWorkingDay,
+                    'name' => null,
+                    'notes' => null,
                 ]);
             } else {
                 SdmHoliday::create([

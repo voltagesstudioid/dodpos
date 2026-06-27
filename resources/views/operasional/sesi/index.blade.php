@@ -160,7 +160,7 @@
                                             <span class="os-prefix">Rp</span>
                                             <input type="number" name="closing_amount" class="os-input os-mono" min="0" value="{{ old('closing_amount', 0) }}" placeholder="0">
                                         </div>
-                                        <p class="os-hint">Catat saldo riil di laci. Kosongkan = sistem mencatat 0.</p>
+                                        <p class="os-hint">Catat saldo riil di laci. Kosongkan = sistem akan mencatat sesuai sisa saldo kas (Modal - Terpakai).</p>
                                     </div>
                                 </div>
                                 <button type="submit" class="os-btn os-btn-danger">

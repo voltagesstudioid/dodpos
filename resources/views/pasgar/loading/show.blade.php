@@ -112,6 +112,11 @@
                 </a>
             @endif
         @endif
+        
+        <a href="{{ route('pasgar.loading.print', $loading->id) }}" target="_blank" class="ds-btn" style="background:#f1f5f9;color:#475569;margin-left:0.5rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            Cetak
+        </a>
     </div>
 
     @if(session('success'))
@@ -345,10 +350,18 @@
     @if($isSalesOwner && $loading->status === 'ready')
     <div class="ds-action-card">
         <div class="ds-action-title"><span class="badge sales">Sales</span> Penjemputan & Cross-Check</div>
-        <p style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem;">Verifikasi barang yang diterima sesuai dengan qty dikirim, lalu konfirmasi penjemputan.</p>
+        <p style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem;">Verifikasi barang yang diterima sesuai dengan qty dikirim. Sesuaikan jumlah jika ada barang yang kurang.</p>
         <form action="{{ route('pasgar.loading.pickup', $loading->id) }}" method="POST">
             @csrf
-            <div style="margin-bottom:0.75rem;">
+            @foreach($loading->items as $item)
+            @php $unitName = $item->unitConversion?->unit?->name ?? 'pcs'; @endphp
+            <div class="ds-approve-item">
+                <span>{{ $item->product->name ?? '-' }}</span>
+                <span style="font-size:0.72rem;color:#94a3b8;">Dikirim: {{ $item->qty_dikirim }} {{ $unitName }}</span>
+                <input type="number" name="items[{{ $item->id }}][qty_diterima]" class="ds-input" value="{{ $item->qty_dikirim }}" min="0" max="{{ $item->qty_dikirim }}" placeholder="Qty diterima">
+            </div>
+            @endforeach
+            <div style="margin:0.75rem 0;">
                 <label class="ds-label">Catatan Cross-Check (opsional)</label>
                 <textarea name="cross_check_notes" class="ds-textarea" placeholder="Contoh: Semua barang sesuai, tidak ada yang rusak..."></textarea>
             </div>

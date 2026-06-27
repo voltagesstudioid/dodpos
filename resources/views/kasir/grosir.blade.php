@@ -302,7 +302,7 @@
                 <div class="debt-row"><span class="dlabel">Hutang Sebelumnya</span><span class="dval" id="debtPrev">Rp 0</span></div>
                 <div class="debt-row"><span class="dlabel">Hutang Transaksi Ini</span><span class="dval" id="debtNew">Rp 0</span></div>
                 <div class="debt-row dtotal"><span class="dlabel"><b>Total Hutang</b></span><span class="dval" id="debtTotal"><b>Rp 0</b></span></div>
-                <div class="debt-row" style="margin-top:3px"><span class="dlabel">Limit Kredit</span><span class="dval" id="debtLimit">Rp 0</span></div>
+                <div class="debt-row" style="margin-top:3px"><span class="dlabel">Limit</span><span class="dval" id="debtLimit">Rp 0</span></div>
             </div>
         </div>
         <div class="modal-actions">

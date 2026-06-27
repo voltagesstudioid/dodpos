@@ -7,10 +7,12 @@ use App\Models\Product;
 use App\Models\ProductUnitConversion;
 use App\Models\Unit;
 use App\Services\AuditService;
+use App\Services\FileUploadService;
 use App\Services\ReferenceNumberService;
 use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends Controller
@@ -281,8 +283,31 @@ class ProductController extends Controller
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['name', 'category', 'unit', 'sku', 'barcode', 'price', 'purchase_price', 'stock', 'min_stock', 'description'], ';');
-            fputcsv($out, ['Indomie Goreng', 'Sembako', 'pcs', '', '8999999999999', '3500', '3000', '0', '5', ''], ';');
-            fputcsv($out, ['Gula Pasir', 'Sembako', 'kg', '', '', '16000', '15000', '10', '5', ''], ';');
+            
+            $hasData = false;
+            Product::with(['category', 'unit'])->chunk(500, function($products) use ($out, &$hasData) {
+                foreach ($products as $product) {
+                    $hasData = true;
+                    fputcsv($out, [
+                        $product->name,
+                        $product->category ? $product->category->name : '',
+                        $product->unit ? $product->unit->name : '',
+                        $product->sku,
+                        $product->barcode,
+                        (float)$product->price,
+                        (float)$product->purchase_price,
+                        (float)$product->stock,
+                        (float)$product->min_stock,
+                        $product->description
+                    ], ';');
+                }
+            });
+
+            if (!$hasData) {
+                fputcsv($out, ['Indomie Goreng', 'Sembako', 'pcs', '', '8999999999999', '3500', '3000', '0', '5', ''], ';');
+                fputcsv($out, ['Gula Pasir', 'Sembako', 'kg', '', '', '16000', '15000', '10', '5', ''], ';');
+            }
+            
             fclose($out);
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -313,13 +338,20 @@ class ProductController extends Controller
             return back()->with('error', 'Tipe file tidak sesuai dengan ekstensi. Pastikan file valid.');
         }
         
+        $uploadAllowedMimes = [];
+        foreach ($allowedMimeMap as $extKey => $mimes) {
+            foreach ($mimes as $m) {
+                $uploadAllowedMimes[$m] = $extKey;
+            }
+        }
+        
         // Store file temporarily with secure filename
         try {
             $tempUpload = FileUploadService::uploadDocument(
                 $uploadedFile,
                 'temp/imports',
                 'private',
-                $allowedMimeMap
+                $uploadAllowedMimes
             );
             $file = Storage::disk('private')->path($tempUpload['path']);
         } catch (\Exception $e) {
@@ -345,7 +377,11 @@ class ProductController extends Controller
             try {
                 [$header, $xlsxRows] = $this->readXlsxRows($file);
             } catch (\Throwable $e) {
-                return back()->with('error', $e->getMessage());
+                // Clean up temp file on XLSX parse error
+                if (isset($tempUpload['path'])) {
+                    Storage::disk('private')->delete($tempUpload['path']);
+                }
+                return back()->with('error', 'Gagal membaca file XLSX: ' . $e->getMessage());
             }
         } else {
             $handle = fopen($file, 'r');
@@ -384,9 +420,15 @@ class ProductController extends Controller
             $map[$canonical] = $i;
         }
 
-        foreach (['name', 'category', 'price'] as $required) {
+        foreach (['name'] as $required) {
             if (! array_key_exists($required, $map)) {
-                fclose($handle);
+                if (is_resource($handle)) {
+                    fclose($handle);
+                }
+                // Clean up temp file
+                if (isset($tempUpload['path'])) {
+                    Storage::disk('private')->delete($tempUpload['path']);
+                }
 
                 return back()->with('error', "Kolom wajib tidak ditemukan di header CSV: {$required}");
             }
@@ -431,7 +473,7 @@ class ProductController extends Controller
 
                     $categoryName = trim($get('category'));
                     if ($categoryName === '') {
-                        throw new \RuntimeException('Kategori wajib diisi.');
+                        $categoryName = 'Umum';
                     }
 
                     $unitAbbrOrName = trim($get('unit'));
@@ -440,7 +482,7 @@ class ProductController extends Controller
                     $priceRaw = $get('price');
                     $price = $this->parseCsvNumber($priceRaw);
                     if ($price === null || $price < 0) {
-                        throw new \RuntimeException('Harga jual (price) wajib diisi dan harus >= 0.');
+                        $price = 0;
                     }
 
                     $purchaseRaw = $get('purchase_price');
@@ -462,14 +504,22 @@ class ProductController extends Controller
                              ?: Unit::where('name', $unitAbbrOrName)->first();
                     }
 
-                    if ($sku === '') {
-                        $sku = $this->generateSku();
+                    $existing = null;
+                    if ($sku !== '') {
+                        $existing = Product::where('sku', $sku)->first();
+                    }
+                    if (!$existing && $barcode !== '') {
+                        $existing = Product::where('barcode', $barcode)->first();
+                    }
+                    
+                    if ($existing) {
+                        $sku = $existing->sku;
+                    } elseif ($sku === '') {
+                        $sku = ReferenceNumberService::generateSku();
                     }
 
-                    $existing = Product::where('sku', $sku)->first();
                     if ($existing && $mode === 'create_only') {
                         $skipped++;
-
                         continue;
                     }
 
@@ -541,6 +591,10 @@ class ProductController extends Controller
             if (is_resource($handle)) {
                 fclose($handle);
             }
+            // Clean up temp file on error
+            if (isset($tempUpload['path'])) {
+                Storage::disk('private')->delete($tempUpload['path']);
+            }
 
             return back()->with('error', 'Gagal mengimpor: '.$e->getMessage());
         }
@@ -551,7 +605,7 @@ class ProductController extends Controller
 
         // Clean up temporary file
         if (isset($tempUpload['path'])) {
-            FileUploadService::delete($tempUpload['path'], 'private');
+            Storage::disk('private')->delete($tempUpload['path']);
         }
 
         $summary = ['created' => $created, 'updated' => $updated, 'skipped' => $skipped, 'errors' => $errors];

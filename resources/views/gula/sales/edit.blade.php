@@ -207,7 +207,7 @@
                                     $isCurrent = $sales->vehicle && $sales->vehicle->id === $v->id;
                                 @endphp
                                 <option value="{{ $v->id }}" {{ old('vehicle_id', $isCurrent ? $v->id : '') == $v->id ? 'selected' : '' }}>
-                                    {{ strtoupper($v->license_plate) }}@if($v->type) · {{ $v->type }}@endif@if($isCurrent) (Saat ini)@endif
+                                    {{ strtoupper($v->license_plate) }}@if($v->type) · {{ $v->type }}@endif @if($isCurrent) (Saat ini)@endif
                                 </option>
                             @endforeach
                         </select>

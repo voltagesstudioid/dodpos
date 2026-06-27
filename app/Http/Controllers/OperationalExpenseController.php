@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class OperationalExpenseController extends Controller
 {
@@ -27,9 +27,15 @@ class OperationalExpenseController extends Controller
 
         $totalSessions = \App\Models\OperationalSession::count();
         $openSessionsCount = \App\Models\OperationalSession::where('status', 'open')->count();
-        $totalOpening = (float) \App\Models\OperationalSession::sum('opening_amount');
-        $totalUsed = (float) OperationalExpense::whereNotNull('operational_session_id')->sum('amount');
-        $totalRemaining = max(0, $totalOpening - $totalUsed);
+        if ($activeSession) {
+            $totalOpening = (float) $activeSession->opening_amount;
+            $totalUsed = (float) $activeSession->expenses()->sum('amount');
+            $totalRemaining = $totalOpening - $totalUsed;
+        } else {
+            $totalOpening = 0;
+            $totalUsed = 0;
+            $totalRemaining = 0;
+        }
 
         $sessions = \App\Models\OperationalSession::with(['user'])
             ->withSum('expenses', 'amount')
@@ -52,31 +58,44 @@ class OperationalExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        $activeSession = \App\Models\OperationalSession::where('status', 'open')->latest()->first();
-        if (!$activeSession) {
-            return view('operasional.closed');
-        }
+        $activeSession = \App\Models\OperationalSession::with(['user'])
+            ->withSum('expenses', 'amount')
+            ->where('status', 'open')
+            ->latest()
+            ->first();
 
-        $query = OperationalExpense::with(['category', 'vehicle', 'user'])->latest('date');
+        $query = OperationalExpense::with(['category', 'vehicle', 'user'])
+            ->orderBy('date', 'desc')
+            ->orderBy('created_at', 'desc');
 
-        $startDate = $request->input('start_date', Carbon::now()->startOfMonth()->format('Y-m-d'));
-        $endDate = $request->input('end_date', Carbon::now()->endOfMonth()->format('Y-m-d'));
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
 
-        if ($request->filled('start_date') && $request->filled('end_date')) {
+        if ($startDate && $endDate) {
             $query->whereBetween('date', [$startDate, $endDate]);
-        }
-        
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->category_id);
+        } elseif ($startDate) {
+            $query->where('date', '>=', $startDate);
+        } elseif ($endDate) {
+            $query->where('date', '<=', $endDate);
+        } else {
+            $startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
         }
 
-        // Get totals before pagination
+        $selectedCategoryId = $request->input('category_id');
+        if ($selectedCategoryId) {
+            $query->where('category_id', $selectedCategoryId);
+        }
+
         $totalAmount = (clone $query)->sum('amount');
         $totalRecords = (clone $query)->count();
 
         $expenses = $query->paginate(25);
         $categories = OperationalCategory::all();
-        return view('operasional.riwayat.index', compact('expenses', 'categories', 'startDate', 'endDate', 'totalAmount', 'totalRecords'));
+        return view('operasional.riwayat.index', compact(
+            'expenses', 'categories', 'startDate', 'endDate',
+            'totalAmount', 'totalRecords', 'activeSession', 'selectedCategoryId'
+        ));
     }
 
     /**
@@ -84,14 +103,18 @@ class OperationalExpenseController extends Controller
      */
     public function create()
     {
-        $activeSession = \App\Models\OperationalSession::where('status', 'open')->latest()->first();
+        $activeSession = \App\Models\OperationalSession::with(['user'])
+            ->withSum('expenses', 'amount')
+            ->where('status', 'open')
+            ->latest()
+            ->first();
         if (!$activeSession) {
             return view('operasional.closed');
         }
 
         $categories = OperationalCategory::all();
         $vehicles = Vehicle::all();
-        return view('operasional.pengeluaran.create', compact('categories', 'vehicles'));
+        return view('operasional.pengeluaran.create', compact('categories', 'vehicles', 'activeSession'));
     }
 
     /**
@@ -131,10 +154,13 @@ class OperationalExpenseController extends Controller
             return back()->with('error', 'Sesi operasional belum dimulai atau sudah ditutup.');
         }
 
+        $totalUsed = $activeSession->expenses()->sum('amount');
+        $expectedClosing = $activeSession->opening_amount - $totalUsed;
+        $closingAmount = $request->filled('closing_amount') ? $request->closing_amount : $expectedClosing;
+
         $activeSession->update([
             'status' => 'closed',
-            'closing_amount' => $request->closing_amount ?? 0,
-            'closed_at' => now(), // Assume keeping track of when it closed might be useful, but standard timestamps handles updated_at. We won't strictly enforce an extra col unless needed.
+            'closing_amount' => $closingAmount,
         ]);
 
         return redirect()->route('dashboard')->with('success', 'Sesi Operasional berhasil ditutup.');
@@ -154,12 +180,17 @@ class OperationalExpenseController extends Controller
         ]);
 
         $activeSession = \App\Models\OperationalSession::where('status', 'open')->latest()->first();
+        if (!$activeSession) {
+            return redirect()->route('operasional.pengeluaran.create')
+                ->with('error', 'Sesi operasional tidak aktif atau sudah ditutup. Silakan buka sesi terlebih dahulu.')
+                ->withInput();
+        }
 
         OperationalExpense::create([
             'date' => $request->date,
             'category_id' => $request->category_id,
             'vehicle_id' => $request->vehicle_id,
-            'operational_session_id' => $activeSession ? $activeSession->id : null,
+            'operational_session_id' => $activeSession->id,
             'amount' => $request->amount,
             'notes' => $request->notes,
             'user_id' => Auth::id(),
@@ -271,9 +302,9 @@ class OperationalExpenseController extends Controller
             'closed' => OperationalSession::where('status', 'closed')->count(),
         ];
 
-        // Total Modal vs Terpakai
-        $totalModal = OperationalSession::sum('opening_amount');
-        $totalTerpakai = OperationalExpense::sum('amount');
+        // Total Modal vs Terpakai (Aktif)
+        $totalModal = $activeSession ? $activeSession->opening_amount : 0;
+        $totalTerpakai = $activeSession ? $activeSession->expenses()->sum('amount') : 0;
 
         return view('operasional.dashboard', compact(
             'totalSessions', 'openSessions', 'totalExpenses', 'totalAmount',
@@ -284,7 +315,7 @@ class OperationalExpenseController extends Controller
     }
 
     /**
-     * Export Riwayat Operasional
+     * Export Riwayat Operasional ke PDF
      */
     public function export(Request $request)
     {
@@ -299,32 +330,28 @@ class OperationalExpenseController extends Controller
             $query->where('category_id', $categoryId);
         }
 
-        $expenses = $query->latest('date')->get();
+        $expenses = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->get();
+        $totalAmount = $expenses->sum('amount');
+        $totalRecords = $expenses->count();
 
-        $filename = 'riwayat-operasional-' . now()->format('Y-m-d') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
+        $categoryName = null;
+        if ($categoryId) {
+            $cat = OperationalCategory::find($categoryId);
+            $categoryName = $cat?->name;
+        }
 
-        $callback = function() use ($expenses) {
-            $file = fopen('php://output', 'w');
-            fputcsv($file, ['Tanggal', 'Kategori', 'Kendaraan', 'Jumlah', 'Catatan', 'Petugas']);
-            
-            foreach ($expenses as $e) {
-                fputcsv($file, [
-                    $e->date->format('d/m/Y'),
-                    $e->category?->name ?? '-',
-                    $e->vehicle?->license_plate ?? '-',
-                    $e->amount,
-                    $e->notes ?? '-',
-                    $e->user?->name ?? '-',
-                ]);
-            }
-            fclose($file);
-        };
+        $storeSetting = \App\Models\StoreSetting::current();
+        $storeName = $storeSetting->store_name ?? 'DODPOS';
 
-        return new StreamedResponse($callback, 200, $headers);
+        $data = compact(
+            'expenses', 'startDate', 'endDate',
+            'totalAmount', 'totalRecords', 'categoryName', 'storeName'
+        );
+
+        $pdf = Pdf::loadView('operasional.riwayat.pdf', $data);
+        $pdf->setPaper('A4', 'landscape');
+
+        $filename = 'riwayat-operasional-' . now()->format('Y-m-d') . '.pdf';
+        return $pdf->download($filename);
     }
 }

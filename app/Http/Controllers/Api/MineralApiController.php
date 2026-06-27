@@ -385,6 +385,15 @@ class MineralApiController extends Controller
 
         // Validate hutang limit
         if ($request->tipe_bayar === 'hutang') {
+            if ($pelanggan->limit_hutang <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pelanggan tidak memiliki limit kredit',
+                    'limit_hutang' => 0,
+                    'total_hutang_saat_ini' => $pelanggan->total_hutang,
+                ], 422);
+            }
+            
             $totalHutangBaru = $pelanggan->total_hutang + $total;
             if ($totalHutangBaru > $pelanggan->limit_hutang) {
                 return response()->json([

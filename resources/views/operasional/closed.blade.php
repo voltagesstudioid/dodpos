@@ -44,10 +44,12 @@
                                         <label class="tr-label">Modal Awal (Kas) <span class="tr-req">*</span></label>
                                         <div class="tr-input-prefix-group">
                                             <span class="prefix">Rp</span>
-                                            <input type="number" name="opening_amount" 
+                                            <input type="hidden" name="opening_amount" id="real_opening_amount" value="{{ old('opening_amount', 0) }}">
+                                            <input type="text" id="display_opening_amount" 
                                                 class="tr-input tr-font-mono @error('opening_amount') is-invalid @enderror" 
-                                                placeholder="0" required min="0" 
-                                                value="{{ old('opening_amount', 0) }}" autofocus>
+                                                placeholder="0" required 
+                                                value="{{ old('opening_amount', 0) }}" autofocus
+                                                oninput="formatRupiah(this)">
                                         </div>
                                         @error('opening_amount') <div class="tr-error-msg">{{ $message }}</div> @enderror
                                     </div>
@@ -100,6 +102,31 @@
 
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function formatRupiah(el) {
+            // Hapus karakter selain angka
+            let val = el.value.replace(/[^0-9]/g, '');
+            // Update input hidden untuk dikirim ke server
+            document.getElementById('real_opening_amount').value = val;
+            // Format ulang tampilan input
+            if (val) {
+                el.value = parseInt(val, 10).toLocaleString('id-ID');
+            } else {
+                el.value = '';
+            }
+        }
+
+        // Format saat pertama kali dimuat (jika ada nilai old)
+        document.addEventListener('DOMContentLoaded', function() {
+            let display = document.getElementById('display_opening_amount');
+            if (display && display.value) {
+                formatRupiah(display);
+            }
+        });
+    </script>
+    @endpush
 
     @push('styles')
     <style>

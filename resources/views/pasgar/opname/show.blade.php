@@ -65,6 +65,13 @@
     .os-verif-item span{font-size:.85rem;font-weight:700;color:#1f2937}
 
     @media(max-width:640px){.os-summary{grid-template-columns:repeat(2,1fr)}.os-table{font-size:.75rem}}
+
+    @media (max-width: 768px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+    @media (max-width: 480px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: 1fr !important; }
+    }
 </style>
 @endpush
 

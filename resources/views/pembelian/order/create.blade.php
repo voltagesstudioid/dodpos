@@ -92,12 +92,12 @@
                         <label class="form-label">Metode Pembayaran <span class="required">*</span></label>
                         <select name="payment_term" class="form-input @error('payment_term') input-error @enderror" required>
                             <option value="cash" {{ old('payment_term')==='cash' ? 'selected' : '' }}>Tunai (Cash)</option>
-                            <option value="credit" {{ old('payment_term','credit')==='credit' ? 'selected' : '' }}>Kredit / Hutang</option>
+                            <option value="credit" {{ old('payment_term','credit')==='credit' ? 'selected' : '' }}>Limit / Hutang</option>
                         </select>
                         @error('payment_term') <div class="form-error">{{ $message }}</div> @enderror
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Jatuh Tempo <span style="color:#64748b; font-weight:400;">(Opsional, untuk Kredit)</span></label>
+                        <label class="form-label">Jatuh Tempo <span style="color:#64748b; font-weight:400;">(Opsional, untuk Limit)</span></label>
                         <input type="date" name="due_date" value="{{ old('due_date') }}" class="form-input @error('due_date') input-error @enderror">
                         @error('due_date') <div class="form-error">{{ $message }}</div> @enderror
                     </div>

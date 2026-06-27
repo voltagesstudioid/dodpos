@@ -46,6 +46,7 @@ class PosReturnController extends Controller
                 'qty_sold' => (int) $d->quantity,
                 'qty_returned' => $returned,
                 'qty_available' => $available,
+                'unit_name' => $d->unit_name ?? 'Pcs',
                 'price' => (float) $d->price,
                 'warehouse_id' => $d->warehouse_id,
                 'warehouse_name' => $d->warehouse?->name,

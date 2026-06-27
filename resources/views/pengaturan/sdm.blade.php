@@ -214,7 +214,8 @@
                             </div>
                             <div class="sd-group">
                                 <label class="sd-label">Rate Lembur per Jam (Rp)</label>
-                                <input type="number" min="0" step="0.01" name="sdm_overtime_rate_per_hour" value="{{ old('sdm_overtime_rate_per_hour', $setting->sdm_overtime_rate_per_hour ?? 0) }}" class="sd-input">
+                                <input type="hidden" name="sdm_overtime_rate_per_hour" id="real_overtime_rate" value="{{ old('sdm_overtime_rate_per_hour', $setting->sdm_overtime_rate_per_hour ?? 0) }}">
+                                <input type="text" id="display_overtime_rate" class="sd-input" value="{{ old('sdm_overtime_rate_per_hour', $setting->sdm_overtime_rate_per_hour ?? 0) }}" oninput="formatRupiah(this, 'real_overtime_rate')">
                                 <div class="sd-hint">Tarif per jam untuk perhitungan uang lembur.</div>
                                 @error('sdm_overtime_rate_per_hour') <div class="sd-error">{{ $message }}</div> @enderror
                             </div>
@@ -284,7 +285,8 @@
                             </div>
                             <div class="sd-group">
                                 <label class="sd-label">Nilai Potongan</label>
-                                <input type="number" min="0" step="0.01" name="sdm_late_meal_cut_value" value="{{ old('sdm_late_meal_cut_value', $setting->sdm_late_meal_cut_value ?? 0) }}" class="sd-input">
+                                <input type="hidden" name="sdm_late_meal_cut_value" id="real_meal_cut" value="{{ old('sdm_late_meal_cut_value', $setting->sdm_late_meal_cut_value ?? 0) }}">
+                                <input type="text" id="display_meal_cut" class="sd-input" value="{{ old('sdm_late_meal_cut_value', $setting->sdm_late_meal_cut_value ?? 0) }}" oninput="formatRupiah(this, 'real_meal_cut')">
                                 <div class="sd-hint">Dipakai jika mode Persen (mis: 50) atau Nominal (mis: 10000).</div>
                                 @error('sdm_late_meal_cut_value') <div class="sd-error">{{ $message }}</div> @enderror
                             </div>
@@ -305,4 +307,39 @@
             </div>
         </form>
     </div>
+
+    @push('scripts')
+    <script>
+        function formatRupiah(el, targetId) {
+            // Hapus karakter selain angka
+            let val = el.value.replace(/[^0-9]/g, '');
+            // Update input hidden untuk dikirim ke server
+            document.getElementById(targetId).value = val;
+            // Format ulang tampilan input
+            if (val) {
+                el.value = parseInt(val, 10).toLocaleString('id-ID');
+            } else {
+                el.value = '';
+            }
+        }
+
+        // Format saat pertama kali dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            let displays = [
+                { display: 'display_overtime_rate', real: 'real_overtime_rate' },
+                { display: 'display_meal_cut', real: 'real_meal_cut' }
+            ];
+            
+            displays.forEach(function(item) {
+                let d = document.getElementById(item.display);
+                if (d && d.value) {
+                    // Karena bisa saja nilainya ada desimal dari database (.00), kita bulatkan saja untuk tampilan
+                    let intVal = parseInt(Number(d.value));
+                    d.value = intVal;
+                    formatRupiah(d, item.real);
+                }
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

@@ -107,16 +107,18 @@
                                 <label class="tr-label">Gaji Pokok <span class="tr-text-light font-normal">(Bulanan)</span></label>
                                 <div class="tr-input-prefix-group">
                                     <span class="prefix">Rp</span>
-                                    <input type="number" name="basic_salary" value="{{ old('basic_salary', $karyawan->basic_salary) }}" class="tr-input @error('basic_salary') is-invalid @enderror" placeholder="0" min="0">
+                                    <input type="hidden" name="basic_salary" id="real_basic_salary" value="{{ old('basic_salary', $karyawan->basic_salary) }}">
+                                    <input type="text" id="display_basic_salary" class="tr-input @error('basic_salary') is-invalid @enderror" value="{{ old('basic_salary', $karyawan->basic_salary) }}" placeholder="0" oninput="formatRupiah(this, 'real_basic_salary')">
                                 </div>
                                 @error('basic_salary') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
                             {{-- Uang Makan --}}
                             <div class="tr-form-group">
-                                <label class="tr-label">Uang Kehadiran <span class="tr-text-light font-normal">(Per Hari)</span></label>
+                                <label class="tr-label">Uang Makan <span class="tr-text-light font-normal">(Per Hari)</span></label>
                                 <div class="tr-input-prefix-group">
                                     <span class="prefix">Rp</span>
-                                    <input type="number" name="daily_allowance" value="{{ old('daily_allowance', $karyawan->daily_allowance) }}" class="tr-input @error('daily_allowance') is-invalid @enderror" placeholder="0" min="0">
+                                    <input type="hidden" name="daily_allowance" id="real_daily_allowance" value="{{ old('daily_allowance', $karyawan->daily_allowance) }}">
+                                    <input type="text" id="display_daily_allowance" class="tr-input @error('daily_allowance') is-invalid @enderror" value="{{ old('daily_allowance', $karyawan->daily_allowance) }}" placeholder="0" oninput="formatRupiah(this, 'real_daily_allowance')">
                                 </div>
                                 @error('daily_allowance') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
@@ -154,7 +156,7 @@
                         <div class="tr-allowance-header">
                             <div>
                                 <div class="tr-allowance-title">Komponen Tunjangan Tetap</div>
-                                <div class="tr-allowance-sub">Tunjangan bulanan tambahan di luar gaji pokok dan uang kehadiran. Akan dihitung otomatis saat generate payroll.</div>
+                                <div class="tr-allowance-sub">Tunjangan bulanan tambahan di luar gaji pokok dan uang makan. Akan dihitung otomatis saat generate payroll.</div>
                             </div>
                             <button type="button" class="tr-btn-add-row" @click="addRow()">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -396,6 +398,35 @@
                 }
             };
         }
+
+        function formatRupiah(el, targetId) {
+            // Hapus karakter selain angka
+            let val = el.value.replace(/[^0-9]/g, '');
+            // Update input hidden untuk dikirim ke server
+            document.getElementById(targetId).value = val;
+            // Format ulang tampilan input
+            if (val) {
+                el.value = parseInt(val, 10).toLocaleString('id-ID');
+            } else {
+                el.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            let displays = [
+                { display: 'display_basic_salary', real: 'real_basic_salary' },
+                { display: 'display_daily_allowance', real: 'real_daily_allowance' }
+            ];
+            
+            displays.forEach(function(item) {
+                let d = document.getElementById(item.display);
+                if (d && d.value) {
+                    let intVal = parseInt(Number(d.value));
+                    d.value = intVal;
+                    formatRupiah(d, item.real);
+                }
+            });
+        });
     </script>
     @endpush
 </x-app-layout>

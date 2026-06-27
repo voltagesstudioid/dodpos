@@ -61,11 +61,11 @@
                         <label class="form-label">Metode Pembayaran <span class="required">*</span></label>
                         <select name="payment_term" class="form-input" required>
                             <option value="cash" {{ old('payment_term', $order->payment_term)=='cash' ? 'selected' : '' }}>Tunai (Cash)</option>
-                            <option value="credit" {{ old('payment_term', $order->payment_term ?? 'credit')=='credit' ? 'selected' : '' }}>Kredit / Hutang</option>
+                            <option value="credit" {{ old('payment_term', $order->payment_term ?? 'credit')=='credit' ? 'selected' : '' }}>Limit / Hutang</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Jatuh Tempo <span style="color:#64748b; font-weight:400;">(Opsional, untuk Kredit)</span></label>
+                        <label class="form-label">Jatuh Tempo <span style="color:#64748b; font-weight:400;">(Opsional, untuk Limit)</span></label>
                         <input type="date" name="due_date" value="{{ old('due_date', $order->due_date?->format('Y-m-d')) }}" class="form-input">
                     </div>
                 </div>

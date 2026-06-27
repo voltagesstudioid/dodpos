@@ -40,6 +40,94 @@ class CustomerCreditController extends Controller
         return view('pelanggan.kredit.index', compact('credits', 'customers', 'totalDebt', 'totalCredit', 'overdueCount'));
     }
 
+    public function piutang(Request $request)
+    {
+        $query = CustomerCredit::with(['customer'])
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->orderBy('transaction_date', 'desc');
+
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('credit_number', 'like', '%' . $search . '%')
+                  ->orWhereHas('customer', fn($q2) => $q2->where('name', 'like', '%' . $search . '%'));
+            });
+        }
+        if ($request->type) {
+            $query->where('type', $request->type);
+        }
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $credits = $query->paginate(20)->withQueryString();
+
+        // Base stats query (always global, not scoped to search)
+        $statsQuery = CustomerCredit::whereIn('status', ['unpaid', 'partial']);
+        if ($request->type) {
+            $statsQuery->where('type', $request->type);
+        }
+
+        $totalDebt = (clone $statsQuery)->where('type', 'debt')->sum(DB::raw('amount - paid_amount'));
+        $totalCredit = (clone $statsQuery)->where('type', 'credit')->sum(DB::raw('amount - paid_amount'));
+        $overdueCount = (clone $statsQuery)->whereNotNull('due_date')->where('due_date', '<', now())->count();
+        $overdueAmount = (clone $statsQuery)->whereNotNull('due_date')->where('due_date', '<', now())->sum(DB::raw('amount - paid_amount'));
+        $totalActive = (clone $statsQuery)->count();
+        $customerCount = (clone $statsQuery)->distinct('customer_id')->count('customer_id');
+
+        // Top debtors
+        $topDebtors = CustomerCredit::with('customer:id,name')
+            ->where('type', 'debt')
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->select('customer_id', DB::raw('SUM(amount - paid_amount) as total_remaining'))
+            ->groupBy('customer_id')
+            ->orderByDesc('total_remaining')
+            ->take(10)
+            ->get();
+
+        return view('pelanggan.kredit.piutang', compact(
+            'credits', 'totalDebt', 'totalCredit', 'overdueCount', 'overdueAmount', 'totalActive', 'customerCount', 'topDebtors'
+        ));
+    }
+
+    public function totalPiutang(Request $request)
+    {
+        $customers = Customer::where('is_active', true)
+            ->where(function($q) {
+                $q->where('current_debt', '>', 0)
+                  ->orWhereHas('activeDebts');
+            })
+            ->withCount('activeDebts')
+            ->orderBy('current_debt', 'desc')
+            ->get();
+
+        foreach ($customers as $c) {
+            $c->calculated_debt = $c->activeDebts()->get()->sum(fn($d) => $d->remaining_amount);
+        }
+
+        $totalDebt = $customers->sum('calculated_debt');
+
+        return view('pelanggan.kredit.total-piutang', compact('customers', 'totalDebt'));
+    }
+
+    public function lunas(Request $request)
+    {
+        $query = CustomerCredit::with(['customer'])->where('status', 'paid')->latest();
+        
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('credit_number', 'like', '%' . $search . '%')
+                  ->orWhereHas('customer', fn($q2) => $q2->where('name', 'like', '%' . $search . '%'));
+            });
+        }
+        
+        $credits = $query->paginate(20)->withQueryString();
+        $totalPaid = CustomerCredit::where('status', 'paid')->sum('amount');
+        
+        return view('pelanggan.kredit.lunas', compact('credits', 'totalPaid'));
+    }
+
     /**
      * Tampilkan hutang terkonsolidasi per pelanggan
      */
@@ -245,7 +333,7 @@ class CustomerCreditController extends Controller
 
             DB::commit();
             return redirect()->route('pelanggan.kredit.show', $credit)
-                ->with('success', 'Catatan kredit berhasil dibuat: ' . $credit->credit_number);
+                ->with('success', 'Catatan limit berhasil dibuat: ' . $credit->credit_number);
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal menyimpan: ' . $e->getMessage())->withInput();

@@ -107,7 +107,7 @@
                 <div class="panel-body">
                     @if(auth()->user()->role === 'supervisor')
                         <div class="form-group" style="margin-bottom:0;">
-                            <label class="form-label">Limit Kredit (Rp)</label>
+                            <label class="form-label">Limit (Rp)</label>
                             <div class="form-prefix">
                                 <span class="form-prefix-text">Rp</span>
                                 <input type="number" name="credit_limit" class="form-input" value="{{ old('credit_limit', $pelanggan->credit_limit) }}" min="0">
@@ -117,7 +117,7 @@
                     @else
                         <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
                             <div class="alert alert-warning" role="alert" style="margin:0;flex:1;">
-                                ⚠️ Limit kredit hanya bisa diubah oleh Supervisor.
+                                ⚠️ Limit hanya bisa diubah oleh Supervisor.
                             </div>
                             <div class="badge badge-gray">Limit: Rp {{ number_format($pelanggan->credit_limit ?? 0, 0, ',', '.') }}</div>
                         </div>

@@ -136,7 +136,7 @@
             {{-- Pembayaran Badge --}}
             <div class="rpt-section" style="text-align:center;">
                 @php
-                    $badgeLabel = $penjualan->tipe_bayar === 'tunai' ? '💵 TUNAI / CASH' : ($penjualan->tipe_bayar === 'hutang' ? '📄 KREDIT / HUTANG' : '🏦 TRANSFER');
+                    $badgeLabel = $penjualan->tipe_bayar === 'tunai' ? '💵 TUNAI / CASH' : ($penjualan->tipe_bayar === 'hutang' ? '📄 LIMIT / HUTANG' : '🏦 TRANSFER');
                 @endphp
                 <div class="rpt-badge {{ $penjualan->tipe_bayar }}">{{ $badgeLabel }}</div>
             </div>
@@ -165,7 +165,7 @@
                 </div>
                 @if($penjualan->pelanggan && $penjualan->pelanggan->limit_hutang > 0)
                 <div class="rpt-hutang-row">
-                    <span class="rpt-hutang-key">Limit Kredit</span>
+                    <span class="rpt-hutang-key">Limit</span>
                     <span class="rpt-hutang-val">Rp {{ number_format($penjualan->pelanggan->limit_hutang, 0, ',', '.') }}</span>
                 </div>
                 <div class="rpt-hutang-row">
@@ -271,7 +271,7 @@
             if (tipeBayar === 'tunai') {
                 receipt += "PEMBAYARAN: TUNAI / CASH\n";
             } else if (tipeBayar === 'hutang') {
-                receipt += "PEMBAYARAN: KREDIT / HUTANG\n";
+                receipt += "PEMBAYARAN: LIMIT / HUTANG\n";
                 receipt += formatLine("DP", "Rp {{ number_format($penjualan->bayar, 0, ',', '.') }}") + "\n";
                 receipt += formatLine("SISA", "Rp {{ number_format($penjualan->hutang, 0, ',', '.') }}") + "\n";
                 
@@ -280,7 +280,7 @@
                 let totalHutang = {{ $penjualan->pelanggan->total_hutang ?? 0 }};
                 if (limit > 0) {
                     receipt += "--------------------------------\n";
-                    receipt += formatLine("Limit Kredit", "Rp " + limit.toLocaleString('id-ID')) + "\n";
+                    receipt += formatLine("Limit", "Rp " + limit.toLocaleString('id-ID')) + "\n";
                     receipt += formatLine("Sisa Limit", "Rp " + Math.max(0, limit - totalHutang).toLocaleString('id-ID')) + "\n";
                 }
                 @endif

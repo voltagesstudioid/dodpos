@@ -44,14 +44,18 @@ class LaporanController extends Controller
             $baseQuery->where('status', $request->status);
         }
 
-        // Summary stats — dihitung di DB level, bukan load semua ke memory
         $totalOrders = (clone $baseQuery)->count();
-        $totalAmount = (clone $baseQuery)->sum('total_amount');
-        $totalReceived = (clone $baseQuery)->whereIn('status', ['received', 'partial'])->sum('total_amount');
+        $totalAmount = (clone $baseQuery)->where('status', '!=', 'cancelled')->sum('total_amount');
+        $totalReceived = (clone $baseQuery)->where('status', 'received')->sum('total_amount');
         $totalPending = (clone $baseQuery)->whereIn('status', ['draft', 'ordered'])->sum('total_amount');
 
-        // Top supplier — dihitung di DB level
+        $statusCounts = (clone $baseQuery)
+            ->select('status', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as amount'))
+            ->groupBy('status')
+            ->pluck(DB::raw('COUNT(*)'), 'status');
+
         $bySupplier = (clone $baseQuery)
+            ->where('status', '!=', 'cancelled')
             ->select('supplier_id', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as amount'))
             ->with('supplier:id,name')
             ->groupBy('supplier_id')
@@ -64,15 +68,15 @@ class LaporanController extends Controller
                 'amount' => $row->amount,
             ]);
 
-        // Paginated list — tidak load semua sekaligus
         $perPage = $isPrint ? 5000 : 25;
         $orders = (clone $baseQuery)
             ->with(['supplier:id,name', 'user:id,name'])
+            ->withCount('items')
             ->orderBy('order_date', 'desc')
             ->paginate($perPage)
             ->withQueryString();
 
-        $suppliers = Supplier::orderBy('name')->get(['id', 'name']);
+        $suppliers = Supplier::where('active', true)->orderBy('name')->get(['id', 'name']);
 
         $export = strtolower((string) $request->query('export', ''));
         if (in_array($export, ['csv', 'xlsx'], true)) {
@@ -95,11 +99,19 @@ class LaporanController extends Controller
                     ->get();
 
                 foreach ($list as $o) {
+                    $statusLabel = match ($o->status) {
+                        'draft' => 'Draft',
+                        'ordered' => 'Dipesan',
+                        'partial' => 'Diterima Sebagian',
+                        'received' => 'Diterima Penuh',
+                        'cancelled' => 'Dibatalkan',
+                        default => $o->status ?? '',
+                    };
                     yield [
                         $o->po_number,
                         optional($o->order_date)->format('Y-m-d'),
                         $o->supplier?->name ?? '',
-                        (string) ($o->status ?? ''),
+                        $statusLabel,
                         (float) ($o->total_amount ?? 0),
                         (int) ($o->items_count ?? 0),
                         $o->user?->name ?? '',
@@ -120,6 +132,7 @@ class LaporanController extends Controller
             'totalReceived',
             'totalPending',
             'bySupplier',
+            'statusCounts',
             'dateFrom',
             'dateTo',
             'isPrint'
@@ -133,6 +146,7 @@ class LaporanController extends Controller
         $dateTo = $request->date_to ?? now()->format('Y-m-d');
 
         $baseQuery = Transaction::where('status', 'completed')
+            ->whereNull('parent_transaction_id')
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo);
 
@@ -143,87 +157,114 @@ class LaporanController extends Controller
             $baseQuery->where('user_id', $request->kasir_id);
         }
 
-        // Summary stats — dihitung di DB level (tidak load semua transaksi)
         $totalTrx = (clone $baseQuery)->count();
-        $totalOmzet = (clone $baseQuery)->sum('total_amount');
+
+        $rootIds = (clone $baseQuery)->pluck('id');
+
+        $rootOmzet = (clone $baseQuery)->sum('total_amount');
+        $childOmzet = Transaction::where('status', 'completed')
+            ->whereIn('parent_transaction_id', $rootIds)
+            ->sum('total_amount');
+        $totalOmzet = $rootOmzet + $childOmzet;
         $avgPerTrx = $totalTrx > 0 ? $totalOmzet / $totalTrx : 0;
 
-        // Total items — dihitung via join, bukan N+1
-        $totalItems = TransactionDetail::whereHas('transaction', function ($q) use ($dateFrom, $dateTo, $request) {
-            $q->where('status', 'completed')
-                ->whereDate('created_at', '>=', $dateFrom)
-                ->whereDate('created_at', '<=', $dateTo);
-            if ($request->payment_method) {
-                $q->where('payment_method', $request->payment_method);
-            }
-            if ($request->kasir_id) {
-                $q->where('user_id', $request->kasir_id);
-            }
-        })->sum('quantity');
+        $childTrxIds = Transaction::where('status', 'completed')
+            ->whereIn('parent_transaction_id', $rootIds)
+            ->pluck('id');
+        $allTrxIds = $rootIds->merge($childTrxIds);
 
-        // Daily chart data
-        $dailyData = (clone $baseQuery)
-            ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total, COUNT(*) as count')
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->keyBy('date');
+        $totalItems = TransactionDetail::whereIn('transaction_id', $allTrxIds)->sum('quantity');
 
-        // Payment breakdown — dihitung di DB level
-        $byPayment = (clone $baseQuery)
-            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as amount'))
-            ->groupBy('payment_method')
-            ->get()
-            ->map(fn ($row) => [
-                'method' => $row->payment_method,
-                'label' => match (strtolower($row->payment_method ?? '')) {
+        $childAmountByParent = Transaction::where('status', 'completed')
+            ->whereIn('parent_transaction_id', $rootIds)
+            ->select('parent_transaction_id', DB::raw('SUM(total_amount) as child_total'))
+            ->groupBy('parent_transaction_id')
+            ->pluck('child_total', 'parent_transaction_id');
+
+        $dailyRootAmounts = (clone $baseQuery)
+            ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->pluck('total', 'date');
+
+        $dailyChildAmounts = Transaction::where('transactions.status', 'completed')
+            ->whereIn('transactions.parent_transaction_id', $rootIds)
+            ->join('transactions as parents', 'transactions.parent_transaction_id', '=', 'parents.id')
+            ->selectRaw('DATE(parents.created_at) as date, SUM(transactions.total_amount) as total')
+            ->groupBy(DB::raw('DATE(parents.created_at)'))
+            ->pluck('total', 'date');
+
+        $dailyData = collect();
+        $allDates = $dailyRootAmounts->keys()->merge($dailyChildAmounts->keys())->unique()->sort()->values();
+        foreach ($allDates as $date) {
+            $dailyData[$date] = ($dailyRootAmounts[$date] ?? 0) + ($dailyChildAmounts[$date] ?? 0);
+        }
+
+        $rootTrxForAgg = (clone $baseQuery)->get(['id', 'payment_method', 'user_id', 'total_amount']);
+
+        $paymentAgg = [];
+        $cashierAgg = [];
+        foreach ($rootTrxForAgg as $rt) {
+            $total = (float) $rt->total_amount + (float) ($childAmountByParent[$rt->id] ?? 0);
+
+            $pm = $rt->payment_method ?? '-';
+            if (!isset($paymentAgg[$pm])) {
+                $paymentAgg[$pm] = ['count' => 0, 'amount' => 0];
+            }
+            $paymentAgg[$pm]['count']++;
+            $paymentAgg[$pm]['amount'] += $total;
+
+            $uid = $rt->user_id;
+            if (!isset($cashierAgg[$uid])) {
+                $cashierAgg[$uid] = ['count' => 0, 'amount' => 0];
+            }
+            $cashierAgg[$uid]['count']++;
+            $cashierAgg[$uid]['amount'] += $total;
+        }
+
+        $byPayment = collect($paymentAgg)
+            ->map(fn ($data, $method) => [
+                'method' => $method,
+                'label' => match (strtolower($method)) {
                     'cash', 'tunai' => 'Tunai',
-                    'transfer', 'qris' => 'Transfer / QRIS',
+                    'transfer' => 'Transfer',
+                    'qris' => 'QRIS',
                     'debit' => 'Kartu Debit',
-                    'kredit' => 'Kredit Pelanggan',
-                    default => ucfirst($row->payment_method ?? '-'),
+                    'kredit' => 'Limit Pelanggan',
+                    default => ucfirst($method),
                 },
-                'count' => $row->count,
-                'amount' => $row->amount,
+                'count' => $data['count'],
+                'amount' => $data['amount'],
             ])
             ->sortByDesc('amount')
             ->values();
 
-        // Top products — sudah efisien (DB aggregation)
         $topProducts = TransactionDetail::with('product:id,name,sku')
-            ->whereHas('transaction', function ($q) use ($dateFrom, $dateTo) {
-                $q->where('status', 'completed')
-                    ->whereDate('created_at', '>=', $dateFrom)
-                    ->whereDate('created_at', '<=', $dateTo);
-            })
+            ->whereIn('transaction_id', $allTrxIds)
             ->selectRaw('product_id, SUM(quantity) as total_qty, SUM(subtotal) as total_revenue')
             ->groupBy('product_id')
             ->orderByDesc('total_revenue')
             ->take(10)
             ->get();
 
-        // Per-cashier stats — dihitung di DB level
-        $byCashier = (clone $baseQuery)
-            ->select('user_id', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as amount'))
-            ->with('user:id,name')
-            ->groupBy('user_id')
-            ->orderByDesc('amount')
-            ->get()
-            ->map(fn ($row) => [
-                'name' => $row->user?->name ?? 'Unknown',
-                'count' => $row->count,
-                'amount' => $row->amount,
-            ]);
+        $userNames = User::whereIn('id', array_keys($cashierAgg))
+            ->pluck('name', 'id');
+        $byCashier = collect($cashierAgg)
+            ->map(fn ($data, $userId) => [
+                'name' => $userNames[$userId] ?? 'Unknown',
+                'count' => $data['count'],
+                'amount' => $data['amount'],
+            ])
+            ->sortByDesc('amount')
+            ->values();
 
-        // Paginated transaction list
         $perPage = $isPrint ? 5000 : 25;
         $transactions = (clone $baseQuery)
-            ->with(['user:id,name', 'details'])
+            ->with(['user:id,name', 'details', 'additionalTransactions.details'])
             ->orderBy('created_at', 'desc')
             ->paginate($perPage)
             ->withQueryString();
 
-        $kasirs = User::orderBy('name')->get(['id', 'name']);
+        $kasirs = User::whereIn('role', ['supervisor', 'admin1', 'admin2'])->orderBy('name')->get(['id', 'name']);
 
         $export = strtolower((string) $request->query('export', ''));
         if (in_array($export, ['csv', 'xlsx'], true)) {
@@ -242,22 +283,25 @@ class LaporanController extends Controller
 
             $rows = (function () use ($baseQuery) {
                 $list = (clone $baseQuery)
-                    ->with(['user:id,name'])
-                    ->withCount('details')
+                    ->with(['user:id,name', 'details', 'additionalTransactions.details'])
                     ->orderBy('created_at', 'desc')
                     ->get();
 
                 foreach ($list as $t) {
+                    $itemCount = $t->details->count();
+                    foreach ($t->additionalTransactions as $at) {
+                        $itemCount += $at->details->count();
+                    }
                     yield [
                         (int) $t->id,
                         optional($t->created_at)->format('Y-m-d'),
                         optional($t->created_at)->format('H:i:s'),
                         $t->user?->name ?? '',
                         (string) ($t->payment_method ?? ''),
-                        (float) ($t->total_amount ?? 0),
-                        (float) ($t->paid_amount ?? 0),
-                        (float) ($t->change_amount ?? 0),
-                        (int) ($t->details_count ?? 0),
+                        (float) $t->grand_total,
+                        (float) $t->total_paid,
+                        (float) ($t->total_paid - $t->grand_total),
+                        $itemCount,
                     ];
                 }
             })();
@@ -286,41 +330,33 @@ class LaporanController extends Controller
 
     public function stok(Request $request)
     {
-        $isPrint = $request->boolean('print');
+        $isPrint     = $request->boolean('print');
         $warehouseId = $request->warehouse_id;
         $categoryId  = $request->category_id;
         $search      = $request->search;
 
         // ── Summary KPI cards ─────────────────────────────────────────
-        // Total produk terdaftar (semua, termasuk stok 0)
-        $totalProducts = Product::count();
+        $totalProducts   = Product::count();
+        $totalStockQty   = ProductStock::where('stock', '>', 0)->sum('stock');
 
-        // Total qty fisik: ambil dari product_stocks agar akurat dan real-time
-        $totalStockQty = ProductStock::where('stock', '>', 0)->sum('stock');
+        // Low stock: bandingkan total stok produk (products.stock) dengan min_stok
+        // Lebih akurat daripada mengecek per baris product_stocks
+        $lowStockCount = Product::where('stock', '>', 0)
+            ->where('min_stock', '>', 0)
+            ->whereColumn('stock', '<=', 'min_stock')
+            ->count();
 
-        // "Hampir habis" = stock aktif (> 0) tapi sudah di bawah atau sama dengan batas minimum
-        // Gunakan DB::table agar tidak ada ambiguitas join dari Eloquent model scopes
-        $lowStockCount = DB::table('product_stocks')
-            ->join('products', 'product_stocks.product_id', '=', 'products.id')
-            ->where('product_stocks.stock', '>', 0)
-            ->where('products.min_stock', '>', 0)
-            ->whereColumn('product_stocks.stock', '<=', 'products.min_stock')
-            ->distinct('product_stocks.product_id')
-            ->count('product_stocks.product_id');
-
-        // Batch kadaluarsa: tanggal sudah terlewat (strictly < hari ini)
+        $today = Carbon::today();
         $expiredCount = ProductStock::whereNotNull('expired_date')
             ->where('stock', '>', 0)
-            ->where('expired_date', '<', Carbon::today())
+            ->where('expired_date', '<', $today)
             ->count();
 
-        // Akan expired: hari ini s/d 30 hari ke depan (tidak overlap dengan expired)
         $nearExpiredCount = ProductStock::whereNotNull('expired_date')
             ->where('stock', '>', 0)
-            ->whereBetween('expired_date', [Carbon::today(), Carbon::today()->copy()->addDays(30)])
+            ->whereBetween('expired_date', [$today, (clone $today)->addDays(30)])
             ->count();
 
-        // Nilai stok total (stok × harga beli) — untuk informasi tambahan
         $totalStockValue = DB::table('product_stocks')
             ->join('products as p', 'product_stocks.product_id', '=', 'p.id')
             ->where('product_stocks.stock', '>', 0)
@@ -328,7 +364,6 @@ class LaporanController extends Controller
             ->value('val') ?? 0;
 
         // ── Per-warehouse stock summary (sidebar) ────────────────────
-        // Hanya hitung record dengan stock > 0 agar angka relevan
         $warehouses = Warehouse::withCount([
                 'productStocks as stock_lines' => fn ($q) => $q->where('stock', '>', 0),
             ])
@@ -341,7 +376,10 @@ class LaporanController extends Controller
         // ── Product stock table (paginated) ───────────────────────────
         $stockQuery = Product::with(['category', 'unit'])
             ->where('stock', '>', 0)
-            ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
+            ->when($search, fn ($q) => $q->where(function ($sq) use ($search) {
+                $sq->where('name', 'like', "%{$search}%")
+                   ->orWhere('sku', 'like', "%{$search}%");
+            }))
             ->when($categoryId, fn ($q) => $q->where('category_id', $categoryId));
 
         if ($warehouseId) {
@@ -351,7 +389,7 @@ class LaporanController extends Controller
         $perPage = $isPrint ? 5000 : 25;
         $products = $stockQuery->orderBy('stock', 'desc')->paginate($perPage)->withQueryString();
 
-        // ── Per-product stok di masing-masing gudang (dari ProductStock) ────
+        // ── Per-product stok di masing-masing gudang ──────────────────
         $productIds = $products->pluck('id');
         $warehouseStocks = ProductStock::with('warehouse:id,name,code')
             ->whereIn('product_id', $productIds)
@@ -362,26 +400,17 @@ class LaporanController extends Controller
             ->get()
             ->groupBy('product_id');
 
-        // ── Stok menipis (sidebar widget) — global, tidak terfilter ──
-        // Ambil max 10, urutkan dari yang paling kritis (stok terendah relatif thd min_stock)
-        // Gunakan DB::table agar tidak ada ambiguitas join
-        $lowStockProductIds = DB::table('product_stocks')
-            ->join('products as p2', 'product_stocks.product_id', '=', 'p2.id')
-            ->where('product_stocks.stock', '>', 0)
-            ->where('p2.min_stock', '>', 0)
-            ->whereColumn('product_stocks.stock', '<=', 'p2.min_stock')
-            ->orderByRaw('(product_stocks.stock / p2.min_stock) ASC')
-            ->distinct('product_stocks.product_id')
-            ->pluck('product_stocks.product_id')
-            ->take(10);
-
+        // ── Stok menipis sidebar widget ──────────────────────────────
+        // Ambil produk dengan rasio stock/min_stok paling kecil (paling kritis)
         $lowStockProducts = Product::with(['category'])
-            ->whereIn('id', $lowStockProductIds)
+            ->where('stock', '>', 0)
+            ->where('min_stock', '>', 0)
+            ->whereColumn('stock', '<=', 'min_stock')
             ->orderByRaw('(stock / NULLIF(min_stock, 0)) ASC')
             ->take(10)
             ->get();
 
-        // ── Aktivitas stok terbaru (sidebar widget) ──────────────────
+        // ── Aktivitas stok terbaru ───────────────────────────────────
         $recentMovements = StockMovement::with(['product:id,name', 'warehouse:id,name'])
             ->latest()
             ->take(12)
@@ -390,6 +419,7 @@ class LaporanController extends Controller
         // ── Kategori untuk filter dropdown ───────────────────────────
         $categories = \App\Models\Category::orderBy('name')->get();
 
+        // ── Stock masking untuk role tertentu ────────────────────────
         $maskStock = $this->shouldMaskStock();
 
         // ── Export CSV / XLSX ────────────────────────────────────────
@@ -397,35 +427,32 @@ class LaporanController extends Controller
         if (in_array($export, ['csv', 'xlsx'], true)) {
             $filename = 'laporan-stok-' . now()->format('Y-m-d') . '.' . $export;
             $headers  = [
-                'sku',
-                'nama_produk',
-                'kategori',
-                'satuan',
-                'stok_global',
-                'min_stok',
-                'status',
-                'nilai_stok',
+                'sku', 'nama_produk', 'kategori', 'satuan',
+                'stok_global', 'min_stok', 'status', 'nilai_stok',
             ];
 
-            $rows = (function () use ($stockQuery) {
+            $rows = (function () use ($stockQuery, $maskStock) {
                 $list = (clone $stockQuery)
                     ->with(['category:id,name', 'unit:id,name,abbreviation'])
                     ->orderBy('stock', 'desc')
                     ->get();
 
                 foreach ($list as $p) {
-                    $isLow  = ($p->min_stock ?? 0) > 0 && $p->stock <= $p->min_stock;
-                    $status = $p->stock <= 0 ? 'HABIS' : ($isLow ? 'MENIPIS' : 'AMAN');
+                    $stock   = $maskStock ? 0 : (float) ($p->stock ?? 0);
+                    $minStok = $maskStock ? 0 : (float) ($p->min_stock ?? 0);
+                    $nilai   = $maskStock ? 0 : (float) (($p->stock ?? 0) * ($p->purchase_price ?? 0));
+                    $isLow   = !$maskStock && ($p->min_stock ?? 0) > 0 && $p->stock <= $p->min_stock;
+                    $status  = $stock <= 0 ? 'HABIS' : ($isLow ? 'MENIPIS' : 'AMAN');
 
                     yield [
                         (string) ($p->sku ?? ''),
                         (string) ($p->name ?? ''),
                         (string) ($p->category?->name ?? ''),
                         (string) ($p->unit?->abbreviation ?? ''),
-                        (float)  ($p->stock ?? 0),
-                        (float)  ($p->min_stock ?? 0),
+                        $stock,
+                        $minStok,
                         $status,
-                        (float)  (($p->stock ?? 0) * ($p->purchase_price ?? 0)),
+                        $nilai,
                     ];
                 }
             })();
@@ -447,25 +474,53 @@ class LaporanController extends Controller
     public function keuangan(Request $request)
     {
         $isPrint = $request->boolean('print');
-        $dateFrom = $request->date_from ?? now()->startOfMonth()->format('Y-m-d');
-        $dateTo = $request->date_to ?? now()->format('Y-m-d');
+        $dateFrom = $request->date_from;
+        $dateTo   = $request->date_to;
 
-        // ── Pendapatan (Revenue) dari transaksi POS selesai ──────────
-        $totalRevenue = Transaction::where('status', 'completed')
+        // Validasi tanggal: fallback ke awal/akhir bulan jika tidak valid
+        try {
+            $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->format('Y-m-d') : now()->startOfMonth()->format('Y-m-d');
+            $dateTo   = $dateTo   ? Carbon::parse($dateTo)->format('Y-m-d')   : now()->format('Y-m-d');
+        } catch (\Exception $e) {
+            $dateFrom = now()->startOfMonth()->format('Y-m-d');
+            $dateTo   = now()->format('Y-m-d');
+        }
+
+        if ($dateFrom > $dateTo) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+
+        // ── Pendapatan dari transaksi induk (parent) ─────────────────
+        $rootTrxQuery = Transaction::where('status', 'completed')
+            ->whereNull('parent_transaction_id')
             ->whereDate('created_at', '>=', $dateFrom)
-            ->whereDate('created_at', '<=', $dateTo)
+            ->whereDate('created_at', '<=', $dateTo);
+
+        $rootIds   = (clone $rootTrxQuery)->pluck('id');
+        $rootRev   = (clone $rootTrxQuery)->sum('total_amount');
+
+        // Pendapatan dari transaksi anak (additional transactions)
+        $childRev = Transaction::where('status', 'completed')
+            ->whereIn('parent_transaction_id', $rootIds)
             ->sum('total_amount');
 
-        // ── HPP (Harga Pokok Penjualan) — dihitung dari purchase_price per item ──
-        // Ini lebih akurat daripada menggunakan total PO amount
-        $totalHPP = TransactionDetail::whereHas('transaction', function ($q) use ($dateFrom, $dateTo) {
-            $q->where('status', 'completed')
-                ->whereDate('created_at', '>=', $dateFrom)
-                ->whereDate('created_at', '<=', $dateTo);
-        })
-            ->join('products', 'transaction_details.product_id', '=', 'products.id')
-            ->selectRaw('SUM(transaction_details.quantity * COALESCE(products.purchase_price, 0)) as hpp')
-            ->value('hpp') ?? 0;
+        $totalRevenue = $rootRev + $childRev;
+
+        // ── HPP (Harga Pokok Penjualan) ───────────────────────────────
+        // Dihitung dari purchase_price produk saat ini (approksimasi)
+        $allTrxIds = $rootIds->merge(
+            Transaction::where('status', 'completed')
+                ->whereIn('parent_transaction_id', $rootIds)
+                ->pluck('id')
+        );
+
+        $totalHPP = 0;
+        if ($allTrxIds->isNotEmpty()) {
+            $totalHPP = TransactionDetail::whereIn('transaction_id', $allTrxIds)
+                ->join('products', 'transaction_details.product_id', '=', 'products.id')
+                ->selectRaw('SUM(transaction_details.quantity * COALESCE(products.purchase_price, 0)) as hpp')
+                ->value('hpp') ?? 0;
+        }
 
         // ── Biaya Operasional ─────────────────────────────────────────
         $totalOperasional = 0;
@@ -475,64 +530,83 @@ class LaporanController extends Controller
                 ->sum('amount');
         }
 
-        // ── Pembelian (PO yang diterima dalam periode ini) ────────────
-        $totalPembelian = PurchaseOrder::whereIn('status', ['received', 'partial'])
+        // ── Total pengeluaran: PO diterima + Biaya Operasional ────────
+        $totalPoReceived = PurchaseOrder::whereIn('status', ['received', 'partial'])
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
             ->sum('total_amount');
 
+        $totalPengeluaran = $totalPoReceived + $totalOperasional;
+
         // ── Laba Kotor = Revenue - HPP ────────────────────────────────
         $labaKotor = $totalRevenue - $totalHPP;
 
-        // ── Laba Bersih = Laba Kotor - Biaya Operasional ─────────────
-        $netProfit = $labaKotor - $totalOperasional;
+        // ── Laba Bersih = Laba Kotor - (PO + Biaya Operasional) ──────
+        $netProfit = $labaKotor - $totalPengeluaran;
 
         // ── Daily chart data ──────────────────────────────────────────
-        $dailyRevenue = Transaction::where('status', 'completed')
-            ->whereDate('created_at', '>=', $dateFrom)
-            ->whereDate('created_at', '<=', $dateTo)
+        // Revenue harian (parent + child)
+        $dailyParent = (clone $rootTrxQuery)
             ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
-            ->groupBy('date')
+            ->groupBy(DB::raw('DATE(created_at)'))
             ->pluck('total', 'date');
 
-        $dailyExpense = PurchaseOrder::whereIn('status', ['received', 'partial'])
+        $dailyChild = collect();
+        if ($rootIds->isNotEmpty()) {
+            $dailyChild = Transaction::where('transactions.status', 'completed')
+                ->whereIn('transactions.parent_transaction_id', $rootIds)
+                ->join('transactions as parents', 'transactions.parent_transaction_id', '=', 'parents.id')
+                ->selectRaw('DATE(parents.created_at) as date, SUM(transactions.total_amount) as total')
+                ->groupBy(DB::raw('DATE(parents.created_at)'))
+                ->pluck('total', 'date');
+        }
+
+        // Pengeluaran harian (PO + biaya operasional)
+        $dailyPo = PurchaseOrder::whereIn('status', ['received', 'partial'])
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
             ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
-            ->groupBy('date')
+            ->groupBy(DB::raw('DATE(created_at)'))
             ->pluck('total', 'date');
+
+        $dailyOps = collect();
+        if (class_exists(\App\Models\OperationalExpense::class)) {
+            $dailyOps = \App\Models\OperationalExpense::whereDate('created_at', '>=', $dateFrom)
+                ->whereDate('created_at', '<=', $dateTo)
+                ->selectRaw('DATE(created_at) as date, SUM(amount) as total')
+                ->groupBy(DB::raw('DATE(created_at)'))
+                ->pluck('total', 'date');
+        }
 
         $dates = collect();
         $start = Carbon::parse($dateFrom);
-        $end = Carbon::parse($dateTo);
+        $end   = Carbon::parse($dateTo);
         while ($start->lte($end)) {
-            $dateStr = $start->format('Y-m-d');
+            $ds  = $start->format('Y-m-d');
+            $rev = (float) ($dailyParent->get($ds, 0)) + (float) ($dailyChild->get($ds, 0));
+            $exp = (float) ($dailyPo->get($ds, 0)) + (float) ($dailyOps->get($ds, 0));
             $dates->push([
-                'date' => $start->format('d M Y'),
-                'revenue' => $dailyRevenue->get($dateStr, 0),
-                'expense' => $dailyExpense->get($dateStr, 0),
+                'date'     => $start->format('d M Y'),
+                'revenue'  => $rev,
+                'expense'  => $exp,
+                'profit'   => $rev - $exp,
             ]);
             $start->addDay();
         }
 
+        // ── Export CSV / XLSX ────────────────────────────────────────
         $export = strtolower((string) $request->query('export', ''));
         if (in_array($export, ['csv', 'xlsx'], true)) {
             $filename = 'laporan-keuangan-'.$dateFrom.'-sd-'.$dateTo.'.'.$export;
-            $headers = [
-                'tanggal',
-                'pendapatan',
-                'pengeluaran',
-                'laba_bersih',
-            ];
+            $headers  = ['tanggal', 'pendapatan', 'pengeluaran', 'laba_bersih'];
 
             $rows = (function () use ($dates) {
                 foreach ($dates as $row) {
-                    $profit = (float) $row['revenue'] - (float) $row['expense'];
                     yield [
                         (string) $row['date'],
-                        (float) $row['revenue'],
-                        (float) $row['expense'],
-                        (float) $profit,
+                        (float)  $row['revenue'],
+                        (float)  $row['expense'],
+                        (float)  $row['profit'],
                     ];
                 }
             })();
@@ -543,7 +617,8 @@ class LaporanController extends Controller
         }
 
         return view('laporan.keuangan', compact(
-            'totalRevenue', 'totalHPP', 'totalOperasional', 'totalPembelian',
+            'totalRevenue', 'totalHPP', 'totalOperasional',
+            'totalPoReceived', 'totalPengeluaran',
             'labaKotor', 'netProfit', 'dates',
             'dateFrom', 'dateTo', 'isPrint'
         ));
@@ -554,15 +629,21 @@ class LaporanController extends Controller
         $isPrint = $request->boolean('print');
         $search = $request->search;
 
-        $totalCustomers = \App\Models\Customer::count();
-        $totalDebt = \App\Models\Customer::sum('current_debt');
+        $totalCustomers    = \App\Models\Customer::count();
+        $activeCustomers   = \App\Models\Customer::where('is_active', true)->count();
+        $totalDebt         = \App\Models\Customer::sum('current_debt');
         $customersWithDebt = \App\Models\Customer::where('current_debt', '>', 0)->count();
+        $avgDebt           = $customersWithDebt > 0
+            ? \App\Models\Customer::where('current_debt', '>', 0)->avg('current_debt')
+            : 0;
 
         $query = \App\Models\Customer::query();
 
         if ($search) {
-            $query->where('name', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
         }
 
         $customers = $query->orderByDesc('current_debt')
@@ -582,8 +663,16 @@ class LaporanController extends Controller
                 'piutang_berjalan',
             ];
 
-            $rows = (function () use ($query) {
-                $list = (clone $query)
+            $exportQuery = \App\Models\Customer::query();
+            if ($search) {
+                $exportQuery->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            $rows = (function () use ($exportQuery) {
+                $list = (clone $exportQuery)
                     ->orderByDesc('current_debt')
                     ->orderBy('name')
                     ->get();
@@ -606,7 +695,8 @@ class LaporanController extends Controller
         }
 
         return view('laporan.pelanggan', compact(
-            'totalCustomers', 'totalDebt', 'customersWithDebt', 'customers', 'search', 'isPrint'
+            'totalCustomers', 'activeCustomers', 'totalDebt', 'customersWithDebt',
+            'avgDebt', 'customers', 'search', 'isPrint'
         ));
     }
 

@@ -76,7 +76,7 @@
                                 QRIS
                             @elseif($transaksi->payment_method === 'kredit')
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
-                                Kredit
+                                Limit
                             @else
                                 {{ strtoupper($transaksi->payment_method) }}
                             @endif
@@ -227,7 +227,7 @@
                                         'cash' => 'Tunai',
                                         'transfer' => 'Transfer',
                                         'qris' => 'QRIS',
-                                        'kredit' => 'Kredit',
+                                        'kredit' => 'Limit',
                                         default => ucfirst($addTrans->payment_method)
                                     };
                                 @endphp

@@ -433,6 +433,8 @@ class PasgarLoadingController extends Controller
     {
         $validated = $request->validate([
             'cross_check_notes' => 'nullable|string|max:500',
+            'items' => 'nullable|array',
+            'items.*.qty_diterima' => 'nullable|integer|min:0',
         ]);
 
         $loading = PasgarLoading::with('items.unitConversion')->findOrFail($id);
@@ -447,9 +449,20 @@ class PasgarLoadingController extends Controller
             return redirect()->route('pasgar.loading.show', $id)->with('error', 'Anda tidak berhak menjemput loading ini.');
         }
 
-        DB::transaction(function () use ($loading, $user) {
+        DB::transaction(function () use ($loading, $user, $validated) {
+            $autoNotes = [];
             // Deduct stock from each item's source warehouse (convert to base units)
             foreach ($loading->items as $item) {
+                // Update qty based on sales input if lower than expected
+                $inputQty = $validated['items'][$item->id]['qty_diterima'] ?? null;
+                if ($inputQty !== null && $inputQty < $item->qty_dikirim) {
+                    $unitName = $item->unitConversion?->unit?->name ?? 'pcs';
+                    $autoNotes[] = "[-] {$item->product->name}: Sistem tercatat {$item->qty_dikirim}, aktual diterima {$inputQty} {$unitName}.";
+                    $item->qty_dikirim = (int) $inputQty;
+                    $item->qty_sisa = (int) $inputQty;
+                    $item->save();
+                }
+
                 $qty = $item->qty_dikirim ?: $item->qty_disetujui ?: $item->qty_diminta;
                 if ($qty <= 0) continue;
 
@@ -492,11 +505,16 @@ class PasgarLoadingController extends Controller
                 }
             }
 
+            $finalNotes = $validated['cross_check_notes'] ?? '';
+            if (count($autoNotes) > 0) {
+                $finalNotes = "Penyesuaian Fisik (Oleh Sales):\n" . implode("\n", $autoNotes) . "\n\nCatatan Khusus: " . $finalNotes;
+            }
+
             $loading->update([
                 'status' => 'picked_up',
                 'picked_up_by' => $user->id,
                 'picked_up_at' => now(),
-                'cross_check_notes' => request('cross_check_notes'),
+                'cross_check_notes' => trim($finalNotes),
             ]);
         });
 
@@ -541,5 +559,15 @@ class PasgarLoadingController extends Controller
 
         return redirect()->route('pasgar.loading.show', $id)
             ->with('success', 'Barang berhasil dimuat ke kendaraan. Siap berjualan!');
+    }
+
+    /**
+     * Print loading (Surat Jalan/Faktur)
+     */
+    public function print($id)
+    {
+        $loading = PasgarLoading::with(['sales', 'items.product', 'items.unitConversion.unit', 'warehouse'])->findOrFail($id);
+        
+        return view('pasgar.loading.print', compact('loading'));
     }
 }

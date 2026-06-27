@@ -103,7 +103,7 @@ class KasirEceranController extends Controller
             $customer = null;
             if ($request->payment_method === 'kredit') {
                 if (! $request->customer_id) {
-                    throw new \Exception('Pelanggan harus dipilih untuk pembayaran kredit.');
+                    throw new \Exception('Pelanggan harus dipilih untuk pembayaran limit.');
                 }
                 $customer = $this->transactionService->lockCustomer($request->customer_id);
                 if (! $customer) {

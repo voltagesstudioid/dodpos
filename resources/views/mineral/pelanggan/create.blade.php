@@ -340,7 +340,7 @@
                     </div>
                     <div>
                         <div class="pcf-card-title">Foto Toko</div>
-                        <div class="pcf-card-desc">@if($isSalesRole) Wajib: untuk penilaian limit kredit oleh supervisor @else Opsional — membantu penilaian kelayakan kredit @endif</div>
+                        <div class="pcf-card-desc">@if($isSalesRole) Wajib: untuk penilaian limit oleh supervisor @else Opsional — membantu penilaian kelayakan kredit @endif</div>
                     </div>
                 </div>
                 <div class="pcf-card-body">
@@ -359,9 +359,9 @@
                             <div style="font-size:0.75rem; color:#64748b; line-height:1.5;">
                                 @if($isSalesRole)
                                 <strong style="color:#be185d;">Wajib upload foto toko.</strong><br>
-                                Supervisor akan menentukan limit kredit berdasarkan kondisi toko.
+                                Supervisor akan menentukan limit berdasarkan kondisi toko.
                                 @else
-                                Foto toko membantu menilai kelayakan kredit pelanggan.
+                                Foto toko membantu menilai kelayakan limit pelanggan.
                                 @endif
                             </div>
                         </div>

@@ -332,7 +332,8 @@
             <div class="sd-card-title">Perbandingan Data Tersimpan vs Aktual</div>
         </div>
         <div class="sd-card-body" style="padding:0;">
-            <table class="sd-tbl">
+            <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="sd-tbl">
                 <thead><tr><th>Komponen</th><th class="sd-right">Saat Setoran Dibuat</th><th class="sd-right">Data Saat Ini</th><th class="sd-center">Status</th></tr></thead>
                 <tbody>
                     @php $rows = [
@@ -356,6 +357,7 @@
                 </tbody>
             </table>
         </div>
+</div>
     </div>
     @endif
 
@@ -381,13 +383,15 @@
             <div class="sd-card-title">Informasi Verifikasi</div>
         </div>
         <div class="sd-card-body">
-            <table class="sd-info">
+            <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="sd-info">
                 <tr><td>Status</td><td><span class="sd-st {{ $setoran->status }}">@if($setoran->status==='terverifikasi')<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>@else<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>@endif{{ $setoran->status_label }}</span></td></tr>
                 <tr><td>Diverifikasi Oleh</td><td style="font-weight:700;">{{ $setoran->verifier->name ?? '-' }}</td></tr>
                 <tr><td>Tanggal Verifikasi</td><td>{{ $setoran->verified_at ? $setoran->verified_at->format('d M Y, H:i') : '-' }}</td></tr>
                 @if($setoran->catatan_verifikasi)<tr><td>Catatan</td><td>{{ $setoran->catatan_verifikasi }}</td></tr>@endif
             </table>
         </div>
+</div>
     </div>
     @endif
 

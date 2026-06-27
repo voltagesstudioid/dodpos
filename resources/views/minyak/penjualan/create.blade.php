@@ -514,7 +514,7 @@
             var html = '';
             if (limit <= 0) {
                 // No limit set - show info only
-                html = '<div style="color:#475569;">ℹ️ Pelanggan ini tidak memiliki limit kredit yang ditentukan.</div>';
+                html = '<div style="color:#475569;">ℹ️ Pelanggan ini tidak memiliki limit yang ditentukan.</div>';
                 creditBox.style.background = '#f1f5f9';
                 creditBox.style.border = '1px solid #e2e8f0';
             } else if (hutangBaru > sisaLimit) {
@@ -529,7 +529,7 @@
                 if (submitBtn) submitBtn.disabled = true;
             } else {
                 // Within limit
-                html = '<div style="color:#065f46; font-weight:700;">✅ Dalam Limit Kredit</div>';
+                html = '<div style="color:#065f46; font-weight:700;">✅ Dalam Limit</div>';
                 html += '<div style="color:#047857; margin-top:4px;">Limit: <strong>' + fmt(limit) + '</strong> | Terpakai: <strong>' + fmt(totalHutang) + '</strong></div>';
                 html += '<div style="color:#047857;">Sisa limit: <strong>' + fmt(sisaLimit) + '</strong> | Hutang baru: <strong>' + fmt(hutangBaru) + '</strong></div>';
                 creditBox.style.background = '#ecfdf5';

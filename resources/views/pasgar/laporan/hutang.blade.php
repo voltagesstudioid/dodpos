@@ -75,7 +75,14 @@
             thead { display: table-header-group; }
         }
         @page { size: A4; margin: 12mm; }
-    </style>
+    
+    @media (max-width: 768px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+    @media (max-width: 480px) {
+        [class$="-grid"], [class*="-grid "] { grid-template-columns: 1fr !important; }
+    }
+</style>
 </head>
 <body>
     @if(!$isPrint)
@@ -176,7 +183,8 @@
             <div class="section">
                 <div class="section-title">Hutang Per Sales</div>
                 @if($bySales->isNotEmpty())
-                <table>
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table>
                     <thead>
                         <tr>
                             <th style="width:4%">#</th>
@@ -209,6 +217,7 @@
                         </tr>
                     </tfoot>
                 </table>
+</div>
                 @else
                 <div class="empty">Tidak ada data hutang</div>
                 @endif
@@ -218,7 +227,8 @@
             <div class="section">
                 <div class="section-title">Detail Hutang Pelanggan</div>
                 @if($details->isNotEmpty())
-                <table>
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table>
                     <thead>
                         <tr>
                             <th style="width:4%">#</th>
@@ -267,6 +277,7 @@
                         </tr>
                     </tfoot>
                 </table>
+</div>
 
                 @if(!$isPrint && $details instanceof \Illuminate\Pagination\LengthAwarePaginator)
                 <div class="pagination-bar">

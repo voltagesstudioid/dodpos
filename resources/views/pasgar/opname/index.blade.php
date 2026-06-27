@@ -108,7 +108,8 @@
 
     {{-- Table --}}
     <div class="op-table-wrap">
-        <table class="op-table">
+        <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="op-table">
             <thead>
                 <tr>
                     <th>Tanggal</th>
@@ -144,6 +145,7 @@
             </tbody>
         </table>
     </div>
+</div>
 
     @if($opnames->hasPages())
         <div style="margin-top:1.25rem">{{ $opnames->links() }}</div>

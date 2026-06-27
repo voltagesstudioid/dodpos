@@ -32,7 +32,11 @@ Route::middleware('can:delete_pelanggan')->group(function () {
 // =========================================================
 
 Route::middleware('can:view_hutang_piutang')->group(function () {
-    Route::get('/hutang-piutang', [CustomerCreditController::class, 'index'])->name('hutang.index');
+    Route::get('/hutang-piutang', [CustomerCreditController::class, 'index'])->name('hutang.index'); // Fallback
+    Route::get('/hutang-piutang/piutang', [CustomerCreditController::class, 'piutang'])->name('hutang.piutang');
+    Route::get('/hutang-piutang/total', [CustomerCreditController::class, 'totalPiutang'])->name('hutang.total');
+    Route::get('/hutang-piutang/lunas', [CustomerCreditController::class, 'lunas'])->name('hutang.lunas');
+    
     Route::get('/hutang-piutang/list', [CustomerCreditController::class, 'index'])->name('pelanggan.kredit.index');
     Route::get('/hutang-piutang/konsolidasi', [CustomerCreditController::class, 'consolidated'])->name('pelanggan.kredit.consolidated');
     Route::get('/hutang-piutang/pelanggan/{customer}', [CustomerCreditController::class, 'customerDebt'])->name('pelanggan.kredit.customer');

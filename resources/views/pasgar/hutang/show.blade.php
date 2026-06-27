@@ -127,13 +127,15 @@
                 <div class="htd-card-title">Pelanggan</div>
             </div>
             <div class="htd-card-body">
-                <table class="htd-info">
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="htd-info">
                     <tr><td>Nama Toko</td><td style="font-weight:700;">{{ $hutang->pelanggan->nama_toko ?? '-' }}</td></tr>
                     <tr><td>Pemilik</td><td>{{ $hutang->pelanggan->nama_pemilik ?? '-' }}</td></tr>
                     <tr><td>No HP</td><td>{{ $hutang->pelanggan->no_hp ?? '-' }}</td></tr>
                     <tr><td>Regional</td><td>{{ $hutang->pelanggan->regional->nama ?? '-' }}</td></tr>
                 </table>
             </div>
+</div>
         </div>
 
         {{-- Hutang Summary --}}
@@ -143,12 +145,14 @@
                 <div class="htd-card-title">Ringkasan Hutang</div>
             </div>
             <div class="htd-card-body">
-                <table class="htd-info">
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="htd-info">
                     <tr><td>Total Hutang</td><td style="font-weight:800; color:#4f46e5;">Rp {{ number_format($hutang->total_hutang, 0, ',', '.') }}</td></tr>
                     <tr><td>Dibayar</td><td style="font-weight:700; color:#059669;">Rp {{ number_format($hutang->dibayar, 0, ',', '.') }}</td></tr>
                     <tr><td>Sisa</td><td style="font-weight:800; color:#dc2626;">Rp {{ number_format($hutang->sisa, 0, ',', '.') }}</td></tr>
                     <tr><td>Jatuh Tempo</td><td>{{ $hutang->jatuh_tempo ? $hutang->jatuh_tempo->format('d M Y') : '-' }}</td></tr>
                 </table>
+</div>
                 @php
                     $pct = $hutang->total_hutang > 0 ? min(100, round(($hutang->dibayar / $hutang->total_hutang) * 100)) : 0;
                 @endphp
@@ -173,12 +177,14 @@
             <div class="htd-card-title">Detail Penjualan</div>
         </div>
         <div class="htd-card-body">
-            <table class="htd-info">
+            <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="htd-info">
                 <tr><td>No Transaksi</td><td style="font-weight:700;">{{ $hutang->penjualan->nomor_transaksi }}</td></tr>
                 <tr><td>Tanggal</td><td>{{ $hutang->penjualan->tanggal->format('d M Y') }}</td></tr>
                 <tr><td>Total Transaksi</td><td>Rp {{ number_format($hutang->penjualan->total, 0, ',', '.') }}</td></tr>
                 <tr><td>Uang Muka</td><td>Rp {{ number_format($hutang->penjualan->uang_muka ?? 0, 0, ',', '.') }}</td></tr>
             </table>
+</div>
             @if($hutang->penjualan->items->count() > 0)
             <div style="margin-top:0.75rem; font-size:0.75rem; color:#64748b; font-weight:600;">ITEM:</div>
             @foreach($hutang->penjualan->items as $item)

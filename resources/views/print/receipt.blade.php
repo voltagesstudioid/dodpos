@@ -109,7 +109,7 @@
             'tunai' => 'TUNAI',
             'transfer' => 'TRANSFER',
             'qris' => 'QRIS',
-            'kredit' => 'KREDIT',
+            'kredit' => 'LIMIT',
             default => strtoupper((string) $rootTransaction->payment_method),
         };
 

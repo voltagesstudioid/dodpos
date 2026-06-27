@@ -244,7 +244,8 @@
 
             {{-- Items Table --}}
             <div id="itemsTableWrap" style="display:none;">
-                <table class="lc-items-table">
+                <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="lc-items-table">
                     <thead>
                         <tr>
                             <th style="width:30%">Produk</th>
@@ -257,6 +258,7 @@
                     </thead>
                     <tbody id="itemsBody"></tbody>
                 </table>
+</div>
                 <div class="lc-summary">
                     <div>
                         <div class="lc-sum-label"><span id="totalItems">0</span> jenis barang</div>
@@ -330,9 +332,10 @@ searchInput.addEventListener('input', function() {
         searchResults.innerHTML = '<div class="lc-sr-empty">Tidak ada produk yang cocok</div>';
     } else {
         searchResults.innerHTML = results.map(p => {
-            const gClass = p.stock_gudang <= 5 ? 'low' : '';
-            const rClass = p.stock_grosir <= 5 ? 'low' : '';
-            const uLabel = p.unit ? ' '+escHtml(p.unit) : '';
+            const isEmpty = p.stock_gudang <= 0 && p.stock_grosir <= 0;
+            const stockBadge = isEmpty 
+                ? '<span class="lc-sr-tag stock low">Stok Habis</span>'
+                : '<span class="lc-sr-tag stock">Tersedia</span>';
             return `
                 <div class="lc-sr-item" onclick="addProduct(${p.id})">
                     <div class="lc-sr-info">
@@ -340,8 +343,7 @@ searchInput.addEventListener('input', function() {
                         <div class="lc-sr-meta">
                             ${p.category ? `<span class="lc-sr-tag cat">${escHtml(p.category)}</span>` : ''}
                             ${p.sku ? `<span class="lc-sr-tag sku">${escHtml(p.sku)}</span>` : ''}
-                            <span class="lc-sr-tag stock ${gClass}">Gudang: ${p.stock_gudang}${uLabel}</span>
-                            <span class="lc-sr-tag stock ${rClass}">Grosir: ${p.stock_grosir}${uLabel}</span>
+                            ${stockBadge}
                         </div>
                     </div>
                     <div class="lc-sr-price">${formatRp(p.price)}</div>
@@ -371,6 +373,11 @@ searchInput.addEventListener('focus', function() {
 function addProduct(productId) {
     const product = ALL_PRODUCTS.find(p => p.id === productId);
     if (!product || selectedItems.some(i => i.id === productId)) return;
+
+    if (product.stock_gudang <= 0 && product.stock_grosir <= 0) {
+        alert('Stok produk ini sedang kosong.');
+        return;
+    }
 
     // Auto-determine sumber: gudang if stock available, else grosir
     const sumber = product.stock_gudang >= 1 ? 'gudang' : 'grosir';
@@ -408,7 +415,19 @@ function removeProduct(productId) {
 function setSumber(productId, sumber) {
     const item = selectedItems.find(i => i.id === productId);
     if (!item) return;
+    
+    const maxStock = sumber === 'gudang' ? item.stock_gudang : item.stock_grosir;
+    if (maxStock <= 0) {
+        alert('Stok di sumber ' + sumber + ' sedang kosong.');
+        return;
+    }
+    
     item.sumber = sumber;
+    
+    if (item.qty > maxStock) {
+        item.qty = maxStock;
+    }
+    
     renderItems();
 }
 
@@ -430,9 +449,15 @@ function setUnit(productId, convId) {
 function changeQty(productId, delta) {
     const item = selectedItems.find(i => i.id === productId);
     if (!item) return;
+    
+    const maxStock = item.sumber === 'gudang' ? item.stock_gudang : item.stock_grosir;
     const newQty = item.qty + delta;
     if (newQty < 1) return;
-    if (newQty > 9999) return;
+    if (newQty > maxStock) {
+        alert('Maksimal stok yang tersedia adalah ' + maxStock);
+        return;
+    }
+    
     item.qty = newQty;
     renderItems();
 }
@@ -441,8 +466,14 @@ function changeQty(productId, delta) {
 function setQty(productId, val) {
     const item = selectedItems.find(i => i.id === productId);
     if (!item) return;
+    
+    const maxStock = item.sumber === 'gudang' ? item.stock_gudang : item.stock_grosir;
     const n = parseInt(val) || 1;
-    item.qty = Math.max(1, Math.min(9999, n));
+    
+    if (n > maxStock) {
+        alert('Maksimal stok yang tersedia adalah ' + maxStock);
+    }
+    item.qty = Math.max(1, Math.min(maxStock, n));
     renderItems();
 }
 

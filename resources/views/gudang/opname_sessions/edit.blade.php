@@ -59,7 +59,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             </div>
             <div class="op-info-body">
-                <h1 class="op-info-title">Hitung Fisik Stok</h1>
+                <h1 class="op-info-title">Opname Gudang</h1>
                 <div class="op-info-meta">
                     <span class="op-meta"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> {{ $session->warehouse?->name ?? '-' }}</span>
                     <span class="op-dot"></span>
@@ -292,7 +292,7 @@
         @if($blindCount && $canEdit)
         <div class="op-blind-notice">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-            Stok sistem disembunyikan selama hitung fisik untuk menjaga integritas data. Supervisor akan melihat perbandingan saat review.
+            Stok sistem disembunyikan selama proses opname untuk menjaga integritas data. Supervisor akan melihat perbandingan saat review.
         </div>
         @endif
 

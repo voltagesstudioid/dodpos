@@ -232,8 +232,13 @@ class PosTransactionService
      */
     public function validateCreditLimit(float $debtAmount, $customer): void
     {
-        if ($debtAmount > 0 && $customer->credit_limit > 0 && $customer->remaining_credit_limit < $debtAmount) {
-            throw new \Exception('Sisa limit kredit tidak mencukupi untuk transaksi ini.');
+        if ($debtAmount > 0) {
+            if (!$customer || $customer->credit_limit <= 0) {
+                throw new \Exception('Pelanggan tidak memiliki limit kredit.');
+            }
+            if ($customer->remaining_credit_limit < $debtAmount) {
+                throw new \Exception('Sisa limit tidak mencukupi untuk transaksi ini.');
+            }
         }
     }
 

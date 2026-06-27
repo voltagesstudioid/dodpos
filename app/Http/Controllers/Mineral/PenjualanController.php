@@ -304,13 +304,16 @@ class PenjualanController extends Controller
             if ($validated['hutang'] > 0) {
                 // Credit limit check
                 $pelanggan = MineralPelanggan::find($validated['pelanggan_id']);
-                if ($pelanggan && $pelanggan->limit_hutang > 0) {
-                    $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
-                    if ($validated['hutang'] > $sisaLimit) {
-                        DB::rollBack();
-                        return redirect()->back()->withInput()
-                            ->with('error', 'Hutang melebihi limit kredit pelanggan. Sisa limit: Rp ' . number_format(max(0, $sisaLimit), 0, ',', '.'));
-                    }
+                if (!$pelanggan || $pelanggan->limit_hutang <= 0) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Pelanggan tidak memiliki limit kredit.');
+                }
+                $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
+                if ($validated['hutang'] > $sisaLimit) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Hutang melebihi limit pelanggan. Sisa limit: Rp ' . number_format(max(0, $sisaLimit), 0, ',', '.'));
                 }
 
                 MineralHutang::create([
@@ -532,13 +535,16 @@ class PenjualanController extends Controller
             } elseif ($newHutang > 0) {
                 // New hutang added
                 $pelanggan = MineralPelanggan::find($validated['pelanggan_id']);
-                if ($pelanggan && $pelanggan->limit_hutang > 0) {
-                    $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
-                    if ($newHutang > $sisaLimit) {
-                        DB::rollBack();
-                        return redirect()->back()->withInput()
-                            ->with('error', 'Hutang melebihi limit kredit pelanggan. Sisa limit: Rp ' . number_format(max(0, $sisaLimit), 0, ',', '.'));
-                    }
+                if (!$pelanggan || $pelanggan->limit_hutang <= 0) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Pelanggan tidak memiliki limit kredit.');
+                }
+                $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
+                if ($newHutang > $sisaLimit) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Hutang melebihi limit pelanggan. Sisa limit: Rp ' . number_format(max(0, $sisaLimit), 0, ',', '.'));
                 }
 
                 MineralHutang::create([

@@ -90,7 +90,8 @@
     </div>
 
     <div class="li-card">
-        <table class="li-table">
+        <div style="overflow-x: auto; margin-bottom: 1rem;">
+<table class="li-table">
             <thead>
                 <tr>
                     <th>No. Loading</th>
@@ -118,6 +119,7 @@
                 @endforelse
             </tbody>
         </table>
+</div>
         @if($loadings->hasPages())
         <div class="li-pagination">{{ $loadings->links() }}</div>
         @endif

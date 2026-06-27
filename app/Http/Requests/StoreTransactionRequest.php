@@ -72,7 +72,7 @@ class StoreTransactionRequest extends FormRequest
             if ($paymentMethod === 'kredit' && !$this->input('customer_id')) {
                 $validator->errors()->add(
                     'customer_id',
-                    'Pelanggan harus dipilih untuk pembayaran kredit.'
+                    'Pelanggan harus dipilih untuk pembayaran limit.'
                 );
             }
         });

@@ -407,7 +407,7 @@
 
     <script type="application/json" id="so-existing-items-json">{!! json_encode($existingItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
     <script type="application/json" id="so-old-items-json">{!! json_encode($oldItemsForJs ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
-    <script type="application/json" id="warehousesJson">@json(\App\Models\Warehouse::where('active', true)->orderBy('name')->get(['id','name','code']))</script>
+    <script type="application/json" id="warehousesJson">{!! json_encode(\App\Models\Warehouse::where('active', true)->orderBy('name')->get(['id','name','code'])) !!}</script>
 
     @push('scripts')
     <script>

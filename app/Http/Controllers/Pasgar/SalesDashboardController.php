@@ -14,12 +14,14 @@ class SalesDashboardController extends Controller
 {
     public function index()
     {
-        $salesProfile = PasgarSales::where('user_id', Auth::id())->first();
+        $salesProfile = PasgarSales::with('regional')->where('user_id', Auth::id())->first();
+
         if (!$salesProfile) {
             return view('pasgar.sales-dashboard.no-profile');
         }
 
         $today = Carbon::today();
+        $yesterday = Carbon::yesterday();
         $monthStart = Carbon::now()->startOfMonth();
 
         // Today's sales
@@ -28,6 +30,14 @@ class SalesDashboardController extends Controller
         $todayStats = [
             'penjualan' => (clone $todayPenjualan)->sum('total'),
             'transaksi' => (clone $todayPenjualan)->count(),
+        ];
+
+        // Yesterday's sales (for trend comparison)
+        $yesterdayPenjualan = PasgarPenjualan::where('sales_id', $salesProfile->id)
+            ->whereDate('tanggal', $yesterday);
+        $yesterdayStats = [
+            'penjualan' => (clone $yesterdayPenjualan)->sum('total'),
+            'transaksi' => (clone $yesterdayPenjualan)->count(),
         ];
 
         // Monthly sales
@@ -44,15 +54,16 @@ class SalesDashboardController extends Controller
             ->whereIn('status', ['pending', 'preparing', 'ready', 'picked_up', 'loaded'])
             ->latest()
             ->get();
+        $activeLoadingsCount = $activeLoadings->count();
 
-        // Loading hari ini (for today section)
+        // Loading hari ini
         $loadingHariIni = PasgarLoading::with('items')
             ->where('sales_id', $salesProfile->id)
             ->whereDate('tanggal', $today)
             ->latest()
             ->get();
 
-        // Setoran status
+        // Setoran stats
         $setoranStatus = [
             'pending' => PasgarSetoran::where('sales_id', $salesProfile->id)
                 ->where('status', 'pending')->count(),
@@ -61,27 +72,40 @@ class SalesDashboardController extends Controller
                 ->whereDate('tanggal', '>=', $monthStart)->count(),
         ];
 
-        // Recent penjualan
+        // Recent records
         $recentPenjualan = PasgarPenjualan::where('sales_id', $salesProfile->id)
             ->latest('tanggal')
             ->take(5)
             ->get();
 
-        // Recent setoran
         $recentSetoran = PasgarSetoran::where('sales_id', $salesProfile->id)
             ->latest('tanggal')
             ->take(5)
             ->get();
 
+        // Target progress
+        $targetPercentage = $salesProfile->target_harian > 0
+            ? min(100, round(($todayStats['penjualan'] / $salesProfile->target_harian) * 100))
+            : 0;
+
+        // Sales trend (today vs yesterday)
+        $trend = $yesterdayStats['penjualan'] > 0
+            ? round((($todayStats['penjualan'] - $yesterdayStats['penjualan']) / $yesterdayStats['penjualan']) * 100)
+            : ($todayStats['penjualan'] > 0 ? 100 : 0);
+
         return view('pasgar.sales-dashboard.index', compact(
             'salesProfile',
             'todayStats',
+            'yesterdayStats',
             'monthlyStats',
             'activeLoadings',
+            'activeLoadingsCount',
             'loadingHariIni',
             'setoranStatus',
             'recentPenjualan',
-            'recentSetoran'
+            'recentSetoran',
+            'targetPercentage',
+            'trend',
         ));
     }
 }

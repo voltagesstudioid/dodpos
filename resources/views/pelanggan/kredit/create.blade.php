@@ -152,7 +152,7 @@
                         </div>
 
                         <div class="cf-credit-info" id="creditInfo">
-                            <div class="cf-credit-info-title">💡 Informasi Kredit Pelanggan</div>
+                            <div class="cf-credit-info-title">💡 Informasi Limit Pelanggan</div>
                             <div class="cf-credit-info-grid">
                                 <div class="cf-credit-info-item">
                                     <div class="cf-credit-info-lbl">Batas Kredit</div>

@@ -118,22 +118,59 @@ class PasgarPenjualanController extends Controller
             $conv = $item->unitConversion;
             // Get all conversions for the product (for price lookup)
             $allConvs = $product->unitConversions->map(function ($uc) {
+                $minimal = (float) $uc->sell_price_minimal;
+                if ($minimal > 0) {
+                    $minPrice = $minimal;
+                } else {
+                    $ecer = (float) $uc->sell_price_ecer;
+                    $jual1 = (float) $uc->sell_price_jual1;
+                    $jual2 = (float) $uc->sell_price_jual2;
+                    $jual3 = (float) $uc->sell_price_jual3;
+                    $grosir = (float) $uc->sell_price_grosir;
+                    $prices = array_filter([$ecer, $jual1, $jual2, $jual3, $grosir], fn($p) => $p > 0);
+                    $minPrice = empty($prices) ? 0 : min($prices);
+                }
+
                 return [
                     'id' => $uc->id,
                     'unit_name' => $uc->unit?->name ?? '',
                     'conversion_factor' => (int) $uc->conversion_factor,
                     'is_base' => (bool) $uc->is_base_unit,
                     'price' => (float) ($uc->sell_price_grosir ?: $uc->sell_price_ecer ?: 0),
+                    'min_price' => $minPrice,
+                    'ecer' => (float) $uc->sell_price_ecer,
+                    'jual1' => (float) $uc->sell_price_jual1,
+                    'jual2' => (float) $uc->sell_price_jual2,
+                    'jual3' => (float) $uc->sell_price_jual3,
                 ];
             })->values();
 
             // Determine current conversion
             $currentConv = null;
             if ($conv) {
+                $minimal = (float) $conv->sell_price_minimal;
+                if ($minimal > 0) {
+                    $minPrice = $minimal;
+                } else {
+                    $ecer = (float) $conv->sell_price_ecer;
+                    $jual1 = (float) $conv->sell_price_jual1;
+                    $jual2 = (float) $conv->sell_price_jual2;
+                    $jual3 = (float) $conv->sell_price_jual3;
+                    $grosir = (float) $conv->sell_price_grosir;
+                    $prices = array_filter([$ecer, $jual1, $jual2, $jual3, $grosir], fn($p) => $p > 0);
+                    $minPrice = empty($prices) ? 0 : min($prices);
+                }
+
                 $currentConv = [
                     'id' => $conv->id,
                     'unit_name' => $conv->unit?->name ?? '',
+                    'conversion_factor' => (int) $conv->conversion_factor,
                     'price' => (float) ($conv->sell_price_grosir ?: $conv->sell_price_ecer ?: 0),
+                    'min_price' => $minPrice,
+                    'ecer' => (float) $conv->sell_price_ecer,
+                    'jual1' => (float) $conv->sell_price_jual1,
+                    'jual2' => (float) $conv->sell_price_jual2,
+                    'jual3' => (float) $conv->sell_price_jual3,
                 ];
             }
 
@@ -143,7 +180,7 @@ class PasgarPenjualanController extends Controller
                 'product_name' => $product->name,
                 'sku' => $product->sku ?? '',
                 'category' => $product->category?->name ?? '',
-                'qty_sisa' => (int) $item->qty_sisa,
+                'qty_sisa' => (float) $item->qty_sisa,
                 'unit_conversion_id' => $item->unit_conversion_id,
                 'current_conversion' => $currentConv,
                 'conversions' => $allConvs,
@@ -162,6 +199,7 @@ class PasgarPenjualanController extends Controller
                 'nama_pemilik' => $pg->nama_pemilik,
                 'no_hp' => $pg->no_hp ?? '',
                 'alamat' => $pg->alamat ?? '',
+                'sisa_limit' => $pg->sisa_limit,
             ];
         })->values()->toJson();
 
@@ -184,8 +222,8 @@ class PasgarPenjualanController extends Controller
             'telepon_pelanggan' => 'nullable|string|max:20',
             'alamat_pelanggan' => 'nullable|string|max:500',
             'metode_bayar' => 'required|in:tunai,transfer',
-            'id_transaksi_transfer' => 'nullable|string|max:100',
-            'foto_bukti_transfer' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
+            'id_transaksi_transfer' => 'required_if:metode_bayar,transfer|nullable|string|max:100',
+            'foto_bukti_transfer' => 'required_if:metode_bayar,transfer|image|mimes:jpeg,jpg,png,webp|max:4096',
             'catatan' => 'nullable|string|max:500',
             'items' => 'required|array|min:1',
             'items.*.loading_item_id' => 'required|integer',
@@ -194,6 +232,8 @@ class PasgarPenjualanController extends Controller
             'items.*.qty' => 'required|integer|min:1|max:9999',
             'items.*.harga' => 'required|numeric|min:0',
         ], [
+            'id_transaksi_transfer.required_if' => 'ID Transaksi wajib diisi bila menggunakan transfer.',
+            'foto_bukti_transfer.required_if' => 'Foto bukti transfer wajib diunggah bila menggunakan transfer.',
             'items.required' => 'Tambahkan minimal 1 barang.',
             'items.min' => 'Tambahkan minimal 1 barang.',
             'items.*.qty.required' => 'Masukkan jumlah.',
@@ -228,34 +268,71 @@ class PasgarPenjualanController extends Controller
             if (!$loadingItem || $loadingItem->loading_id != $loading->id) {
                 return back()->withErrors(['items' => 'Item tidak valid.'])->withInput();
             }
-            if ($qty > $loadingItem->qty_sisa) {
-                return back()->withErrors(['items' => "Qty melebihi stok sisa ({$loadingItem->qty_sisa})."])->withInput();
+
+            // --- Multi-UOM Calculation ---
+            $convId = $item['unit_conversion_id'] ?? null;
+            $convSold = null;
+            if ($convId) {
+                $convSold = \App\Models\ProductUnitConversion::find($convId);
+            } else {
+                $convSold = \App\Models\ProductUnitConversion::where('product_id', $item['product_id'])
+                    ->where('is_base_unit', true)->first();
             }
 
-            // Sales cannot modify price — enforce system price from unit conversion
-            if ($isSalesRole) {
-                $convId = $item['unit_conversion_id'] ?? null;
-                if ($convId) {
-                    $conv = \App\Models\ProductUnitConversion::find($convId);
-                    if ($conv) {
-                        $harga = (float) ($conv->sell_price_grosir ?: $conv->sell_price_ecer ?: 0);
-                    }
-                } else {
-                    // Fallback: use base unit price
-                    $conv = \App\Models\ProductUnitConversion::where('product_id', $item['product_id'])
-                        ->where('is_base_unit', true)->first();
-                    if ($conv) {
-                        $harga = (float) ($conv->sell_price_grosir ?: $conv->sell_price_ecer ?: 0);
-                    }
-                }
-                $subtotal = $qty * $harga;
+            $convLoaded = $loadingItem->unitConversion;
+            $factorSold = $convSold ? $convSold->conversion_factor : 1;
+            $factorLoaded = $convLoaded ? $convLoaded->conversion_factor : 1;
+
+            // Calculate quantity to deduct from loadingItem (in loaded unit)
+            $deduction = ($qty * $factorSold) / $factorLoaded;
+
+            // Use string comparison formatting to avoid floating point precision issues during display
+            if (round($deduction, 3) > round($loadingItem->qty_sisa, 3)) {
+                return back()->withErrors(['items' => "Qty melebihi stok sisa (Maksimal: " . (round($loadingItem->qty_sisa * $factorLoaded / $factorSold)) . " satuan yang dipilih)."])->withInput();
             }
+            // --- End Multi-UOM Calculation ---
+
+            // Calculate minimum allowed price
+            $minPrice = 0;
+            $convId = $item['unit_conversion_id'] ?? null;
+            $conv = null;
+            if ($convId) {
+                $conv = \App\Models\ProductUnitConversion::find($convId);
+            } else {
+                $conv = \App\Models\ProductUnitConversion::where('product_id', $item['product_id'])
+                    ->where('is_base_unit', true)->first();
+            }
+
+            if ($convSold) {
+                $minimal = (float) $convSold->sell_price_minimal;
+                if ($minimal > 0) {
+                    $minPrice = $minimal;
+                } else {
+                    $ecer = (float) $convSold->sell_price_ecer;
+                    $jual1 = (float) $convSold->sell_price_jual1;
+                    $jual2 = (float) $convSold->sell_price_jual2;
+                    $jual3 = (float) $convSold->sell_price_jual3;
+                    $grosir = (float) $convSold->sell_price_grosir;
+                    $prices = array_filter([$ecer, $jual1, $jual2, $jual3, $grosir], fn($p) => $p > 0);
+                    $minPrice = empty($prices) ? 0 : min($prices);
+                }
+            }
+
+            // Enforce minimum price for sales role
+            if ($isSalesRole) {
+                if ($harga < $minPrice) {
+                    return back()->withErrors(['items' => "Harga " . ($loadingItem->product->name ?? 'Barang') . " tidak boleh di bawah harga minimal (Rp " . number_format($minPrice, 0, ',', '.') . ")."])->withInput();
+                }
+            }
+
+            $subtotal = $qty * $harga;
 
             $itemData[] = [
                 'loading_item_id' => $loadingItem->id,
                 'product_id' => $item['product_id'],
                 'unit_conversion_id' => $item['unit_conversion_id'] ?? null,
                 'qty' => $qty,
+                'deduction' => $deduction, // Pass the deduction factor to the transaction closure
                 'harga' => $harga,
                 'subtotal' => $subtotal,
             ];
@@ -263,6 +340,8 @@ class PasgarPenjualanController extends Controller
 
         // Recalculate grand total from final item data (accounts for sales price override)
         $grandTotal = array_sum(array_column($itemData, 'subtotal'));
+
+        // Limit method removed for Pasgar
 
         $uangMuka = 0;
 
@@ -318,10 +397,10 @@ class PasgarPenjualanController extends Controller
                     'subtotal' => $data['subtotal'],
                 ]);
 
-                // Deduct from loading item
+                // Deduct from loading item using the calculated fractional deduction
                 $loadingItem = PasgarLoadingItem::find($data['loading_item_id']);
-                $loadingItem->qty_terjual += $data['qty'];
-                $loadingItem->qty_sisa = max(0, $loadingItem->qty_sisa - $data['qty']);
+                $loadingItem->qty_terjual += $data['deduction'];
+                $loadingItem->qty_sisa = max(0, $loadingItem->qty_sisa - $data['deduction']);
                 $loadingItem->save();
             }
 
@@ -329,6 +408,19 @@ class PasgarPenjualanController extends Controller
             $allSold = $loading->items()->where('qty_sisa', '>', 0)->count() === 0;
             if ($allSold) {
                 $loading->update(['status' => 'completed']);
+            }
+
+            // If limit, create hutang
+            if ($validated['metode_bayar'] === 'limit') {
+                \App\Models\PasgarHutang::create([
+                    'pelanggan_id' => $validated['pelanggan_id'],
+                    'penjualan_id' => $penjualan->id,
+                    'total_hutang' => $grandTotal,
+                    'dibayar' => 0,
+                    'sisa' => $grandTotal,
+                    'status' => 'belum_lunas',
+                    'keterangan' => 'Penjualan menggunakan limit',
+                ]);
             }
         });
 
