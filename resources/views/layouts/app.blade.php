@@ -1059,7 +1059,6 @@
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Kelola Stok</div>
-                        <a href="{{ route('minyak.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('minyak.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
                         <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
