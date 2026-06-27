@@ -1067,9 +1067,7 @@
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                         <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
-                        <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Hutang Pelanggan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
