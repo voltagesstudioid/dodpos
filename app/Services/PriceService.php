@@ -94,10 +94,9 @@ class PriceService
             $price = $minimal;
         }
 
-        // Safety: harga tidak boleh dibawah modal (minimal 5% untung)
-        $minimumMargin = $modal * 1.05;
-        if ($price < $minimumMargin && $modal > 0) {
-            $price = $minimumMargin;
+        // Safety: harga tidak boleh negatif
+        if ($price < 0) {
+            $price = 0;
         }
 
         return round($price, 2);
@@ -132,37 +131,32 @@ class PriceService
         $jual2   = $this->parseNumber($data['sell_price_jual2'] ?? 0);
         $jual3   = $this->parseNumber($data['sell_price_jual3'] ?? 0);
 
-        // Rule 1: Minimal harus >= modal * 1.05 (minimal 5% untung)
-        if ($minimal > 0 && $minimal < ($modal * 1.05)) {
-            $errors[] = 'Harga minimal harus minimal 5% di atas harga modal';
-        }
-
-        // Rule 2: Eceran harus >= minimal
+        // Rule 1: Eceran harus >= minimal
         if ($eceran > 0 && $minimal > 0 && $eceran < $minimal) {
             $errors[] = 'Harga eceran tidak boleh lebih rendah dari harga minimal';
         }
 
-        // Rule 3: Grosir harus <= eceran (diskon grosir)
+        // Rule 2: Grosir harus <= eceran (diskon grosir)
         if ($grosir > 0 && $eceran > 0 && $grosir > $eceran) {
             $errors[] = 'Harga grosir harus lebih murah atau sama dengan harga eceran';
         }
 
-        // Rule 4: Grosir harus >= minimal
+        // Rule 3: Grosir harus >= minimal
         if ($grosir > 0 && $minimal > 0 && $grosir < $minimal) {
             $errors[] = 'Harga grosir tidak boleh lebih rendah dari harga minimal';
         }
 
-        // Rule 5: Jual 1 (premium) harus >= eceran
+        // Rule 4: Jual 1 (premium) harus >= eceran
         if ($jual1 > 0 && $eceran > 0 && $jual1 < $eceran) {
             $errors[] = 'Harga jual 1 harus lebih mahal atau sama dengan harga eceran';
         }
 
-        // Rule 6: Jual 3 (budget) harus <= grosir
+        // Rule 5: Jual 3 (budget) harus <= grosir
         if ($jual3 > 0 && $grosir > 0 && $jual3 > $grosir) {
             $errors[] = 'Harga jual 3 harus lebih murah atau sama dengan harga grosir';
         }
 
-        // Rule 7: Urutan: Jual 1 >= Jual 2 >= Jual 3
+        // Rule 6: Urutan: Jual 1 >= Jual 2 >= Jual 3
         if ($jual1 > 0 && $jual2 > 0 && $jual1 < $jual2) {
             $errors[] = 'Harga jual 1 harus lebih mahal dari jual 2';
         }

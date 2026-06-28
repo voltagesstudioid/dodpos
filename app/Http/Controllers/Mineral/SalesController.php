@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MineralSales;
 use App\Models\MineralRegional;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -67,25 +68,28 @@ class SalesController extends Controller
     {
         $users = User::whereDoesntHave('employee')
             ->orWhereHas('employee', function ($q) {
-                $q->whereNull('id'); // Users without sales association
+                $q->whereNull('id');
             })
             ->get();
 
         $regionals = MineralRegional::where('status', 'aktif')->orderBy('nama')->get();
 
-        return view('mineral.sales.create', compact('users', 'regionals'));
+        $vehicles = Vehicle::whereNull('sales_id')
+            ->orderBy('license_plate')
+            ->get();
+
+        return view('mineral.sales.create', compact('users', 'regionals', 'vehicles'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'nama' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
             'alamat' => 'nullable|string|max:255',
-            'no_kendaraan' => 'nullable|string|max:20',
-            'jenis_kendaraan' => 'nullable|string|max:50',
             'target_harian' => 'nullable|numeric|min:0',
             'status' => 'required|in:aktif,nonaktif',
             'keterangan' => 'nullable|string',
@@ -93,8 +97,16 @@ class SalesController extends Controller
         ]);
 
         $validated['kode_sales'] = MineralSales::generateKode();
+        $validated['is_inti'] = $request->has('is_inti');
 
-        MineralSales::create($validated);
+        $sales = MineralSales::create($validated);
+
+        if (!empty($validated['vehicle_id'])) {
+            Vehicle::where('id', $validated['vehicle_id'])->update([
+                'sales_type' => MineralSales::class,
+                'sales_id' => $sales->id,
+            ]);
+        }
 
         return redirect()->route('mineral.sales.index')
             ->with('success', 'Data Sales berhasil ditambahkan.');
@@ -111,24 +123,43 @@ class SalesController extends Controller
     {
         $users = User::all();
         $regionals = MineralRegional::where('status', 'aktif')->orderBy('nama')->get();
-        return view('mineral.sales.edit', compact('sales', 'users', 'regionals'));
+        $vehicles = Vehicle::whereNull('sales_id')
+            ->orWhere(function ($q) use ($sales) {
+                $q->where('sales_type', MineralSales::class)
+                  ->where('sales_id', $sales->id);
+            })
+            ->orderBy('license_plate')
+            ->get();
+        return view('mineral.sales.edit', compact('sales', 'users', 'regionals', 'vehicles'));
     }
 
     public function update(Request $request, MineralSales $sales)
     {
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'nama' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
             'alamat' => 'nullable|string|max:255',
-            'no_kendaraan' => 'nullable|string|max:20',
-            'jenis_kendaraan' => 'nullable|string|max:50',
             'target_harian' => 'nullable|numeric|min:0',
             'status' => 'required|in:aktif,nonaktif',
             'keterangan' => 'nullable|string',
             'regional_id' => 'nullable|exists:mineral_regional,id',
         ]);
+
+        $validated['is_inti'] = $request->has('is_inti');
+
+        Vehicle::where('sales_type', MineralSales::class)
+            ->where('sales_id', $sales->id)
+            ->update(['sales_type' => null, 'sales_id' => null]);
+
+        if (!empty($validated['vehicle_id'])) {
+            Vehicle::where('id', $validated['vehicle_id'])->update([
+                'sales_type' => MineralSales::class,
+                'sales_id' => $sales->id,
+            ]);
+        }
 
         $sales->update($validated);
 

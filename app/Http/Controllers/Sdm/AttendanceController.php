@@ -26,7 +26,7 @@ class AttendanceController extends Controller
 {
     /**
      * Securely store uploaded selfie using FileUploadService.
-     * Replaces the old tryStoreUploadedSelfie method.
+     * Replaces the old storeSelfieSecurely method.
      */
     private function storeSelfieSecurely($file, string $date, string $tag, array $context): ?string
     {
@@ -53,12 +53,6 @@ class AttendanceController extends Controller
 
             return null;
         }
-    }
-
-    /** @deprecated Use storeSelfieSecurely() */
-    private function tryStoreUploadedSelfie($file, string $date, string $tag, array $context): ?string
-    {
-        return $this->storeSelfieSecurely($file, $date, $tag, $context);
     }
 
     private function tryPutSelfieBytes(string $path, string $bytes, array $context): bool
@@ -499,147 +493,6 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Tarik data absensi langsung dari mesin sidik jari
-     */
-    public function sync(Request $request)
-    {
-        $scopeDate = $request->input('date', now()->toDateString());
-
-        // IP dan Port diambil dari pengaturan toko
-        $setting = \App\Models\StoreSetting::current();
-        $ip = $setting->fingerprint_ip;
-        $port = $setting->fingerprint_port ?? 4370;
-        $workStartTime = $setting->sdm_work_start_time ?? '08:00';
-        $lateGraceMinutes = (int) ($setting->sdm_late_grace_minutes ?? 10);
-
-        if (empty($ip)) {
-            return redirect()->back()->with('error', 'IP Address mesin Fingerprint belum diatur. Silakan atur di Pengaturan Toko M/OK.');
-        }
-
-        // Hapus set_time_limit(10) karena kita akan handle via fsockopen timeout
-        try {
-            // Lakukan "Ping" (Pre-check) ke port mesin selama maksimal 3 detik sebelum library ZKTeco berjalan
-            // Ini untuk mencegah PHP ngehang jika IP salah / beda jaringan WiFi
-            $fp = @fsockopen($ip, $port, $errno, $errstr, 3);
-            if (! $fp) {
-                return redirect()->back()->with('error', "Gagal menjangkau IP $ip:$port. Mesin Tidak Merespon. Pastikan mesin menyala dan Anda sudah mengganti IP Mesin menjadi awalan 192.168.50.xxx seperti WiFi Anda.");
-            }
-            fclose($fp);
-
-            // Jika ping port sukses, baru kita suruh library ZKteco masuk
-            $zk = new ZKTeco($ip, $port);
-
-            if (! $zk->connect()) {
-                return redirect()->back()->with('error', 'Mesin merespon tapi ZKTeco gagal terhubung ('.$ip.').');
-            }
-
-            // Ambil data log absensi dari mesin
-            $attendanceLogs = $zk->getAttendance();
-            $zk->disconnect();
-
-            if (empty($attendanceLogs)) {
-                return redirect()->back()->with('warning', 'Tidak ada data log absensi di mesin fingerprint.');
-            }
-
-            $syncedCount = 0;
-            // Loop seluruh record dari mesin
-            foreach ($attendanceLogs as $log) {
-                // Di ZKteco biasanya `id` adalah UID/PIN karyawan, `timestamp` adalah datetime
-                // Struktur return library jmrashed bervariasi, kita asumsikan array berisi 'id' dan 'timestamp'
-                if (! isset($log['id']) || ! isset($log['timestamp'])) {
-                    continue;
-                }
-
-                $fingerprintId = (string) $log['id'];
-                $scanTime = Carbon::parse($log['timestamp']);
-                $date = $scanTime->toDateString();
-
-                if ($date !== $scopeDate) {
-                    continue;
-                }
-
-                $time = $scanTime->toTimeString();
-
-                // Cek apakah karyawan ini ada di database Users
-                $user = User::where('fingerprint_id', $fingerprintId)->first();
-                $userId = $user ? $user->id : null;
-
-                // Cari apakah sudah ada record absensi untuk UID + Tanggal ini
-                $attendance = Attendance::where('fingerprint_id', $fingerprintId)
-                    ->where('date', $date)
-                    ->first();
-
-                if (! $attendance) {
-                    $lateMinutes = $this->lateMinutes($date, $time, $workStartTime, $lateGraceMinutes);
-                    $status = $lateMinutes > 0 ? 'late' : 'present';
-
-                    // Buat record Check-In baru
-                    Attendance::create([
-                        'user_id' => $userId,
-                        'fingerprint_id' => $fingerprintId,
-                        'date' => $date,
-                        'check_in_time' => $time,
-                        'check_out_time' => null,
-                        'status' => $status,
-                        'late_minutes' => $lateMinutes > 0 ? $lateMinutes : 0,
-                        'overtime_minutes' => null,
-                        'work_hours' => null,
-                    ]);
-                    $syncedCount++;
-                } else {
-                    // Update jika record scan lebih dulu (Check In) atau lebih akhir (Check Out), atau jika user_id masih kosong
-                    $updates = [];
-                    $isUpdated = false;
-
-                    // Update user id jika sebelumnya masih "Tidak Diketahui" (null) tapi sekarang sudah terdaftar
-                    if ($attendance->user_id === null && $userId !== null) {
-                        $updates['user_id'] = $userId;
-                        $isUpdated = true;
-                    }
-
-                    // Update Check In jika waktu scan lebih awal
-                    if ($attendance->check_in_time && $time < $attendance->check_in_time) {
-                        $updates['check_in_time'] = $time;
-                        $isUpdated = true;
-                    }
-                    // Update Check Out jika waktu scan lebih akhir dari check in
-                    elseif ($time > $attendance->check_in_time) {
-                        if (! $attendance->check_out_time || $time > $attendance->check_out_time) {
-                            $updates['check_out_time'] = $time;
-
-                            // Hitung jam kerja otomatis
-                            $checkIn = Carbon::parse($date.' '.($updates['check_in_time'] ?? $attendance->check_in_time));
-                            $checkOut = Carbon::parse($date.' '.$time);
-                            $updates['work_hours'] = $checkIn->diffInMinutes($checkOut) / 60;
-
-                            $isUpdated = true;
-                        }
-                    }
-
-                    if ($isUpdated) {
-                        $finalCheckIn = $updates['check_in_time'] ?? $attendance->check_in_time;
-                        if ($finalCheckIn) {
-                            $lateMinutes = $this->lateMinutes($date, $finalCheckIn, $workStartTime, $lateGraceMinutes);
-                            $updates['late_minutes'] = $lateMinutes > 0 ? $lateMinutes : 0;
-                            if (in_array($attendance->status, ['present', 'late'], true)) {
-                                $updates['status'] = $lateMinutes > 0 ? 'late' : 'present';
-                            }
-                        }
-
-                        $attendance->update($updates);
-                        $syncedCount++;
-                    }
-                }
-            }
-
-            return redirect()->back()->with('success', "Berhasil menarik $syncedCount pembaruan data absensi dari mesin fingerprint!");
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan sistem: '.$e->getMessage());
-        }
-    }
-
-    /**
      * Kaitkan UID Fingerprint yang Tidak Diketahui ke User tertentu
      */
     public function linkUser(Request $request)
@@ -704,7 +557,7 @@ class AttendanceController extends Controller
         $validated = $validator->validate();
 
         $user = User::with('employee')->findOrFail($validated['user_id']);
-        $setting = \App\Models\StoreSetting::current();
+        $setting = StoreSetting::current();
         $workStartTime = $setting->sdm_work_start_time ?? '08:00';
         $lateGraceMinutes = (int) ($setting->sdm_late_grace_minutes ?? 10);
 
@@ -784,7 +637,7 @@ class AttendanceController extends Controller
                     if ($attendance->check_in_selfie_path) {
                         Storage::disk('public')->delete($attendance->check_in_selfie_path);
                     }
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_in'), $date, 'manual_in', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
@@ -795,7 +648,7 @@ class AttendanceController extends Controller
                     if ($attendance->check_out_selfie_path) {
                         Storage::disk('public')->delete($attendance->check_out_selfie_path);
                     }
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_out'), $date, 'manual_out', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
@@ -812,7 +665,7 @@ class AttendanceController extends Controller
                 $attendance->update($attributes);
             } else {
                 if ($request->hasFile('selfie_in')) {
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'manual_in', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_in'), $date, 'manual_in', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
@@ -820,7 +673,7 @@ class AttendanceController extends Controller
                     $attributes['check_in_selfie_path'] = $path;
                 }
                 if ($request->hasFile('selfie_out')) {
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'manual_out', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_out'), $date, 'manual_out', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
@@ -877,7 +730,7 @@ class AttendanceController extends Controller
         $status = (string) $validated['status'];
         $checkIn = $validated['check_in_time'] ?? null;
         $checkOut = $validated['check_out_time'] ?? null;
-        $setting = \App\Models\StoreSetting::current();
+        $setting = StoreSetting::current();
         $workStartTime = $setting->sdm_work_start_time ?? '08:00';
         $lateGraceMinutes = (int) ($setting->sdm_late_grace_minutes ?? 10);
 
@@ -933,7 +786,7 @@ class AttendanceController extends Controller
                     if ($attendance->check_in_selfie_path) {
                         Storage::disk('public')->delete($attendance->check_in_selfie_path);
                     }
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_in'), $date, 'update_in', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_in'), $date, 'update_in', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto masuk. Coba lagi.');
@@ -944,7 +797,7 @@ class AttendanceController extends Controller
                     if ($attendance->check_out_selfie_path) {
                         Storage::disk('public')->delete($attendance->check_out_selfie_path);
                     }
-                    $path = $this->tryStoreUploadedSelfie($request->file('selfie_out'), $date, 'update_out', $context);
+                    $path = $this->storeSelfieSecurely($request->file('selfie_out'), $date, 'update_out', $context);
                     if (! $path) {
                         DB::rollBack();
                         return back()->with('error', 'Gagal menyimpan foto pulang. Coba lagi.');
@@ -1019,7 +872,7 @@ class AttendanceController extends Controller
             abort(404);
         }
 
-        return Storage::disk('public')->response($path, null, [
+        return response()->file(Storage::disk('public')->path($path), [
             'Cache-Control' => 'private, max-age=604800',
         ]);
     }
@@ -1181,7 +1034,7 @@ class AttendanceController extends Controller
             'action' => $action,
         ];
         if ($request->hasFile('selfie')) {
-            $path = $this->tryStoreUploadedSelfie($request->file('selfie'), $date, 'self_'.$action, $context);
+            $path = $this->storeSelfieSecurely($request->file('selfie'), $date, 'self_'.$action, $context);
             if (! $path) {
                 return back()->with('error', 'Gagal menyimpan foto. Coba lagi.');
             }
@@ -1365,8 +1218,8 @@ class AttendanceController extends Controller
         $dow = (int) $c->dayOfWeek;
 
         return $mode === 'mon_fri'
-            ? ($dow >= Carbon::MONDAY && $dow <= Carbon::FRIDAY)
-            : ($dow >= Carbon::MONDAY && $dow <= Carbon::SATURDAY);
+            ? ($dow >= \Carbon\CarbonInterface::MONDAY && $dow <= \Carbon\CarbonInterface::FRIDAY)
+            : ($dow >= \Carbon\CarbonInterface::MONDAY && $dow <= \Carbon\CarbonInterface::SATURDAY);
     }
 
     private function workingDates(int $year, int $month, string $mode, string $calendarMode): array
@@ -1415,8 +1268,8 @@ class AttendanceController extends Controller
 
             $dow = (int) $cursor->dayOfWeek;
             $isWorkingDay = $mode === 'mon_fri'
-                ? ($dow >= Carbon::MONDAY && $dow <= Carbon::FRIDAY)
-                : ($dow >= Carbon::MONDAY && $dow <= Carbon::SATURDAY);
+                ? ($dow >= \Carbon\CarbonInterface::MONDAY && $dow <= \Carbon\CarbonInterface::FRIDAY)
+                : ($dow >= \Carbon\CarbonInterface::MONDAY && $dow <= \Carbon\CarbonInterface::SATURDAY);
 
             if ($isWorkingDay && ! isset($holidaySet[$dateStr])) {
                 $dates[] = $dateStr;

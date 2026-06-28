@@ -5,17 +5,14 @@ use App\Http\Controllers\Minyak\DashboardController;
 use App\Http\Controllers\Minyak\SalesController;
 use App\Http\Controllers\Minyak\PelangganController;
 use App\Http\Controllers\Minyak\ProdukController;
-use App\Http\Controllers\Minyak\LoadingController;
-use App\Http\Controllers\Minyak\StokController;
 use App\Http\Controllers\Minyak\PenjualanController;
 use App\Http\Controllers\Minyak\HutangController;
 use App\Http\Controllers\Minyak\SetoranController;
 use App\Http\Controllers\Minyak\KunjunganController;
 use App\Http\Controllers\Minyak\LaporanController;
 use App\Http\Controllers\Minyak\RegionalController;
-use App\Http\Controllers\Minyak\RekonsiliasiController;
+
 use App\Http\Controllers\Minyak\SettingController;
-use App\Http\Controllers\Minyak\StokMasukController;
 
 // =========================================================
 // MODUL MINYAK - Sales & Distribution
@@ -29,31 +26,21 @@ Route::prefix('minyak')->name('minyak.')->middleware('role:supervisor|admin4|sal
     // Pelanggan (sales can view + create, supervisor has full CRUD)
     Route::get('/pelanggan', [PelangganController::class, 'index'])->name('pelanggan.index');
     Route::get('/pelanggan/create', [PelangganController::class, 'create'])->name('pelanggan.create');
+
     Route::post('/pelanggan', [PelangganController::class, 'store'])->name('pelanggan.store');
     Route::get('/pelanggan/{pelanggan}', [PelangganController::class, 'show'])->name('pelanggan.show');
+    Route::get('/pelanggan/{pelanggan}/edit', [PelangganController::class, 'edit'])->name('pelanggan.edit');
+    Route::put('/pelanggan/{pelanggan}', [PelangganController::class, 'update'])->name('pelanggan.update');
 
     // Produk (view only for sales, full for supervisor)
     Route::get('/produk', [ProdukController::class, 'index'])->name('produk.index');
-
-    // Stok Kendaraan
-    Route::get('/stok', [StokController::class, 'index'])->name('stok.index');
-
-    // Stok Masuk (Penerimaan & Koreksi)
-    Route::get('/stok-masuk', [StokMasukController::class, 'index'])->name('stok-masuk.index');
-    Route::get('/stok-masuk/create', [StokMasukController::class, 'create'])->name('stok-masuk.create');
-    Route::post('/stok-masuk', [StokMasukController::class, 'store'])->name('stok-masuk.store');
-    Route::get('/stok-masuk/{stokMasuk}', [StokMasukController::class, 'show'])->name('stok-masuk.show');
-    Route::delete('/stok-masuk/{stokMasuk}', [StokMasukController::class, 'destroy'])->name('stok-masuk.destroy');
 
     // Penjualan
     Route::resource('penjualan', PenjualanController::class);
     Route::get('/penjualan/{penjualan}/print', [PenjualanController::class, 'printStruk'])->name('penjualan.print');
 
-    // Kunjungan
+    // Kunjungan (auto tercatat saat penjualan dibuat)
     Route::get('/kunjungan', [KunjunganController::class, 'index'])->name('kunjungan.index');
-    Route::get('/kunjungan/checkin', [KunjunganController::class, 'checkinForm'])->name('kunjungan.checkin');
-    Route::post('/kunjungan/checkin', [KunjunganController::class, 'storeCheckin'])->name('kunjungan.checkin.store');
-    Route::post('/kunjungan/{kunjungan}/checkout', [KunjunganController::class, 'storeCheckout'])->name('kunjungan.checkout');
     Route::get('/kunjungan/{kunjungan}', [KunjunganController::class, 'show'])->name('kunjungan.show');
 
     // Setoran
@@ -64,8 +51,10 @@ Route::prefix('minyak')->name('minyak.')->middleware('role:supervisor|admin4|sal
     Route::get('/hutang/piutang', [HutangController::class, 'piutang'])->name('hutang.piutang');
     Route::get('/hutang/total', [HutangController::class, 'totalPiutang'])->name('hutang.total');
     Route::get('/hutang/lunas', [HutangController::class, 'lunas'])->name('hutang.lunas');
+    Route::get('/hutang/pelanggan/{pelanggan}', [HutangController::class, 'byPelanggan'])->name('hutang.pelanggan');
     Route::get('/hutang/{hutang}', [HutangController::class, 'show'])->name('hutang.show');
     Route::post('/hutang/{hutang}/bayar', [HutangController::class, 'bayar'])->name('hutang.bayar');
+    Route::post('/hutang/pelanggan/{pelanggan}/bayar-semua', [HutangController::class, 'bayarSemua'])->name('hutang.bayar-semua');
 });
 
 // --- Supervisor & Admin only (full access features) ---
@@ -77,18 +66,11 @@ Route::prefix('minyak')->name('minyak.')->middleware('role:supervisor|admin4')->
     // Master Data - Sales
     Route::resource('sales', SalesController::class)->parameters(['sales' => 'sales']);
 
-    // Master Data - Pelanggan (edit/update/delete only)
-    Route::resource('pelanggan', PelangganController::class)->except(['index', 'create', 'store', 'show']);
+    // Master Data - Pelanggan (delete only)
+    Route::resource('pelanggan', PelangganController::class)->only(['destroy']);
 
     // Master Data - Produk (CRUD)
     Route::resource('produk', ProdukController::class)->except(['index']);
-
-    // Loading Harian
-    Route::resource('loading', LoadingController::class);
-
-    // Distribusi Stok (batch loading)
-    Route::get('/loading-distribusi', [LoadingController::class, 'distribusi'])->name('loading.distribusi');
-    Route::post('/loading-distribusi', [LoadingController::class, 'storeDistribusi'])->name('loading.distribusi.store');
 
     // Penjualan verify
     Route::post('/penjualan/{penjualan}/verify', [PenjualanController::class, 'verify'])->name('penjualan.verify');
@@ -110,9 +92,6 @@ Route::prefix('minyak')->name('minyak.')->middleware('role:supervisor|admin4')->
         Route::delete('/satuan/{satuan}', [SettingController::class, 'destroySatuan'])->name('satuan.destroy');
     });
 
-    // Rekonsiliasi (supervisor|admin4 only)
-    Route::get('/rekonsiliasi', [RekonsiliasiController::class, 'index'])->name('rekonsiliasi.index');
-    Route::post('/rekonsiliasi', [RekonsiliasiController::class, 'store'])->name('rekonsiliasi.store');
 });
 
 // Laporan Minyak — accessible by supervisor, admin4, admin1

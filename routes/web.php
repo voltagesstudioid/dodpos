@@ -285,6 +285,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/master/produk', [MasterProdukController::class, 'index'])
         ->name('master.produk')
         ->middleware('can:view_master_produk');
+    Route::get('/master/produk/create', [MasterProdukController::class, 'create'])
+        ->name('master.produk.create')
+        ->middleware('can:view_master_produk');
     // AJAX search endpoints
     Route::get('/master/produk/search/products', [MasterProdukController::class, 'searchProducts'])
         ->name('master.produk.search.products')
@@ -304,6 +307,9 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/master/produk', [MasterProdukController::class, 'storeProduct'])
         ->name('master.produk.store')
         ->middleware('can:create_master_produk');
+    Route::get('/master/produk/{product}/edit', [MasterProdukController::class, 'edit'])
+        ->name('master.produk.edit')
+        ->middleware('can:edit_master_produk');
     Route::put('/master/produk/{product}', [MasterProdukController::class, 'updateProduct'])
         ->name('master.produk.update')
         ->middleware('can:edit_master_produk');
@@ -746,7 +752,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         });
 
         Route::middleware('can:create_absensi')->group(function () {
-            Route::post('/absensi/sync', [\App\Http\Controllers\Sdm\AttendanceController::class, 'sync'])->name('absensi.sync');
             Route::post('/absensi/link-user', [\App\Http\Controllers\Sdm\AttendanceController::class, 'linkUser'])->name('absensi.link_user');
             Route::post('/absensi/manual', [\App\Http\Controllers\Sdm\AttendanceController::class, 'storeManual'])->name('absensi.manual.store');
             Route::post('/absensi/generate-absent', [\App\Http\Controllers\Sdm\AttendanceController::class, 'generateAbsent'])->name('absensi.generate_absent');
@@ -888,12 +893,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/penjualan/{penjualan}/print', [\App\Http\Controllers\Mineral\PenjualanController::class, 'printStruk'])
             ->name('penjualan.print');
 
-        // Kunjungan
+        // Kunjungan (auto tercatat saat penjualan dibuat)
         Route::get('/kunjungan', [\App\Http\Controllers\Mineral\KunjunganController::class, 'index'])->name('kunjungan.index');
-        Route::get('/kunjungan/checkin', [\App\Http\Controllers\Mineral\KunjunganController::class, 'checkinForm'])->name('kunjungan.checkin');
-        Route::post('/kunjungan/checkin', [\App\Http\Controllers\Mineral\KunjunganController::class, 'storeCheckin'])->name('kunjungan.checkin.store');
-        Route::post('/kunjungan/{kunjungan}/checkout', [\App\Http\Controllers\Mineral\KunjunganController::class, 'storeCheckout'])->name('kunjungan.checkout');
-        Route::post('/kunjungan/{kunjungan}/cancel', [\App\Http\Controllers\Mineral\KunjunganController::class, 'cancel'])->name('kunjungan.cancel');
         Route::get('/kunjungan/{kunjungan}', [\App\Http\Controllers\Mineral\KunjunganController::class, 'show'])->name('kunjungan.show');
 
         // Setoran
@@ -906,6 +907,11 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/hutang/lunas', [\App\Http\Controllers\Mineral\HutangController::class, 'lunas'])->name('hutang.lunas');
         Route::get('/hutang/{hutang}', [\App\Http\Controllers\Mineral\HutangController::class, 'show'])->name('hutang.show');
         Route::post('/hutang/{hutang}/bayar', [\App\Http\Controllers\Mineral\HutangController::class, 'bayar'])->name('hutang.bayar');
+
+        // Penugasan Kendaraan (create request for all roles, approve only by SPV/Admin)
+        Route::resource('loading', \App\Http\Controllers\Mineral\LoadingController::class);
+        Route::post('/loading/{loading}/approve', [\App\Http\Controllers\Mineral\LoadingController::class, 'approve'])->name('loading.approve');
+        Route::post('/loading/{loading}/reject', [\App\Http\Controllers\Mineral\LoadingController::class, 'reject'])->name('loading.reject');
     });
 
     // --- Supervisor & Admin only (full access features) ---
@@ -937,13 +943,6 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::delete('/satuan/{satuan}', [\App\Http\Controllers\Mineral\SettingController::class, 'destroySatuan'])->name('satuan.destroy');
         });
 
-        // Loading Harian
-        Route::resource('loading', \App\Http\Controllers\Mineral\LoadingController::class);
-
-        // Distribusi Stok (batch loading)
-        Route::get('/loading-distribusi', [\App\Http\Controllers\Mineral\LoadingController::class, 'distribusi'])->name('loading.distribusi');
-        Route::post('/loading-distribusi', [\App\Http\Controllers\Mineral\LoadingController::class, 'storeDistribusi'])->name('loading.distribusi.store');
-
         // Penjualan verify
         Route::post('/penjualan/{penjualan}/verify', [\App\Http\Controllers\Mineral\PenjualanController::class, 'verify'])
             ->name('penjualan.verify');
@@ -952,11 +951,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/setoran/{setoran}/verify', [\App\Http\Controllers\Mineral\SetoranController::class, 'verify'])
             ->name('setoran.verify');
 
-        // Rekonsiliasi (supervisor|admin4 only)
-        Route::get('/rekonsiliasi', [\App\Http\Controllers\Mineral\RekonsiliasiController::class, 'index'])
-            ->name('rekonsiliasi.index');
-        Route::post('/rekonsiliasi', [\App\Http\Controllers\Mineral\RekonsiliasiController::class, 'store'])
-            ->name('rekonsiliasi.store');
+
     });
 
     // Laporan Mineral — accessible by supervisor, admin4, admin1
@@ -1047,9 +1042,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/hutang/{hutang}/payment/{payment}/confirm', [\App\Http\Controllers\Gula\HutangController::class, 'confirmPayment'])->name('hutang.confirm-payment');
         Route::post('/hutang/{hutang}/payment/{payment}/reject', [\App\Http\Controllers\Gula\HutangController::class, 'rejectPayment'])->name('hutang.reject-payment');
 
-        // Rekonsiliasi (supervisor|admin4 only)
-        Route::get('/rekonsiliasi', [\App\Http\Controllers\Gula\RekonsiliasiController::class, 'index'])->name('rekonsiliasi.index');
-        Route::post('/rekonsiliasi', [\App\Http\Controllers\Gula\RekonsiliasiController::class, 'store'])->name('rekonsiliasi.store');
+
     });
 
     // Laporan Gula — accessible by supervisor, admin4, admin1

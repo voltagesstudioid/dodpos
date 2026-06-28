@@ -284,9 +284,20 @@
             .profile-banner { flex-direction: column; text-align: center; }
             .profile-right { text-align: center; }
         }
+        @media (max-width: 768px) {
+            .profile-banner { padding: 20px; }
+            .profile-name { font-size: 18px; }
+            .profile-meta { flex-direction: column; gap: 6px; }
+            .qa-grid { grid-template-columns: 1fr; }
+            .db-monthly-grid { grid-template-columns: 1fr; }
+        }
         @media (max-width: 640px) {
             .kpi-grid { grid-template-columns: 1fr; }
             .qa-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .profile-banner { padding: 16px; border-radius: 12px; }
+            .profile-avatar { width: 48px; height: 48px; font-size: 22px; }
         }
     </style>
     @endpush
@@ -369,7 +380,7 @@
                 </div>
                 <div class="target-footer">
                     <span>Sisa: Rp {{ number_format(max($targetHarian - $stats['penjualan_hari_ini'], 0), 0, ',', '.') }}</span>
-                    <span>Loading hari ini: {{ number_format($totalLoadingHariIni, 0, ',', '.') }} L</span>
+                    {{-- Loading dihapus --}}
                 </div>
             </div>
         </div>
@@ -382,13 +393,6 @@
                 <div class="qa-text">
                     <div class="qa-title">Input Penjualan</div>
                     <div class="qa-sub">Catat transaksi baru</div>
-                </div>
-            </a>
-            <a href="{{ route('minyak.stok.index') }}" class="qa-card">
-                <div class="qa-ico green">🚛</div>
-                <div class="qa-text">
-                    <div class="qa-title">Cek Stok</div>
-                    <div class="qa-sub">Stok kendaraan saat ini</div>
                 </div>
             </a>
             <a href="{{ route('minyak.kunjungan.index') }}" class="qa-card">
@@ -544,7 +548,7 @@
                 <div class="section-title">📅 Rekap Bulan Ini</div>
                 <div class="section-badge green">{{ \Carbon\Carbon::now()->translatedFormat('F Y') }}</div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);padding:20px 22px;gap:20px;">
+            <div class="db-monthly-grid" style="display:grid;grid-template-columns:repeat(3,1fr);padding:20px 22px;gap:20px;">
                 <div>
                     <div style="font-size:12px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Total Penjualan</div>
                     <div style="font-size:20px;font-weight:800;color:#0f172a;">Rp {{ number_format($statsBulan['total_penjualan'], 0, ',', '.') }}</div>

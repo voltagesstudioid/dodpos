@@ -117,13 +117,13 @@
             </div>
         </div>
 
-        {{-- CARD 2: Harga & Stok --}}
+        {{-- CARD 2: Harga --}}
         <div class="ps-card green">
             <div class="ps-card-hdr">
                 <div class="ps-card-ico">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                 </div>
-                <div class="ps-card-title">Harga & Stok</div>
+                <div class="ps-card-title">Harga</div>
             </div>
             <div class="ps-card-body">
                 <div class="ps-grid3">
@@ -145,16 +145,7 @@
                             @endif
                         </span>
                     </div>
-                    <div class="ps-item">
-                        <span class="ps-lbl">Stok Gudang</span>
-                        <span class="ps-val mono">{{ number_format($produk->stok_gudang ?? 0, 0, ',', '.') }} {{ $produk->satuan }}</span>
-                    </div>
-                    <div class="ps-item">
-                        <span class="ps-lbl">Stok Minimum</span>
-                        <span class="ps-val mono" style="color:{{ ($produk->stok_gudang ?? 0) <= ($produk->stok_minimum ?? 0) && $produk->stok_minimum > 0 ? '#ef4444' : '#0f172a' }}">
-                            {{ number_format($produk->stok_minimum ?? 0, 0, ',', '.') }} {{ $produk->satuan }}
-                        </span>
-                    </div>
+
                 </div>
             </div>
         </div>
@@ -191,44 +182,7 @@
         </div>
         @endif
 
-        {{-- CARD 4: Riwayat Loading --}}
-        @if($produk->loadings->count() > 0)
-        <div class="ps-card blue">
-            <div class="ps-card-hdr">
-                <div class="ps-card-ico">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                </div>
-                <div class="ps-card-title">Riwayat Loading (Muat Barang)</div>
-            </div>
-            <div class="ps-card-body" style="padding:0;">
-                <table class="ps-tbl">
-                    <thead>
-                        <tr>
-                            <th>Tanggal</th>
-                            <th>Sales</th>
-                            <th style="text-align:right;">Jumlah</th>
-                            <th style="text-align:center;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($produk->loadings->sortByDesc('tanggal')->take(10) as $l)
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($l->tanggal)->format('d M Y') }}</td>
-                            <td>{{ $l->sales->nama ?? '-' }}</td>
-                            <td style="text-align:right;"><span class="ps-val mono">{{ number_format($l->jumlah_loading, 0, ',', '.') }} {{ $produk->satuan }}</span></td>
-                            <td style="text-align:center;">
-                                <span class="ps-status {{ $l->status === 'selesai' ? 'aktif' : 'nonaktif' }}" style="font-size:0.6875rem;">
-                                    <span class="ps-status-dot {{ $l->status === 'selesai' ? 'aktif' : 'nonaktif' }}"></span>
-                                    {{ ucfirst($l->status) }}
-                                </span>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        @endif
+
 
         {{-- CARD 5: Riwayat Penjualan --}}
         @if($produk->penjualans->count() > 0)

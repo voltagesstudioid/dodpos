@@ -311,7 +311,7 @@
                                 @csrf
                                 <div class="hs-form-group">
                                     <label class="hs-form-label">Jumlah Bayar</label>
-                                    <input type="number" name="jumlah" id="inp-jumlah-bayar" class="hs-form-input" min="1" max="{{ $effectiveSisa }}" placeholder="Maks: Rp {{ number_format($effectiveSisa, 0, ',', '.') }}" required>
+                                    <input type="text" inputmode="numeric" name="jumlah" id="inp-jumlah-bayar" class="hs-form-input" min="1" max="{{ $effectiveSisa }}" placeholder="Maks: Rp {{ number_format($effectiveSisa, 0, ',', '.') }}" required data-currency>
                                 </div>
                                 <div class="hs-form-group">
                                     <label class="hs-form-label">Cara Bayar</label>
@@ -438,7 +438,7 @@
             var inp = document.getElementById('inp-jumlah-bayar');
             if (inp) {
                 inp.addEventListener('input', function() {
-                    var v = parseInt(inp.value) || 0;
+                    var v = parseInt(String(inp.value).replace(/\./g, '')) || 0;
                     var max = {{ (int) $effectiveSisa }};
                     if (v > max) inp.value = max;
                     if (v < 0) inp.value = '';

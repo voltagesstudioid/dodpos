@@ -103,7 +103,7 @@
         $storePhone = $storeSetting->phone ?? '';
         $storeNote = $storeSetting->receipt_footer_note ?? null;
 
-        $noTrx = 'TRX-'.str_pad($rootTransaction->id, 5, '0', STR_PAD_LEFT);
+        $noTrx = $rootTransaction->invoice_number;
         $metodeBayar = match($rootTransaction->payment_method) {
             'cash' => 'TUNAI',
             'tunai' => 'TUNAI',

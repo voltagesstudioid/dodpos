@@ -54,22 +54,34 @@
     @endpush
     <div class="sc-page">
         <a href="{{ route('mineral.stok-masuk.index') }}" class="sc-back"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> Kembali</a>
-        <div class="sc-hdr"><div class="sc-hdr-tag">Stok Gudang</div><div class="sc-hdr-title">Penerimaan / Koreksi Stok</div><div class="sc-hdr-sub">Tambah stok gudang atau koreksi stok fisik</div></div>
+        <div class="sc-hdr"><div class="sc-hdr-tag">Penerimaan Barang</div><div class="sc-hdr-title">Penerimaan / Koreksi Stok</div><div class="sc-hdr-sub">Catat penerimaan barang ke kendaraan atau koreksi stok</div></div>
         @if(session('error'))<div style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:14px;">{{ session('error') }}</div>@endif
+        @php $vehicles = $vehicles ?? collect(); @endphp
         <form method="POST" action="{{ route('mineral.stok-masuk.store') }}" id="form-stok">@csrf
             <div class="sc-sec"><div class="sc-sec-hdr"><div class="sc-sec-ico cyan"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><div class="sc-sec-title">Tipe Transaksi</div></div>
                 <div class="sc-sec-body"><div class="sc-fld"><div class="sc-radio-grp">
                     <label class="sc-radio-pill"><input type="radio" name="tipe" value="penerimaan" {{ old('tipe', 'penerimaan') === 'penerimaan' ? 'checked' : '' }}><div class="sc-radio-face"><span class="ico">📥</span><span class="lbl">Penerimaan</span><span class="sub">Beli dari supplier / produksi</span></div></label>
                     <label class="sc-radio-pill"><input type="radio" name="tipe" value="koreksi" {{ old('tipe') === 'koreksi' ? 'checked' : '' }}><div class="sc-radio-face"><span class="ico">🔧</span><span class="lbl">Koreksi Stok</span><span class="sub">Sesuaikan dengan stok fisik</span></div></label>
                 </div>@error('tipe')<div class="sc-err">{{ $message }}</div>@enderror</div>
-                    <div class="sc-info" id="info-penerimaan"><svg class="sc-info-ico" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="sc-info-txt"><strong>Penerimaan</strong> — Stok gudang akan <strong>bertambah</strong> sesuai jumlah yang diinput.</div></div>
-                    <div class="sc-info" id="info-koreksi" style="display:none;"><svg class="sc-info-ico" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="sc-info-txt"><strong>Koreksi</strong> — Masukkan jumlah <strong>stok aktual/fisik</strong>. Sistem menghitung selisih otomatis.</div></div>
+                    <div class="sc-info" id="info-penerimaan"><svg class="sc-info-ico" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="sc-info-txt"><strong>Penerimaan</strong> — Stok kendaraan akan <strong>bertambah</strong> sesuai jumlah yang diinput.</div></div>
+                    <div class="sc-info" id="info-koreksi" style="display:none;"><svg class="sc-info-ico" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><div class="sc-info-txt"><strong>Koreksi</strong> — Masukkan jumlah <strong>stok aktual/fisik</strong> di kendaraan. Sistem menghitung selisih otomatis.</div></div>
                 </div></div>
-            <div class="sc-sec"><div class="sc-sec-hdr"><div class="sc-sec-ico sky"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div><div class="sc-sec-title">Detail Stok</div></div>
+            <div class="sc-sec"><div class="sc-sec-hdr"><div class="sc-sec-ico sky"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div><div class="sc-sec-title">Detail Penerimaan</div></div>
                 <div class="sc-sec-body">
-                    <div class="sc-fld"><label class="sc-lbl">Produk <span class="sc-req">*</span></label>
+                    <div class="sc-fld"><label class="sc-lbl">Kendaraan <span class="sc-req">*</span></label>
+                        <select name="vehicle_id" class="sc-sel" required>
+                            <option value="">Pilih Kendaraan</option>
+                            @foreach($vehicles as $v)
+                                <option value="{{ $v->id }}" {{ old('vehicle_id') == $v->id ? 'selected' : '' }}>
+                                    {{ $v->license_plate }} {{ $v->type ? '(' . $v->type . ')' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('vehicle_id')<div class="sc-err">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="sc-fld" style="margin-top:12px;"><label class="sc-lbl">Produk <span class="sc-req">*</span></label>
                         <select name="produk_id" class="sc-sel" id="sel-produk" required><option value="">Pilih Produk</option>@foreach($produks as $p)<option value="{{ $p->id }}" data-stok="{{ $p->stok_gudang }}" data-satuan="{{ $p->satuan }}" {{ old('produk_id') == $p->id ? 'selected' : '' }}>{{ $p->nama }} (Stok: {{ number_format($p->stok_gudang, 0, ',', '.') }} {{ $p->satuan }})</option>@endforeach</select>@error('produk_id')<div class="sc-err">{{ $message }}</div>@enderror</div>
-                    <div class="sc-stok-box" id="stok-box" style="display:none;"><span class="sc-stok-lbl">Stok Gudang Saat Ini</span><div class="sc-stok-val" id="stok-val">0</div></div>
+                    <div class="sc-stok-box" id="stok-box" style="display:none;"><span class="sc-stok-lbl">Total Stok Produk</span><div class="sc-stok-val" id="stok-val">0</div></div>
                     <div class="sc-fld" style="margin-top:12px;"><label class="sc-lbl" id="lbl-jumlah">Jumlah Diterima <span class="sc-req">*</span></label><input type="number" name="jumlah" id="inp-jumlah" value="{{ old('jumlah') }}" min="0.01" step="0.01" class="sc-inp" required placeholder="Masukkan jumlah...">@error('jumlah')<div class="sc-err">{{ $message }}</div>@enderror</div>
                     <div class="sc-fld"><label class="sc-lbl">Sumber / Supplier</label><input type="text" name="sumber" value="{{ old('sumber') }}" class="sc-inp" placeholder="Contoh: PT. Aqua Jaya">@error('sumber')<div class="sc-err">{{ $message }}</div>@enderror</div>
                     <div class="sc-fld"><label class="sc-lbl">Keterangan</label><textarea name="keterangan" class="sc-ta" placeholder="Catatan tambahan...">{{ old('keterangan') }}</textarea>@error('keterangan')<div class="sc-err">{{ $message }}</div>@enderror</div>

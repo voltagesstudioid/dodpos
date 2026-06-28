@@ -9,7 +9,7 @@ class MineralStokMasuk extends Model
     protected $table = 'mineral_stok_masuk';
 
     protected $fillable = [
-        'no_referensi', 'produk_id', 'tipe', 'jumlah', 'stok_sebelum', 'stok_sesudah',
+        'no_referensi', 'produk_id', 'vehicle_id', 'tipe', 'jumlah', 'stok_sebelum', 'stok_sesudah',
         'sumber', 'keterangan', 'status', 'created_by',
     ];
 
@@ -22,6 +22,11 @@ class MineralStokMasuk extends Model
     public function produk()
     {
         return $this->belongsTo(MineralProduk::class, 'produk_id');
+    }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id');
     }
 
     public function creator()

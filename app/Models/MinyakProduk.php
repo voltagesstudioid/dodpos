@@ -13,18 +13,13 @@ class MinyakProduk extends Model
 
     protected $fillable = [
         'kode_produk', 'nama', 'jenis', 'satuan', 'harga_jual', 'harga_modal',
-        'stok_gudang', 'stok_minimum', 'keterangan', 'status',
+        'keterangan', 'status',
     ];
 
     protected $casts = [
         'harga_jual' => 'decimal:2',
         'harga_modal' => 'decimal:2',
     ];
-
-    public function loadings()
-    {
-        return $this->hasMany(MinyakLoading::class, 'produk_id');
-    }
 
     public function penjualans()
     {

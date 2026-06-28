@@ -272,9 +272,7 @@
                             <div class="pd-info-cell-val {{ !$pelanggan->alamat ? 'empty' : '' }}">
                                 @if($pelanggan->alamat)
                                     {{ $pelanggan->alamat }}
-                                    @if($pelanggan->kecamatan || $pelanggan->kota)
-                                        <span style="color:rgba(255,255,255,0.35);"> — {{ $pelanggan->kecamatan }}{{ $pelanggan->kecamatan && $pelanggan->kota ? ', ' : '' }}{{ $pelanggan->kota }}</span>
-                                    @endif
+                                    <span style="color:rgba(255,255,255,0.35);"> — {{ $pelanggan->kecamatan }}{{ $pelanggan->kecamatan && $pelanggan->kota ? ', ' : '' }}{{ $pelanggan->kota }}{{ ($pelanggan->kecamatan || $pelanggan->kota) && $pelanggan->provinsi ? ', ' : '' }}{{ $pelanggan->provinsi }}</span>
                                 @else
                                     Belum diisi
                                 @endif
@@ -323,7 +321,7 @@
             </div>
 
             {{-- Foto Toko --}}
-            @if($pelanggan->foto_toko)
+            @if($pelanggan->foto_toko || $pelanggan->foto_toko_dalam)
             <div class="pd-section" style="margin-bottom:1.5rem;">
                 <div class="pd-section-hdr">
                     <div class="pd-section-ico" style="background:linear-gradient(135deg,#ec4899,#db2777); color:#fff;">
@@ -331,8 +329,21 @@
                     </div>
                     <div class="pd-section-title">Foto Toko</div>
                 </div>
-                <div style="padding:1.25rem; text-align:center;">
-                    <img src="{{ asset('storage/' . $pelanggan->foto_toko) }}" alt="Foto Toko {{ $pelanggan->nama_toko }}" style="max-width:100%; max-height:400px; border-radius:16px; border:2px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                <div style="padding:1.25rem;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        @if($pelanggan->foto_toko)
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.05em;">Tampak Depan</div>
+                            <img src="{{ asset('storage/' . $pelanggan->foto_toko) }}" alt="Foto Depan {{ $pelanggan->nama_toko }}" style="max-width:100%; max-height:300px; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                        </div>
+                        @endif
+                        @if($pelanggan->foto_toko_dalam)
+                        <div style="text-align:center;">
+                            <div style="font-size:0.75rem; font-weight:600; color:#64748b; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.05em;">Tampak Dalam</div>
+                            <img src="{{ asset('storage/' . $pelanggan->foto_toko_dalam) }}" alt="Foto Dalam {{ $pelanggan->nama_toko }}" style="max-width:100%; max-height:300px; border-radius:12px; border:2px solid #e2e8f0; box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+                        </div>
+                        @endif
+                    </div>
                 </div>
             </div>
             @endif

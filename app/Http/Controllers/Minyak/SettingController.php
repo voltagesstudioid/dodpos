@@ -38,12 +38,17 @@ class SettingController extends Controller
 
     public function updateJenis(Request $request, MinyakJenis $jenis)
     {
+        $oldNama = $jenis->nama;
         $validated = $request->validate([
             'nama' => 'required|string|max:50|unique:minyak_jenis,nama,' . $jenis->id,
             'status' => 'required|in:aktif,nonaktif',
         ]);
 
         $jenis->update($validated);
+
+        if ($oldNama !== $validated['nama']) {
+            MinyakProduk::where('jenis', $oldNama)->update(['jenis' => $validated['nama']]);
+        }
 
         return redirect()->route('minyak.setting.index')
             ->with('success', 'Jenis produk berhasil diperbarui.');
@@ -85,6 +90,7 @@ class SettingController extends Controller
 
     public function updateSatuan(Request $request, MinyakSatuan $satuan)
     {
+        $oldNama = $satuan->nama;
         $validated = $request->validate([
             'nama' => 'required|string|max:30|unique:minyak_satuan,nama,' . $satuan->id,
             'singkatan' => 'nullable|string|max:10',
@@ -92,6 +98,10 @@ class SettingController extends Controller
         ]);
 
         $satuan->update($validated);
+
+        if ($oldNama !== $validated['nama']) {
+            MinyakProduk::where('satuan', $oldNama)->update(['satuan' => $validated['nama']]);
+        }
 
         return redirect()->route('minyak.setting.index')
             ->with('success', 'Satuan berhasil diperbarui.');

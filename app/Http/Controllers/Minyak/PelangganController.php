@@ -33,11 +33,6 @@ class PelangganController extends Controller
         $isSalesRole = $this->isSales();
         $salesProfile = $isSalesRole ? $this->getSalesProfile() : null;
 
-        // If sales, force filter to their regional only
-        if ($salesProfile && $salesProfile->regional_id) {
-            $regionalId = $salesProfile->regional_id;
-        }
-
         $query = MinyakPelanggan::with(['regional'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
@@ -49,7 +44,14 @@ class PelangganController extends Controller
             })
             ->when($tipe, fn ($q) => $q->where('tipe', $tipe))
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->when($regionalId, fn ($q) => $q->where('regional_id', $regionalId))
+            ->when($isSalesRole, function ($q) use ($salesProfile) {
+                if ($salesProfile && $salesProfile->regional_id) {
+                    $q->where('regional_id', $salesProfile->regional_id);
+                } else {
+                    $q->whereNull('regional_id');
+                }
+            })
+            ->when(!$isSalesRole && $regionalId, fn ($q) => $q->where('regional_id', $regionalId))
             ->orderBy('nama_toko', 'asc');
 
         $allPelanggans = $query->get();
@@ -71,8 +73,12 @@ class PelangganController extends Controller
 
         // Stats scoped to sales' regional if applicable
         $statsQuery = MinyakPelanggan::query();
-        if ($salesProfile && $salesProfile->regional_id) {
-            $statsQuery->where('regional_id', $salesProfile->regional_id);
+        if ($isSalesRole) {
+            if ($salesProfile && $salesProfile->regional_id) {
+                $statsQuery->where('regional_id', $salesProfile->regional_id);
+            } else {
+                $statsQuery->whereNull('regional_id');
+            }
         }
 
         $stats = [
@@ -101,7 +107,9 @@ class PelangganController extends Controller
     {
         $isSalesRole = $this->isSales();
         $regionals = MinyakRegional::aktif()->orderBy('nama')->get();
-        return view('minyak.pelanggan.create', compact('isSalesRole', 'regionals'));
+        $kotaList = MinyakPelanggan::distinct()->whereNotNull('kota')->orderBy('kota')->pluck('kota');
+        $kecamatanList = MinyakPelanggan::distinct()->whereNotNull('kecamatan')->orderBy('kecamatan')->pluck('kecamatan');
+        return view('minyak.pelanggan.create', compact('isSalesRole', 'regionals', 'kotaList', 'kecamatanList'));
     }
 
     public function store(Request $request)
@@ -112,19 +120,22 @@ class PelangganController extends Controller
             'nama_pemilik' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
-            'alamat' => 'nullable|string',
-            'kecamatan' => 'nullable|string|max:50',
-            'kota' => 'nullable|string|max:50',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
+            'alamat' => 'required|string',
+            'kecamatan' => 'required|string|max:50',
+            'kota' => 'required|string|max:50',
+            'provinsi' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'tipe' => 'required|in:eceran,grosir,agen',
         ];
 
         // Photo required for sales (supervisor needs it to assess credit limit)
         if ($this->isSales()) {
             $rules['foto_toko'] = 'required|image|mimes:jpeg,jpg,png,webp|max:4096';
+            $rules['foto_toko_dalam'] = 'required|image|mimes:jpeg,jpg,png,webp|max:4096';
         } else {
             $rules['foto_toko'] = 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096';
+            $rules['foto_toko_dalam'] = 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096';
             $rules['limit_hutang'] = 'nullable|numeric|min:0';
             $rules['status'] = 'required|in:aktif,nonaktif,blacklist';
         }
@@ -132,17 +143,19 @@ class PelangganController extends Controller
         $validated = $request->validate($rules);
 
         // Upload foto toko
-        if ($request->hasFile('foto_toko')) {
-            try {
-                $upload = FileUploadService::uploadImage(
-                    $request->file('foto_toko'),
-                    'pelanggan/minyak',
-                    'public',
-                    ['max_width' => 1200, 'max_height' => 1200]
-                );
-                $validated['foto_toko'] = $upload['path'];
-            } catch (\Exception $e) {
-                return back()->withInput()->with('error', 'Gagal upload foto: ' . $e->getMessage());
+        foreach (['foto_toko', 'foto_toko_dalam'] as $fotoField) {
+            if ($request->hasFile($fotoField)) {
+                try {
+                    $upload = FileUploadService::uploadImage(
+                        $request->file($fotoField),
+                        'pelanggan/minyak',
+                        'public',
+                        ['max_width' => 1200, 'max_height' => 1200]
+                    );
+                    $validated[$fotoField] = $upload['path'];
+                } catch (\Exception $e) {
+                    return back()->withInput()->with('error', 'Gagal upload ' . $fotoField . ': ' . $e->getMessage());
+                }
             }
         }
 
@@ -171,7 +184,7 @@ class PelangganController extends Controller
     {
         if ($this->isSales()) {
             $salesProfile = $this->getSalesProfile();
-            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
+            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
                 return redirect()->route('minyak.pelanggan.index')->with('error', 'Anda tidak berhak melihat pelanggan ini.');
             }
         }
@@ -186,21 +199,23 @@ class PelangganController extends Controller
     {
         if ($this->isSales()) {
             $salesProfile = $this->getSalesProfile();
-            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
+            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
                 return redirect()->route('minyak.pelanggan.index')->with('error', 'Anda tidak berhak mengedit pelanggan ini.');
             }
         }
 
         $regionals = MinyakRegional::aktif()->orderBy('nama')->get();
         $isSalesRole = $this->isSales();
-        return view('minyak.pelanggan.edit', compact('pelanggan', 'regionals', 'isSalesRole'));
+        $kotaList = MinyakPelanggan::distinct()->whereNotNull('kota')->orderBy('kota')->pluck('kota');
+        $kecamatanList = MinyakPelanggan::distinct()->whereNotNull('kecamatan')->orderBy('kecamatan')->pluck('kecamatan');
+        return view('minyak.pelanggan.edit', compact('pelanggan', 'regionals', 'isSalesRole', 'kotaList', 'kecamatanList'));
     }
 
     public function update(Request $request, MinyakPelanggan $pelanggan)
     {
         if ($this->isSales()) {
             $salesProfile = $this->getSalesProfile();
-            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
+            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
                 return redirect()->route('minyak.pelanggan.index')->with('error', 'Anda tidak berhak mengedit pelanggan ini.');
             }
         }
@@ -211,31 +226,38 @@ class PelangganController extends Controller
             'nama_pemilik' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
-            'alamat' => 'nullable|string',
-            'kecamatan' => 'nullable|string|max:50',
-            'kota' => 'nullable|string|max:50',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
+            'alamat' => 'required|string',
+            'kecamatan' => 'required|string|max:50',
+            'kota' => 'required|string|max:50',
+            'provinsi' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'tipe' => 'required|in:eceran,grosir,agen',
-            'limit_hutang' => 'nullable|numeric|min:0',
-            'status' => 'required|in:aktif,nonaktif,blacklist',
             'foto_toko' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
+            'foto_toko_dalam' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
         ];
+
+        if (!$this->isSales()) {
+            $rules['limit_hutang'] = 'nullable|numeric|min:0';
+            $rules['status'] = 'required|in:aktif,nonaktif,blacklist';
+        }
 
         $validated = $request->validate($rules);
 
-        // Upload foto toko if provided
-        if ($request->hasFile('foto_toko')) {
-            try {
-                $upload = FileUploadService::uploadImage(
-                    $request->file('foto_toko'),
-                    'pelanggan/minyak',
-                    'public',
-                    ['max_width' => 1200, 'max_height' => 1200]
-                );
-                $validated['foto_toko'] = $upload['path'];
-            } catch (\Exception $e) {
-                return back()->withInput()->with('error', 'Gagal upload foto: ' . $e->getMessage());
+        // Upload foto if provided
+        foreach (['foto_toko', 'foto_toko_dalam'] as $fotoField) {
+            if ($request->hasFile($fotoField)) {
+                try {
+                    $upload = FileUploadService::uploadImage(
+                        $request->file($fotoField),
+                        'pelanggan/minyak',
+                        'public',
+                        ['max_width' => 1200, 'max_height' => 1200]
+                    );
+                    $validated[$fotoField] = $upload['path'];
+                } catch (\Exception $e) {
+                    return back()->withInput()->with('error', 'Gagal upload ' . $fotoField . ': ' . $e->getMessage());
+                }
             }
         }
 
@@ -249,7 +271,7 @@ class PelangganController extends Controller
     {
         if ($this->isSales()) {
             $salesProfile = $this->getSalesProfile();
-            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
+            if ($salesProfile && $salesProfile->regional_id && $pelanggan->regional_id && $pelanggan->regional_id !== $salesProfile->regional_id) {
                 return redirect()->route('minyak.pelanggan.index')->with('error', 'Anda tidak berhak menghapus pelanggan ini.');
             }
         }
@@ -259,4 +281,5 @@ class PelangganController extends Controller
         return redirect()->route('minyak.pelanggan.index')
             ->with('success', 'Data Pelanggan berhasil dihapus.');
     }
+
 }

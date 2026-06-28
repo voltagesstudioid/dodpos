@@ -147,8 +147,8 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                 Target Harian <span class="msc-opt">(Opsional)</span>
                             </label>
-                            <input type="number" name="target_harian" value="{{ old('target_harian') }}"
-                                class="msc-inp mono @error('target_harian') is-invalid @enderror" placeholder="0" min="0" step="0.01">
+                            <input type="text" inputmode="decimal" name="target_harian" value="{{ old('target_harian') }}"
+                                class="msc-inp mono @error('target_harian') is-invalid @enderror" placeholder="0" min="0" data-currency>
                             @error('target_harian')<div class="msc-err">{{ $message }}</div>@enderror
                         </div>
 

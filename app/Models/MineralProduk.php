@@ -21,6 +21,11 @@ class MineralProduk extends Model
         'harga_modal' => 'decimal:2',
     ];
 
+    public function vehicleStocks()
+    {
+        return $this->hasMany(VehicleStock::class, 'produk_id');
+    }
+
     public function loadings()
     {
         return $this->hasMany(MineralLoading::class, 'produk_id');
@@ -68,5 +73,18 @@ class MineralProduk extends Model
         
         $lastNum = (int) substr($last->kode_produk, -3);
         return "{$prefix}{$date}" . str_pad($lastNum + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    public function recalculateStokGudang(): void
+    {
+        $total = (float) VehicleStock::where('produk_id', $this->id)->sum('jumlah');
+        self::withoutEvents(fn () => $this->update(['stok_gudang' => $total]));
+    }
+
+    public static function recalculateAllStokGudang(): void
+    {
+        foreach (self::all() as $produk) {
+            $produk->recalculateStokGudang();
+        }
     }
 }

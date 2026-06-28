@@ -201,14 +201,25 @@
                 </div>
                 <div class="mns-card-body">
                     <div class="mns-fields">
+                        @php
+                            $vehicleLabel = null;
+                            $vehicleType = null;
+                            if ($sales->vehicle) {
+                                $vehicleLabel = strtoupper($sales->vehicle->license_plate);
+                                $vehicleType = $sales->vehicle->type;
+                            } elseif ($sales->no_kendaraan) {
+                                $vehicleLabel = strtoupper($sales->no_kendaraan);
+                                $vehicleType = $sales->jenis_kendaraan;
+                            }
+                        @endphp
                         <div class="mns-field">
                             <div class="mns-field-ico">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                             </div>
                             <div class="mns-field-info">
                                 <span class="mns-field-lbl">Plat Nomor</span>
-                                @if($sales->no_kendaraan)
-                                    <span class="mns-plate">{{ strtoupper($sales->no_kendaraan) }}</span>
+                                @if($vehicleLabel)
+                                    <span class="mns-plate">{{ $vehicleLabel }}</span>
                                 @else
                                     <span class="mns-field-val empty">Belum terdaftar</span>
                                 @endif
@@ -220,7 +231,7 @@
                             </div>
                             <div class="mns-field-info">
                                 <span class="mns-field-lbl">Jenis Kendaraan</span>
-                                <span class="mns-field-val">{{ $sales->jenis_kendaraan ?: '—' }}</span>
+                                <span class="mns-field-val">{{ $vehicleType ?: '—' }}</span>
                             </div>
                         </div>
                     </div>

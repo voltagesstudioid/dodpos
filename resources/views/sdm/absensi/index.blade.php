@@ -321,14 +321,7 @@
         <div id="att-daily" class="att-tp active">
             @can('create_absensi')
             <div class="att-abar">
-                <form method="POST" action="{{ route('sdm.absensi.sync') }}" style="margin:0" id="attSyncForm">
-                    @csrf
-                    <input type="hidden" name="date" value="{{ $date }}">
-                    <button type="submit" class="att-abtn att-abtn-p" id="attSyncBtn" onclick="this.disabled=true;this.innerHTML='<svg width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\' style=\'animation:spin 1s linear infinite\'><path d=\'M23 4v6h-6\'/><path d=\'M1 20v-6h6\'/><path d=\'M3.51 9a9 9 0 0 1 14.85-3.36L23 10\'/></svg> Syncing...';this.form.submit()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                        Sync Fingerprint
-                    </button>
-                </form>
+                
                 <button type="button" class="att-abtn att-abtn-g" onclick="document.getElementById('attAddModal').classList.add('show')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Absensi Manual

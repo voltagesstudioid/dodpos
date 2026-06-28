@@ -161,9 +161,9 @@
             <a href="{{ route('mineral.loading.index') }}" class="fm-back-btn">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
             </a>
-            <span class="fm-nav-text">Loading Harian</span>
+            <span class="fm-nav-text">Penugasan Kendaraan</span>
             <span class="fm-nav-sep">/</span>
-            <span class="fm-nav-crumb">Edit Loading</span>
+            <span class="fm-nav-crumb">Edit Penugasan</span>
         </nav>
 
         {{-- Header --}}
@@ -172,32 +172,24 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </div>
             <div>
-                <div class="fm-hdr-title">Edit Loading</div>
-                <div class="fm-hdr-sub">Ubah data distribusi mineral sales — {{ $loading->tanggal->format('d M Y') }}</div>
+                <div class="fm-hdr-title">Edit Penugasan</div>
+                <div class="fm-hdr-sub">Ubah data penugasan kendaraan — {{ $loading->tanggal->format('d M Y') }}</div>
             </div>
-        </div>
-
-        {{-- Tip --}}
-        <div class="fm-tip">
-            <div class="fm-tip-ico">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </div>
-            <div class="fm-tip-text">Perubahan jumlah loading akan menyesuaikan stok gudang secara otomatis. Field bertanda <strong>*</strong> wajib diisi.</div>
         </div>
 
         <form method="POST" action="{{ route('mineral.loading.update', $loading->id) }}">
             @csrf
             @method('PUT')
 
-            {{-- Section 1: Informasi Loading --}}
+            {{-- Section 1: Informasi Penugasan --}}
             <div class="fm-card">
                 <div class="fm-card-hdr blue">
                     <div class="fm-card-ico blue">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     </div>
                     <div>
-                        <div class="fm-card-title">Informasi Loading</div>
-                        <div class="fm-card-desc">Tanggal, sales, dan produk yang didistribusikan</div>
+                        <div class="fm-card-title">Informasi Penugasan</div>
+                        <div class="fm-card-desc">Tanggal, sales, dan produk yang ditugaskan</div>
                     </div>
                 </div>
                 <div class="fm-card-body">
@@ -257,7 +249,7 @@
                     </div>
                     <div>
                         <div class="fm-card-title">Jumlah & Keterangan</div>
-                        <div class="fm-card-desc">Kuantitas loading dan catatan tambahan</div>
+                        <div class="fm-card-desc">Kuantitas penugasan dan catatan tambahan</div>
                     </div>
                 </div>
                 <div class="fm-card-body">
@@ -266,15 +258,11 @@
                         <div>
                             <label class="fm-lbl">
                                 <svg class="fm-lbl-ico" width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
-                                Jumlah Loading <span class="fm-req">*</span>
+                                Jumlah Penugasan <span class="fm-req">*</span>
                             </label>
                             <div class="fm-input-wrap">
                                 <input type="number" name="jumlah_loading" id="jumlahInput" value="{{ old('jumlah_loading', $loading->jumlah_loading) }}" required min="0.01" step="any" class="fm-input has-suffix green">
                                 <span class="fm-input-suffix" id="unitSuffix">—</span>
-                            </div>
-                            <div class="fm-stock hidden" id="stockIndicator">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                                <span id="stockText"></span>
                             </div>
                             @error('jumlah_loading')<div class="fm-error"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{{ $message }}</div>@enderror
                         </div>
@@ -299,8 +287,8 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     </div>
                     <div>
-                        <div class="fm-card-title">Status Loading</div>
-                        <div class="fm-card-desc">Tahapan distribusi barang</div>
+                        <div class="fm-card-title">Status Penugasan</div>
+                        <div class="fm-card-desc">Tahapan penugasan kendaraan</div>
                     </div>
                 </div>
                 <div class="fm-card-body">
@@ -309,8 +297,8 @@
                             <input type="radio" name="status" value="loading" {{ old('status', $loading->status) == 'loading' ? 'checked' : '' }}>
                             <div class="fm-radio-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
                             <div>
-                                <div class="fm-radio-title">Loading</div>
-                                <div class="fm-radio-desc">Baru dimuat</div>
+                                <div class="fm-radio-title">Penugasan</div>
+                                <div class="fm-radio-desc">Baru ditugaskan</div>
                             </div>
                         </label>
                         <label class="fm-radio-card {{ old('status', $loading->status) == 'proses' ? 'selected' : '' }}" style="--c:#d97706;--bg:#fffbeb;--ring:rgba(217,119,6,0.12);" onclick="selRadio(this)">
@@ -342,7 +330,7 @@
                 </a>
                 <button type="submit" class="fm-btn fm-btn-save">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    Update Loading
+                    Update Penugasan
                 </button>
             </div>
         </form>
@@ -351,8 +339,6 @@
 
     @push('scripts')
     <script>
-    var OLD_JUMLAH = {{ (float)$loading->jumlah_loading }};
-
     function selRadio(card) {
         var group = card.closest('.fm-radio-group');
         group.querySelectorAll('.fm-radio-card').forEach(function(c) { c.classList.remove('selected'); });
@@ -362,65 +348,12 @@
 
     (function() {
         var selProduk = document.getElementById('produkSelect');
-        var inpJumlah = document.getElementById('jumlahInput');
         var unitSuffix = document.getElementById('unitSuffix');
-        var stockInd = document.getElementById('stockIndicator');
-        var stockText = document.getElementById('stockText');
 
-        function fmt(n) {
-            return n.toLocaleString('id-ID', {maximumFractionDigits: 2});
-        }
-
-        function updateUnit() {
+        selProduk.addEventListener('change', function() {
             var opt = selProduk.options[selProduk.selectedIndex];
-            var satuan = opt.getAttribute('data-satuan') || '';
-            var stok = parseFloat(opt.getAttribute('data-stok')) || 0;
-
-            // Add back old loading amount for same-product edit
-            var effectiveStok = stok + OLD_JUMLAH;
-
-            unitSuffix.textContent = satuan || '—';
-
-            if (satuan) {
-                stockInd.classList.remove('hidden');
-                if (effectiveStok > 0) {
-                    stockInd.className = 'fm-stock ok';
-                    stockText.textContent = 'Stok tersedia (setelah restore): ' + fmt(effectiveStok) + ' ' + satuan;
-                } else {
-                    stockInd.className = 'fm-stock danger';
-                    stockText.textContent = 'Stok tidak mencukupi!';
-                }
-            } else {
-                stockInd.classList.add('hidden');
-            }
-
-            checkStock();
-        }
-
-        function checkStock() {
-            var opt = selProduk.options[selProduk.selectedIndex];
-            if (!opt || !opt.value) return;
-
-            var stok = parseFloat(opt.getAttribute('data-stok')) || 0;
-            var satuan = opt.getAttribute('data-satuan') || '';
-            var jumlah = parseFloat(inpJumlah.value) || 0;
-            var effectiveStok = stok + OLD_JUMLAH;
-
-            if (jumlah > 0 && effectiveStok > 0) {
-                stockInd.classList.remove('hidden');
-                if (jumlah > effectiveStok) {
-                    stockInd.className = 'fm-stock danger';
-                    stockText.textContent = 'Melebihi stok! Tersedia: ' + fmt(effectiveStok) + ' ' + satuan + ', diinput: ' + fmt(jumlah) + ' ' + satuan;
-                } else {
-                    stockInd.className = 'fm-stock ok';
-                    stockText.textContent = 'Stok tersedia (setelah restore): ' + fmt(effectiveStok) + ' ' + satuan + ' (sisa: ' + fmt(effectiveStok - jumlah) + ')';
-                }
-            }
-        }
-
-        selProduk.addEventListener('change', updateUnit);
-        inpJumlah.addEventListener('input', checkStock);
-        updateUnit();
+            unitSuffix.textContent = opt && opt.value ? (opt.getAttribute('data-satuan') || '—') : '—';
+        });
     })();
     </script>
     @endpush

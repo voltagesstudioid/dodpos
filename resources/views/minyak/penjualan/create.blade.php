@@ -209,7 +209,7 @@
                         @if(! $isSalesRole)
                         <div class="pj-fld">
                             <label class="pj-lbl">Sales <span class="pj-req">*</span></label>
-                            <select name="sales_id" class="pj-sel" required>
+                            <select name="sales_id" id="sel-sales" class="pj-sel" required>
                                 <option value="">Pilih Sales</option>
                                 @foreach($sales as $s)
                                     <option value="{{ $s->id }}" {{ old('sales_id') == $s->id ? 'selected' : '' }}>{{ $s->nama }}</option>
@@ -246,7 +246,7 @@
                         <select name="produk_id" class="pj-sel" id="sel-produk" required>
                             <option value="">Pilih Produk</option>
                             @foreach($produks as $p)
-                                <option value="{{ $p->id }}" data-harga="{{ $p->harga_jual }}" data-satuan="{{ $p->satuan }}" {{ old('produk_id') == $p->id ? 'selected' : '' }}>
+                                <option value="{{ $p->id }}" data-harga="{{ $p->harga_jual }}" data-satuan="{{ $p->satuan }}" data-kode="{{ $p->kode_produk }}" {{ old('produk_id') == $p->id ? 'selected' : '' }}>
                                     {{ $p->nama }} ({{ $p->satuan }})
                                 </option>
                             @endforeach
@@ -263,8 +263,9 @@
                             <label class="pj-lbl">Harga Satuan <span class="pj-req">*</span></label>
                             <div class="pj-money">
                                 <span class="pj-money-pfx">Rp</span>
-                                <input type="number" name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan') }}" min="0" step="100" class="pj-inp" required>
+                                <input type="text" inputmode="decimal" name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan') }}" min="0" class="pj-inp" required data-currency>
                             </div>
+                            <div id="min-price-hint" style="font-size:11px; color:#64748b; margin-top:4px; display:none;"></div>
                             @error('harga_satuan')<div class="pj-err">{{ $message }}</div>@enderror
                         </div>
                     </div>
@@ -362,7 +363,7 @@
                         <label class="pj-lbl">Jumlah Bayar (DP)</label>
                         <div class="pj-money">
                             <span class="pj-money-pfx">Rp</span>
-                            <input type="number" name="bayar" id="inp-bayar" value="{{ old('bayar', 0) }}" min="0" step="100" class="pj-inp">
+                            <input type="text" inputmode="numeric" name="bayar" id="inp-bayar" value="{{ old('bayar', 0) }}" min="0" class="pj-inp" data-currency>
                         </div>
                         @error('bayar')<div class="pj-err">{{ $message }}</div>@enderror
                     </div>
@@ -435,6 +436,7 @@
 
     @push('scripts')
     <script>
+    var regionalPriceMap = @json($regionalPriceMap);
     document.addEventListener('DOMContentLoaded', function() {
         var selProduk = document.getElementById('sel-produk');
         var inpJumlah = document.getElementById('inp-jumlah');
@@ -445,27 +447,93 @@
         var sumTotal = document.getElementById('sum-total');
         var fldBayar = document.getElementById('fld-bayar');
 
+        function parseRupiah(v) { return parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0; }
         function fmt(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
+
+        function getProdukSatuan() {
+            var opt = selProduk.options[selProduk.selectedIndex];
+            return opt ? (opt.dataset.satuan || 'unit') : 'unit';
+        }
 
         function updateSummary() {
             var qty = parseInt(inpJumlah.value) || 0;
-            var price = parseFloat(inpHarga.value) || 0;
+            var price = parseRupiah(inpHarga.value);
             var total = qty * price;
+            var satuan = getProdukSatuan();
             if (qty > 0 && price > 0) {
                 sumBox.style.display = 'block';
-                sumQty.textContent = qty + ' unit';
-                sumPrice.textContent = fmt(price);
+                sumQty.textContent = qty + ' ' + satuan;
+                sumPrice.textContent = fmt(price) + ' / ' + satuan;
                 sumTotal.textContent = fmt(total);
             } else {
                 sumBox.style.display = 'none';
             }
         }
 
+        function getRegionalPrice(salesId, produkId) {
+            if (!regionalPriceMap || !salesId) return null;
+            var bySales = regionalPriceMap[salesId];
+            return bySales ? (bySales[produkId] || null) : null;
+        }
+
+        function getDefaultPrice(produkSelect) {
+            if (!produkSelect) return null;
+            var opt = produkSelect.options[produkSelect.selectedIndex];
+            return opt ? (opt.dataset.harga || null) : null;
+        }
+
+        function getSuggestPrice() {
+            var price = null;
+            @if($isSalesRole)
+                var salesId = null;
+                @if($sales && $sales->first())
+                    salesId = {{ $sales->first()->id }};
+                @endif
+                price = getRegionalPrice(salesId, selProduk.value);
+            @else
+                var selSales = document.getElementById('sel-sales');
+                if (selSales) price = getRegionalPrice(selSales.value, selProduk.value);
+            @endif
+            return price || getDefaultPrice(selProduk);
+        }
+
+        var hasOldPrice = @json(old('harga_satuan')) ? true : false;
+
         selProduk.addEventListener('change', function() {
             var opt = this.options[this.selectedIndex];
-            if (opt && opt.dataset.harga) inpHarga.value = opt.dataset.harga;
+            if (!opt) return;
+            // Only auto-fill price if user hasn't manually changed it and no old value from validation
+            var shouldFill = !inpHarga.dataset.userEdited && !hasOldPrice;
+            if (shouldFill) {
+                var price = getSuggestPrice();
+                inpHarga.value = price || '';
+            } else if (!shouldFill && !inpHarga.value) {
+                inpHarga.value = opt.dataset.harga || '';
+            }
+            
+            var finalMin = parseRupiah(inpHarga.value) || parseFloat(opt.dataset.harga) || 0;
+            var hint = document.getElementById('min-price-hint');
+            if (hint && finalMin > 0) {
+                hint.innerHTML = 'Batas Harga Jual: <strong style="color:#059669;">Rp ' + Number(finalMin).toLocaleString('id-ID') + '</strong>';
+                hint.style.display = 'block';
+            } else if (hint) {
+                hint.style.display = 'none';
+            }
+
             updateSummary();
         });
+
+        @if(!$isSalesRole)
+        var selSales = document.getElementById('sel-sales');
+        if (selSales) {
+            selSales.addEventListener('change', function() {
+                // Re-trigger product change to recalculate regional price
+                if (selProduk.selectedIndex > 0) {
+                    selProduk.dispatchEvent(new Event('change'));
+                }
+            });
+        }
+        @endif
 
         inpJumlah.addEventListener('input', updateSummary);
         inpHarga.addEventListener('input', updateSummary);
@@ -506,9 +574,9 @@
 
             // Get the transaction total
             var qty = parseInt(document.getElementById('inp-jumlah').value) || 0;
-            var price = parseFloat(document.getElementById('inp-harga').value) || 0;
+            var price = parseRupiah(document.getElementById('inp-harga').value);
             var total = qty * price;
-            var bayar = parseFloat(document.getElementById('inp-bayar').value) || 0;
+            var bayar = parseRupiah(document.getElementById('inp-bayar').value);
             var hutangBaru = Math.max(0, total - bayar);
 
             var html = '';

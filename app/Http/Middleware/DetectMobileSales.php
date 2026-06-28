@@ -16,7 +16,7 @@ class DetectMobileSales
         $user = auth()->user();
         
         // Only for sales role (sales, sales_minyak, sales_mineral)
-        if ($user && ($user->hasRole('sales') || $user->role === 'sales' || str_starts_with($user->role ?? '', 'sales_'))) {
+        if ($user && ($user->role === 'sales' || str_starts_with($user->role ?? '', 'sales_'))) {
             $agent = $request->header('User-Agent');
             
             // Check if mobile device

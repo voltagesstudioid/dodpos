@@ -56,7 +56,7 @@
         {{-- Header --}}
         @php
             $hdrClass = $stokMasuk->status === 'batal' ? 'batal' : $stokMasuk->tipe;
-            $tipeLabel = $stokMasuk->tipe === 'penerimaan' ? 'Penerimaan Stok' : 'Koreksi Stok';
+            $tipeLabel = $stokMasuk->tipe === 'penerimaan' ? 'Penerimaan Barang' : 'Koreksi Stok';
             $tipeIcon = $stokMasuk->tipe === 'penerimaan' ? '📥' : '🔧';
         @endphp
         <div class="sm-hdr {{ $hdrClass }}">
@@ -76,6 +76,7 @@
                 <div class="sm-sec-title">Informasi Produk</div>
             </div>
             <div class="sm-sec-body">
+                <div class="sm-row"><span class="sm-row-lbl">Kendaraan</span><span class="sm-row-val">{{ $stokMasuk->vehicle?->license_plate ?? '-' }} {{ $stokMasuk->vehicle?->type ? '(' . $stokMasuk->vehicle->type . ')' : '' }}</span></div>
                 <div class="sm-row"><span class="sm-row-lbl">Produk</span><span class="sm-row-val">{{ $stokMasuk->produk?->nama ?? '-' }}</span></div>
                 <div class="sm-row"><span class="sm-row-lbl">Sumber / Supplier</span><span class="sm-row-val">{{ $stokMasuk->sumber ?? '-' }}</span></div>
                 <div class="sm-row"><span class="sm-row-lbl">Keterangan</span><span class="sm-row-val">{{ $stokMasuk->keterangan ?? '-' }}</span></div>
@@ -86,7 +87,7 @@
         <div class="sm-sec">
             <div class="sm-sec-hdr">
                 <div class="sm-sec-ico sky"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div>
-                <div class="sm-sec-title">Perubahan Stok Gudang</div>
+                <div class="sm-sec-title">Perubahan Stok Kendaraan</div>
             </div>
             <div class="sm-sec-body">
                 @php

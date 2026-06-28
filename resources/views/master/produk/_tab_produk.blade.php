@@ -32,12 +32,12 @@
                 </svg>
                 Import Excel
             </a>
-            <button type="button" class="mp-add-btn" @click="openModal('produk-add')">
+            <a href="{{ route('master.produk.create') }}" class="mp-add-btn">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 Tambah Produk
-            </button>
+            </a>
         </div>
         @endcan
     </div>
@@ -143,13 +143,13 @@
 
                         <td>
                             <div class="mp-act-grp">
-                                <button type="button" class="mp-act-btn mp-act-edit" @click="openEditProduk(p.id)">
+                                <a :href="`/master/produk/${p.id}/edit`" class="mp-act-btn mp-act-edit">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                     </svg>
                                     Edit
-                                </button>
+                                </a>
                                 @can('delete_master_produk')
                                 <button type="button" class="mp-act-btn mp-act-del" @click="deleteProduk(p.id, p.name)">
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

@@ -44,8 +44,13 @@ class AuthenticatedSessionController extends Controller
                 'gula' => 'gula.dashboard',
                 'pasgar' => 'pasgar.dashboard',
             ];
-            $redirectRoute = $routeMap[$division] ?? 'dashboard';
+            $redirectRoute = $routeMap[$division] ?? 'pasgar.dashboard';
             return redirect()->route($redirectRoute);
+        }
+
+        // Handle pasgar role directly (not a sales_ subrole)
+        if ($userRole === 'pasgar') {
+            return redirect()->route('pasgar.dashboard');
         }
 
         return redirect()->route('dashboard');

@@ -22,6 +22,7 @@ class Transaction extends Model
     protected $fillable = [
         'user_id',
         'customer_id',
+        'invoice_number',
         'total_amount',
         'paid_amount',
         'change_amount',
@@ -53,6 +54,15 @@ class Transaction extends Model
         'delivered_at' => 'datetime',
         'last_printed_at' => 'datetime',
     ];
+
+    public function getInvoiceNumberAttribute($value): string
+    {
+        if ($value) {
+            return $value;
+        }
+        $prefix = ($this->sale_type ?? 'eceran') === 'grosir' ? 'INV-GRS-' : 'TRX-';
+        return $prefix . str_pad((string) $this->id, 5, '0', STR_PAD_LEFT);
+    }
 
     public function user()
     {

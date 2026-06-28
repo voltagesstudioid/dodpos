@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\MinyakSales;
 use App\Models\MinyakProduk;
 use App\Models\MinyakPenjualan;
-use App\Models\MinyakLoading;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -97,16 +96,11 @@ class LaporanController extends Controller
         // Sales list for filter
         $salesList = MinyakSales::where('status', 'aktif')->orderBy('nama')->get();
 
-        // Loading summary
-        $loadingQuery = MinyakLoading::whereBetween('tanggal', [$dari, $sampai]);
-        if ($salesId) $loadingQuery->where('sales_id', $salesId);
-        $totalLoading = (clone $loadingQuery)->sum('jumlah_loading');
-
         return view('minyak.laporan.index', compact(
             'periode', 'dari', 'sampai', 'salesId', 'salesList',
             'totalPenjualan', 'totalTransaksi', 'totalHutang', 'totalTunai', 'totalVolume',
             'salesPerformance', 'produkPerformance', 'dailyTrend',
-            'tipeBayarStats', 'totalLoading'
+            'tipeBayarStats'
         ));
     }
 }

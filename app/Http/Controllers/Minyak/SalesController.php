@@ -115,7 +115,7 @@ class SalesController extends Controller
 
     public function show(MinyakSales $sales)
     {
-        $sales->load(['user', 'vehicle', 'loadings.produk', 'penjualans.pelanggan', 'setorans']);
+        $sales->load(['user', 'vehicle', 'penjualans.pelanggan', 'setorans']);
         
         return view('minyak.sales.show', compact('sales'));
     }

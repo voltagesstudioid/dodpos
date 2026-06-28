@@ -89,19 +89,19 @@
             <a href="{{ route('mineral.loading.index') }}" class="ds-back-btn">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
             </a>
-            <span class="ds-nav-text">Loading Harian</span>
+            <span class="ds-nav-text">Penugasan Kendaraan</span>
             <span class="ds-nav-sep">/</span>
             <span class="ds-nav-crumb">Detail</span>
             <span class="ds-code">{{ $loading->tanggal->format('d/m/Y') }}</span>
         </nav>
 
-        {{-- Card 1: Informasi Loading --}}
+        {{-- Card 1: Informasi Permintaan --}}
         <div class="ds-card">
             <div class="ds-card-hdr blue">
                 <div class="ds-card-ico blue">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                 </div>
-                <div class="ds-card-title">Informasi Loading</div>
+                <div class="ds-card-title">Informasi Permintaan</div>
             </div>
             <div class="ds-card-body">
                 <div class="ds-grid2">
@@ -110,19 +110,23 @@
                         <span class="ds-val">{{ $loading->tanggal->format('d M Y') }}</span>
                     </div>
                     <div class="ds-item">
-                        <span class="ds-lbl">Status</span>
+                        <span class="ds-lbl">Status Penugasan</span>
                         <span class="ds-status {{ $loading->status }}">
                             <span class="ds-status-dot {{ $loading->status }}"></span>
                             {{ ucfirst($loading->status) }}
                         </span>
                     </div>
                     <div class="ds-item">
-                        <span class="ds-lbl">Sales</span>
+                        <span class="ds-lbl">Sales (Pemohon)</span>
                         <span class="ds-val">{{ $loading->sales->nama ?? '-' }}</span>
                     </div>
                     <div class="ds-item">
-                        <span class="ds-lbl">Kendaraan</span>
+                        <span class="ds-lbl">Kendaraan Sub</span>
                         <span class="ds-val mono">{{ $loading->sales->no_kendaraan ?? '-' }}</span>
+                    </div>
+                    <div class="ds-item">
+                        <span class="ds-lbl">Mobil Inti (Sumber)</span>
+                        <span class="ds-val">{{ $loading->mobilInti->nama ?? '-' }} ({{ $loading->mobilInti->no_kendaraan ?? '-' }})</span>
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Produk</span>
@@ -136,18 +140,68 @@
             </div>
         </div>
 
-        {{-- Card 2: Volume & Distribusi --}}
+        {{-- Card 2: Status Approval --}}
+        <div class="ds-card">
+            <div class="ds-card-hdr amber">
+                <div class="ds-card-ico amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <div class="ds-card-title">Status Persetujuan</div>
+            </div>
+            <div class="ds-card-body">
+                <div class="ds-grid2">
+                    <div class="ds-item">
+                        <span class="ds-lbl">Status Approval</span>
+                        @if($loading->status_approval === 'pending')
+                            <span class="ds-status" style="background:#fffbeb;color:#d97706;border-color:#fde68a;">
+                                <span class="ds-status-dot" style="background:#f59e0b;"></span>
+                                Menunggu Persetujuan
+                            </span>
+                        @elseif($loading->status_approval === 'approved')
+                            <span class="ds-status" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;">
+                                <span class="ds-status-dot" style="background:#10b981;"></span>
+                                Disetujui
+                            </span>
+                        @else
+                            <span class="ds-status" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;">
+                                <span class="ds-status-dot" style="background:#ef4444;"></span>
+                                Ditolak
+                            </span>
+                        @endif
+                    </div>
+                    @if($loading->approved_by)
+                    <div class="ds-item">
+                        <span class="ds-lbl">Diproses Oleh</span>
+                        <span class="ds-val">{{ $loading->approver->name ?? '-' }}</span>
+                    </div>
+                    <div class="ds-item">
+                        <span class="ds-lbl">Diproses Pada</span>
+                        <span class="ds-val">{{ $loading->approved_at ? $loading->approved_at->format('d M Y H:i') : '-' }}</span>
+                    </div>
+                    @endif
+                    @if($loading->alasan)
+                    <div class="ds-item" style="grid-column:1/-1;">
+                        <span class="ds-lbl">Alasan</span>
+                        <div class="ds-desc">{{ $loading->alasan }}</div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- Card 3: Volume & Penjualan --}}
+        @if($loading->status_approval === 'approved')
         <div class="ds-card">
             <div class="ds-card-hdr green">
                 <div class="ds-card-ico green">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
                 </div>
-                <div class="ds-card-title">Volume & Distribusi</div>
+                <div class="ds-card-title">Volume & Penjualan</div>
             </div>
             <div class="ds-card-body">
                 <div class="ds-grid3">
                     <div class="ds-item">
-                        <span class="ds-lbl">Jumlah Loading</span>
+                        <span class="ds-lbl">Jumlah Penugasan</span>
                         <span class="ds-val mono" style="color:#2563eb;">{{ number_format($loading->jumlah_loading) }} {{ $loading->produk->satuan ?? '' }}</span>
                     </div>
                     <div class="ds-item">
@@ -160,7 +214,6 @@
                     </div>
                 </div>
 
-                {{-- Progress bar --}}
                 @if($loading->jumlah_loading > 0)
                 @php
                     $pct = min(100, ($loading->terjual / $loading->jumlah_loading) * 100);
@@ -178,8 +231,9 @@
                 @endif
             </div>
         </div>
+        @endif
 
-        {{-- Card 3: Keterangan --}}
+        {{-- Card 4: Keterangan --}}
         @if($loading->keterangan)
         <div class="ds-card">
             <div class="ds-card-hdr purple">
@@ -200,10 +254,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 Kembali
             </a>
+            @if($loading->status_approval === 'approved' && $loading->status !== 'selesai')
             <a href="{{ route('mineral.loading.edit', $loading->id) }}" class="ds-btn ds-btn-edit">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit Loading
+                Edit Penugasan
             </a>
+            @endif
         </div>
 
     </div>

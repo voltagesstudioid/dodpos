@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\MinyakHutang;
 use App\Models\MinyakHutangBayar;
 use App\Models\MinyakKunjungan;
-use App\Models\MinyakLoading;
 use App\Models\MinyakPelanggan;
 use App\Models\MinyakPenjualan;
 use App\Models\MinyakProduk;
@@ -47,16 +46,6 @@ class MinyakApiController extends Controller
             ? round(($totalPenjualan / $sales->target_harian) * 100, 2)
             : 0;
 
-        // Today's loading
-        $loadingHariIni = MinyakLoading::where('sales_id', $sales->id)
-            ->whereDate('tanggal', $today)
-            ->with('produk')
-            ->get();
-
-        $totalLoading = $loadingHariIni->sum('jumlah_loading');
-        $totalTerjual = $loadingHariIni->sum('terjual');
-        $totalSisa = $loadingHariIni->sum('sisa_stok');
-
         // Debt info
         $pelangganIds = MinyakPelanggan::whereHas('hutangs', function ($q) {
             $q->where('status', '!=', 'lunas');
@@ -78,25 +67,6 @@ class MinyakApiController extends Controller
                     'penjualan_total' => (float) $totalPenjualan,
                     'jumlah_transaksi' => $jumlahTransaksi,
                     'target_tercapai_persen' => $targetTercapai,
-                ],
-                'loading_hari_ini' => [
-                    'total_loading' => $totalLoading,
-                    'sisa_stok' => $totalSisa,
-                    'terjual' => $totalTerjual,
-                    'detail' => $loadingHariIni->map(function ($l) {
-                        return [
-                            'id' => $l->id,
-                            'produk' => [
-                                'id' => $l->produk->id,
-                                'nama' => $l->produk->nama,
-                                'satuan' => $l->produk->satuan,
-                            ],
-                            'jumlah_loading' => $l->jumlah_loading,
-                            'terjual' => $l->terjual,
-                            'sisa_stok' => $l->sisa_stok,
-                            'status' => $l->status,
-                        ];
-                    }),
                 ],
                 'hutang_info' => [
                     'jumlah_pelanggan_hutang' => $pelangganIds->count(),
@@ -127,13 +97,6 @@ class MinyakApiController extends Controller
                 'ringkasanHutang' => [
                     'totalPiutang' => (float) $totalPiutang,
                     'jumlahPelanggan' => $pelangganIds->count(),
-                ],
-                'loadingHariIni' => [
-                    'detail' => $loadingHariIni->map(function ($l) {
-                        return [
-                            'sisa' => $l->sisa_stok,
-                        ];
-                    }),
                 ],
             ],
         ]);
@@ -254,22 +217,9 @@ class MinyakApiController extends Controller
      */
     public function produkList(Request $request)
     {
-        $user = $request->user();
-        $sales = MinyakSales::where('user_id', $user->id)->first();
-        $today = now()->toDateString();
-
         $produks = MinyakProduk::where('status', 'aktif')->get();
 
-        $data = $produks->map(function ($p) use ($sales, $today) {
-            $sisaStok = 0;
-            if ($sales) {
-                $loading = MinyakLoading::where('sales_id', $sales->id)
-                    ->where('produk_id', $p->id)
-                    ->whereDate('tanggal', $today)
-                    ->first();
-                $sisaStok = $loading?->sisa_stok ?? 0;
-            }
-
+        $data = $produks->map(function ($p) {
             return [
                 'id' => $p->id,
                 'kode_produk' => $p->kode_produk,
@@ -278,56 +228,12 @@ class MinyakApiController extends Controller
                 'satuan' => $p->satuan,
                 'harga_jual' => (float) $p->harga_jual,
                 'harga_modal' => (float) $p->harga_modal,
-                'sisa_stok_sales' => $sisaStok,
             ];
         });
 
         return response()->json([
             'success' => true,
             'data' => $data,
-        ]);
-    }
-
-    /**
-     * Get today's loading for current sales
-     */
-    public function loadingToday(Request $request)
-    {
-        $user = $request->user();
-        $sales = MinyakSales::where('user_id', $user->id)->first();
-
-        if (! $sales) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sales profile not found',
-            ], 404);
-        }
-
-        $today = now()->toDateString();
-
-        $loadings = MinyakLoading::where('sales_id', $sales->id)
-            ->whereDate('tanggal', $today)
-            ->with('produk')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $loadings->map(function ($l) {
-                return [
-                    'id' => $l->id,
-                    'tanggal' => $l->tanggal?->toDateString(),
-                    'produk' => [
-                        'id' => $l->produk->id,
-                        'kode_produk' => $l->produk->kode_produk,
-                        'nama' => $l->produk->nama,
-                        'satuan' => $l->produk->satuan,
-                    ],
-                    'jumlah_loading' => $l->jumlah_loading,
-                    'terjual' => $l->terjual,
-                    'sisa_stok' => $l->sisa_stok,
-                    'status' => $l->status,
-                ];
-            }),
         ]);
     }
 
@@ -361,27 +267,11 @@ class MinyakApiController extends Controller
         }
 
         $pelanggan = MinyakPelanggan::findOrFail($request->pelanggan_id);
-        $produk = MinyakProduk::findOrFail($request->produk_id);
 
         $total = $request->jumlah * $request->harga_satuan;
         $bayar = $request->bayar ?? 0;
         $kembali = $request->tipe_bayar === 'tunai' ? max(0, $bayar - $total) : 0;
         $hutang = $request->tipe_bayar === 'hutang' ? $total : 0;
-
-        // Validate stock
-        $today = now()->toDateString();
-        $loading = MinyakLoading::where('sales_id', $sales->id)
-            ->where('produk_id', $request->produk_id)
-            ->whereDate('tanggal', $today)
-            ->first();
-
-        if (! $loading || $loading->sisa_stok < $request->jumlah) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Stok tidak mencukupi',
-                'sisa_stok' => $loading?->sisa_stok ?? 0,
-            ], 422);
-        }
 
         // Validate hutang limit
         if ($request->tipe_bayar === 'hutang') {
@@ -436,11 +326,6 @@ class MinyakApiController extends Controller
                 'keterangan' => $request->keterangan,
                 'status' => 'pending',
             ]);
-
-            // Update loading stock
-            $loading->terjual += $request->jumlah;
-            $loading->sisa_stok -= $request->jumlah;
-            $loading->save();
 
             // Create hutang record if needed
             if ($hutang > 0) {
@@ -535,19 +420,6 @@ class MinyakApiController extends Controller
                     'keterangan' => $item['keterangan'] ?? null,
                     'status' => 'pending',
                 ]);
-
-                // Update loading stock
-                $today = now()->toDateString();
-                $loading = MinyakLoading::where('sales_id', $sales->id)
-                    ->where('produk_id', $item['produk_id'])
-                    ->whereDate('tanggal', $today)
-                    ->first();
-
-                if ($loading) {
-                    $loading->terjual += $item['jumlah'];
-                    $loading->sisa_stok -= $item['jumlah'];
-                    $loading->save();
-                }
 
                 // Create hutang if needed
                 if ($hutang > 0) {

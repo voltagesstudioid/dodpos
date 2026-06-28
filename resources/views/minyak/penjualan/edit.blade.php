@@ -85,10 +85,6 @@
             @csrf
             @method('PUT')
 
-            <div class="pj-info-box">
-                <strong>Info:</strong> Mengedit penjualan akan menyesuaikan stok loading kendaraan secara otomatis. Penjualan yang sudah terverifikasi tidak dapat diedit.
-            </div>
-
             {{-- Informasi Transaksi --}}
             <div class="pj-sec">
                 <div class="pj-sec-hdr">
@@ -161,8 +157,9 @@
                             <label class="pj-lbl">Harga Satuan <span class="pj-req">*</span></label>
                             <div class="pj-money">
                                 <span class="pj-money-pfx">Rp</span>
-                                <input type="number" name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan', $penjualan->harga_satuan) }}" min="0" step="100" class="pj-inp" required>
+                                <input type="text" inputmode="decimal" name="harga_satuan" id="inp-harga" value="{{ old('harga_satuan', $penjualan->harga_satuan) }}" min="0" class="pj-inp" required data-currency>
                             </div>
+                            <div id="min-price-hint" style="font-size:11px; color:#64748b; margin-top:4px; display:none;"></div>
                             @error('harga_satuan')<div class="pj-err">{{ $message }}</div>@enderror
                         </div>
                     </div>
@@ -223,7 +220,7 @@
                         <label class="pj-lbl">Jumlah Bayar (DP)</label>
                         <div class="pj-money">
                             <span class="pj-money-pfx">Rp</span>
-                            <input type="number" name="bayar" id="inp-bayar" value="{{ old('bayar', $penjualan->bayar) }}" min="0" step="100" class="pj-inp">
+                            <input type="text" inputmode="numeric" name="bayar" id="inp-bayar" value="{{ old('bayar', $penjualan->bayar) }}" min="0" class="pj-inp" data-currency>
                         </div>
                         @error('bayar')<div class="pj-err">{{ $message }}</div>@enderror
                     </div>
@@ -257,12 +254,27 @@
         var sumPrice = document.getElementById('sum-price');
         var sumTotal = document.getElementById('sum-total');
         var fldBayar = document.getElementById('fld-bayar');
+        var selProduk = document.getElementById('sel-produk');
 
+        function parseRupiah(v) { return parseFloat(String(v).replace(/\./g, '').replace(',', '.')) || 0; }
         function fmt(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
+
+        function checkMinPriceHint() {
+            var opt = selProduk.options[selProduk.selectedIndex];
+            if (!opt) return;
+            var finalMin = opt.dataset.harga || 0;
+            var hint = document.getElementById('min-price-hint');
+            if (hint && finalMin > 0) {
+                hint.innerHTML = 'Batas Harga Jual: <strong style="color:#059669;">Rp ' + Number(finalMin).toLocaleString('id-ID') + '</strong>';
+                hint.style.display = 'block';
+            }
+        }
+        checkMinPriceHint();
+        selProduk.addEventListener('change', checkMinPriceHint);
 
         function updateSummary() {
             var qty = parseInt(inpJumlah.value) || 0;
-            var price = parseFloat(inpHarga.value) || 0;
+            var price = parseRupiah(inpHarga.value);
             var total = qty * price;
             sumQty.textContent = qty + ' liter';
             sumPrice.textContent = fmt(price);

@@ -159,6 +159,7 @@
         }
         .ld-empty-cta:hover { transform:translateY(-1px); box-shadow:0 8px 28px rgba(37,99,235,0.4); }
 
+        .hidden { display:none !important; }
         @media(max-width:768px) { .ld-kpis { grid-template-columns:1fr; } }
         @media(max-width:640px) { .ld-hdr-title { font-size:1.25rem; } }
     </style>
@@ -172,13 +173,13 @@
                 <div class="ld-hdr-l">
                     <div class="ld-hdr-ico">🚛</div>
                     <div>
-                        <div class="ld-hdr-title">Loading Harian</div>
-                        <div class="ld-hdr-sub">Distribusi mineral ke kendaraan sales</div>
+                            <div class="ld-hdr-title">Penugasan Kendaraan</div>
+                            <div class="ld-hdr-sub">Permintaan stok dari mobil inti oleh sales — membutuhkan persetujuan</div>
                     </div>
                 </div>
                 <a href="{{ route('mineral.loading.create') }}" class="ld-hdr-btn">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Tambah Loading
+                    Tambah Penugasan
                 </a>
             </div>
 
@@ -187,7 +188,7 @@
                 <div class="ld-kpi blue">
                     <div class="ld-kpi-top">
                         <div class="ld-kpi-left">
-                            <span class="ld-kpi-lbl">Total Loading Hari Ini</span>
+                            <span class="ld-kpi-lbl">Total Penugasan Hari Ini</span>
                             @if(empty($stats['total_per_unit']))
                                 <div>
                                     <span class="ld-kpi-val blue">0</span>
@@ -218,6 +219,21 @@
                         <div class="ld-kpi-ico green">👥</div>
                     </div>
                 </div>
+                @if($canApprove)
+                <div class="ld-kpi blue" style="grid-column:1/-1;">
+                    <div class="ld-kpi-top">
+                        <div class="ld-kpi-left">
+                            <span class="ld-kpi-lbl">Menunggu Persetujuan</span>
+                            <div>
+                                <span class="ld-kpi-val blue">{{ $pendingCount }}</span>
+                                <span class="ld-kpi-unit">permintaan</span>
+                            </div>
+                            <div class="ld-kpi-foot">Butuh approve / reject oleh SPV / Admin</div>
+                        </div>
+                        <div class="ld-kpi-ico blue">⏳</div>
+                    </div>
+                </div>
+                @endif
             </div>
 
             {{-- Filter --}}
@@ -255,17 +271,17 @@
                             <tr>
                                 <th style="text-align:left;">Tanggal</th>
                                 <th style="text-align:left;">Sales</th>
+                                <th style="text-align:left;">Mobil Inti</th>
                                 <th style="text-align:left;">Produk</th>
-                                <th style="text-align:right;">Loading</th>
-                                <th style="text-align:right;">Terjual</th>
-                                <th style="text-align:right;">Sisa</th>
+                                <th style="text-align:right;">Volume</th>
+                                <th style="text-align:center;">Approval</th>
                                 <th style="text-align:center;">Status</th>
                                 <th style="text-align:center;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="ld-tbl-body">
                             @forelse($loadings as $l)
-                                <tr>
+                                <tr style="{{ $l->status_approval === 'pending' ? 'background:#fffbeb;' : ($l->status_approval === 'rejected' ? 'opacity:0.6;' : '') }}">
                                     <td>
                                         <div class="ld-date">
                                             <svg class="ld-date-ico" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -279,6 +295,12 @@
                                         </div>
                                     </td>
                                     <td>
+                                        <div class="ld-sales">
+                                            <div class="ld-sales-av" style="background:linear-gradient(135deg,#f59e0b,#d97706);">{{ substr($l->mobilInti->nama ?? '?', 0, 1) }}</div>
+                                            <div class="ld-sales-name">{{ $l->mobilInti->nama ?? '-' }}</div>
+                                        </div>
+                                    </td>
+                                    <td>
                                         <div class="ld-prod">{{ $l->produk->nama }}</div>
                                     </td>
                                     <td style="text-align:right;">
@@ -287,17 +309,23 @@
                                             <span class="ld-vol-unit">{{ $l->produk->satuan }}</span>
                                         </div>
                                     </td>
-                                    <td style="text-align:right;">
-                                        <div class="ld-vol ld-vol-green">
-                                            <span class="ld-vol-main">{{ number_format($l->terjual) }}</span>
-                                            <span class="ld-vol-unit">{{ $l->produk->satuan }}</span>
-                                        </div>
-                                    </td>
-                                    <td style="text-align:right;">
-                                        <div class="ld-vol ld-vol-amber">
-                                            <span class="ld-vol-main">{{ number_format($l->sisa_stok) }}</span>
-                                            <span class="ld-vol-unit">{{ $l->produk->satuan }}</span>
-                                        </div>
+                                    <td style="text-align:center;">
+                                        @if($l->status_approval === 'pending')
+                                            <span class="ld-status" style="background:#fffbeb;color:#d97706;border-color:#fde68a;">
+                                                <span class="ld-status-dot" style="background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,0.2);animation:ld-pulse 1.5s infinite;"></span>
+                                                Pending
+                                            </span>
+                                        @elseif($l->status_approval === 'approved')
+                                            <span class="ld-status" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;">
+                                                <span class="ld-status-dot" style="background:#10b981;"></span>
+                                                Disetujui
+                                            </span>
+                                        @else
+                                            <span class="ld-status" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;">
+                                                <span class="ld-status-dot" style="background:#ef4444;"></span>
+                                                Ditolak
+                                            </span>
+                                        @endif
                                     </td>
                                     <td style="text-align:center;">
                                         <span class="ld-status {{ $l->status }}">
@@ -305,7 +333,32 @@
                                             {{ ucfirst($l->status) }}
                                         </span>
                                     </td>
-                                    <td style="text-align:center;">
+                                    <td style="text-align:center; white-space:nowrap;">
+                                        @if($l->status_approval === 'pending' && $canApprove)
+                                            <form method="POST" action="{{ route('mineral.loading.approve', $l) }}" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="ld-act detail" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0;" onclick="return confirm('Setujui permintaan ini? Stok akan dipindahkan dari mobil inti ke mobil sub.')">
+                                                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                                    Setuju
+                                                </button>
+                                            </form>
+                                            <button type="button" class="ld-act detail" style="background:#fef2f2;color:#dc2626;border-color:#fecaca;" onclick="document.getElementById('reject-form-{{ $l->id }}').classList.toggle('hidden')">
+                                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                Tolak
+                                            </button>
+                                            <form id="reject-form-{{ $l->id }}" method="POST" action="{{ route('mineral.loading.reject', $l) }}" style="display:none;" class="hidden">
+                                                @csrf
+                                                <div style="margin-top:4px;display:flex;gap:4px;">
+                                                    <input type="text" name="alasan" placeholder="Alasan penolakan" required style="padding:4px 8px;border-radius:6px;border:1px solid #e2e8f0;font-size:11px;width:140px;">
+                                                    <button type="submit" style="padding:4px 8px;border-radius:6px;background:#dc2626;color:#fff;border:none;font-size:11px;cursor:pointer;">Kirim</button>
+                                                </div>
+                                            </form>
+                                        @elseif($l->status_approval === 'approved' && $l->status !== 'selesai')
+                                            <a href="{{ route('mineral.loading.edit', $l) }}" class="ld-act detail" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;">
+                                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                Edit
+                                            </a>
+                                        @endif
                                         <a href="{{ route('mineral.loading.show', $l) }}" class="ld-act detail">
                                             <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                             Detail
@@ -319,11 +372,11 @@
                                             <div class="ld-empty-ico">
                                                 <svg width="32" height="32" fill="none" stroke="#2563eb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                                             </div>
-                                            <div class="ld-empty-title">Belum Ada Data Loading</div>
-                                            <div class="ld-empty-sub">Tambahkan loading harian untuk mencatat distribusi mineral</div>
+                                            <div class="ld-empty-title">Belum Ada Data Penugasan</div>
+                                            <div class="ld-empty-sub">Tambahkan permintaan stok dari mobil inti untuk sales</div>
                                             <a href="{{ route('mineral.loading.create') }}" class="ld-empty-cta">
                                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                                Tambah Loading Pertama
+                                                Buat Permintaan Pertama
                                             </a>
                                         </div>
                                     </td>

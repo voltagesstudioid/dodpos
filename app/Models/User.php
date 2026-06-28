@@ -87,7 +87,9 @@ class User extends Authenticatable
         'sales_minyak',
         'sales_mineral',
         'sales_gula',
+        'pasgar',
         'sales_pasgar',
+        'sales_kanvas',
     ];
 
     public static function isValidRole(?string $role): bool

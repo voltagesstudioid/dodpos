@@ -155,6 +155,7 @@ class PosTransactionService
     public function createTransaction(array $data, array $items): Transaction
     {
         $sourceWarehouseId = $data['source_warehouse_id'] ?? (count($items) > 0 ? $items[0]['warehouse_id'] : null);
+        $saleType = $data['sale_type'] ?? 'eceran';
 
         $trx = Transaction::create([
             'user_id' => Auth::id(),
@@ -162,12 +163,13 @@ class PosTransactionService
             'source_warehouse_id' => $sourceWarehouseId,
             'vehicle_id' => $data['vehicle_id'] ?? null,
             'driver_name' => $data['driver_name'] ?? null,
+            'invoice_number' => ReferenceNumberService::generateInvoiceNumber($saleType),
             'total_amount' => $data['total_amount'],
             'paid_amount' => $data['paid_amount'],
             'change_amount' => max(0, $data['paid_amount'] - $data['total_amount']),
             'payment_method' => $data['payment_method'],
             'payment_reference' => $data['payment_reference'] ?? null,
-            'sale_type' => $data['sale_type'] ?? 'eceran',
+            'sale_type' => $saleType,
             'status' => 'completed',
         ]);
 

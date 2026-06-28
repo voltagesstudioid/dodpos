@@ -160,9 +160,9 @@
                                             <div class="rg-harga-default">Rp {{ number_format($produk->harga_jual, 0, ',', '.') }}</div>
                                         </td>
                                         <td>
-                                            <input type="number" name="harga[{{ $produk->id }}]" class="rg-harga-inp"
+                                            <input type="text" data-currency="true" name="harga[{{ $produk->id }}]" class="rg-harga-inp"
                                                 value="{{ old('harga.' . $produk->id, $hargaMap[$produk->id] ?? '') }}"
-                                                placeholder="{{ number_format($produk->harga_jual, 0, ',', '.') }}" min="0" step="100">
+                                                placeholder="{{ number_format($produk->harga_jual, 0, ',', '.') }}">
                                         </td>
                                     </tr>
                                 @endforeach

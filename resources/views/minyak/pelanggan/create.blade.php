@@ -135,6 +135,8 @@
             .pcf-actions { flex-direction:column; }
             .pcf-btn { width:100%; justify-content:center; }
         }
+
+
     </style>
     @endpush
 
@@ -188,17 +190,138 @@
                                 @error('email')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
                             </div>
                             <div class="pcf-full">
-                                <label class="pcf-lbl">Alamat</label>
-                                <textarea name="alamat" rows="3" placeholder="Masukkan alamat lengkap" class="pcf-input">{{ old('alamat') }}</textarea>
+                                <label class="pcf-lbl">Alamat <span class="pcf-req">*</span></label>
+                                <textarea name="alamat" rows="3" placeholder="Masukkan alamat lengkap" class="pcf-input" required>{{ old('alamat') }}</textarea>
                                 @error('alamat')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
                             </div>
                             <div>
-                                <label class="pcf-lbl">Kecamatan</label>
-                                <input type="text" name="kecamatan" value="{{ old('kecamatan') }}" placeholder="Nama kecamatan" class="pcf-input">
+                                <label class="pcf-lbl">Kecamatan <span class="pcf-req">*</span></label>
+                                <input type="text" name="kecamatan" value="{{ old('kecamatan') }}" placeholder="Nama kecamatan" class="pcf-input" required list="list-kecamatan">
+                                <datalist id="list-kecamatan">
+                                    @forelse($kecamatanList as $kec)
+                                        <option value="{{ $kec }}">
+                                    @empty
+                                        <option value="Cileungsi">
+                                        <option value="Gunung Putri">
+                                        <option value="Citeureup">
+                                        <option value="Bojong Gede">
+                                        <option value="Sukmajaya">
+                                        <option value="Cimanggis">
+                                        <option value="Beji">
+                                        <option value="Pancoran Mas">
+                                        <option value="Sawangan">
+                                        <option value="Limo">
+                                        <option value="Cinere">
+                                        <option value="Kebayoran Baru">
+                                        <option value="Kebayoran Lama">
+                                        <option value="Cilandak">
+                                        <option value="Pasar Minggu">
+                                        <option value="Jagakarsa">
+                                        <option value="Tebet">
+                                        <option value="Setiabudi">
+                                        <option value="Menteng">
+                                        <option value="Tanah Abang">
+                                        <option value="Grogol Petamburan">
+                                        <option value="Kembangan">
+                                        <option value="Kebon Jeruk">
+                                        <option value="Palmerah">
+                                        <option value="Tambora">
+                                        <option value="Taman Sari">
+                                        <option value="Cengkareng">
+                                        <option value="Kalideres">
+                                    @endforelse
+                                </datalist>
                             </div>
                             <div>
-                                <label class="pcf-lbl">Kota</label>
-                                <input type="text" name="kota" value="{{ old('kota') }}" placeholder="Nama kota" class="pcf-input">
+                                <label class="pcf-lbl">Kota <span class="pcf-req">*</span></label>
+                                <input type="text" name="kota" value="{{ old('kota') }}" placeholder="Nama kota" class="pcf-input" required list="list-kota">
+                                <datalist id="list-kota">
+                                    @forelse($kotaList as $kota)
+                                        <option value="{{ $kota }}">
+                                    @empty
+                                        <option value="Jakarta Pusat">
+                                        <option value="Jakarta Utara">
+                                        <option value="Jakarta Barat">
+                                        <option value="Jakarta Selatan">
+                                        <option value="Jakarta Timur">
+                                        <option value="Bogor">
+                                        <option value="Depok">
+                                        <option value="Tangerang">
+                                        <option value="Tangerang Selatan">
+                                        <option value="Bekasi">
+                                        <option value="Bandung">
+                                        <option value="Cimahi">
+                                        <option value="Cirebon">
+                                        <option value="Semarang">
+                                        <option value="Surakarta">
+                                        <option value="Yogyakarta">
+                                        <option value="Surabaya">
+                                        <option value="Malang">
+                                        <option value="Sidoarjo">
+                                        <option value="Gresik">
+                                        <option value="Denpasar">
+                                        <option value="Medan">
+                                        <option value="Palembang">
+                                        <option value="Makassar">
+                                        <option value="Manado">
+                                        <option value="Batam">
+                                        <option value="Pekanbaru">
+                                        <option value="Padang">
+                                        <option value="Bandar Lampung">
+                                        <option value="Pontianak">
+                                        <option value="Banjarmasin">
+                                        <option value="Balikpapan">
+                                        <option value="Samarinda">
+                                        <option value="Mataram">
+                                        <option value="Kupang">
+                                        <option value="Ambon">
+                                        <option value="Jayapura">
+                                    @endforelse
+                                </datalist>
+                            </div>
+                            <div>
+                                <label class="pcf-lbl">Provinsi</label>
+                                <select name="provinsi" class="pcf-input">
+                                    <option value="">-- Pilih Provinsi --</option>
+                                    <option value="Aceh" {{ old('provinsi') == 'Aceh' ? 'selected' : '' }}>Aceh</option>
+                                    <option value="Sumatera Utara" {{ old('provinsi') == 'Sumatera Utara' ? 'selected' : '' }}>Sumatera Utara</option>
+                                    <option value="Sumatera Barat" {{ old('provinsi') == 'Sumatera Barat' ? 'selected' : '' }}>Sumatera Barat</option>
+                                    <option value="Riau" {{ old('provinsi') == 'Riau' ? 'selected' : '' }}>Riau</option>
+                                    <option value="Kepulauan Riau" {{ old('provinsi') == 'Kepulauan Riau' ? 'selected' : '' }}>Kepulauan Riau</option>
+                                    <option value="Jambi" {{ old('provinsi') == 'Jambi' ? 'selected' : '' }}>Jambi</option>
+                                    <option value="Sumatera Selatan" {{ old('provinsi') == 'Sumatera Selatan' ? 'selected' : '' }}>Sumatera Selatan</option>
+                                    <option value="Bangka Belitung" {{ old('provinsi') == 'Bangka Belitung' ? 'selected' : '' }}>Bangka Belitung</option>
+                                    <option value="Bengkulu" {{ old('provinsi') == 'Bengkulu' ? 'selected' : '' }}>Bengkulu</option>
+                                    <option value="Lampung" {{ old('provinsi') == 'Lampung' ? 'selected' : '' }}>Lampung</option>
+                                    <option value="Banten" {{ old('provinsi') == 'Banten' ? 'selected' : '' }}>Banten</option>
+                                    <option value="DKI Jakarta" {{ old('provinsi') == 'DKI Jakarta' ? 'selected' : '' }}>DKI Jakarta</option>
+                                    <option value="Jawa Barat" {{ old('provinsi') == 'Jawa Barat' ? 'selected' : '' }}>Jawa Barat</option>
+                                    <option value="Jawa Tengah" {{ old('provinsi') == 'Jawa Tengah' ? 'selected' : '' }}>Jawa Tengah</option>
+                                    <option value="DI Yogyakarta" {{ old('provinsi') == 'DI Yogyakarta' ? 'selected' : '' }}>DI Yogyakarta</option>
+                                    <option value="Jawa Timur" {{ old('provinsi') == 'Jawa Timur' ? 'selected' : '' }}>Jawa Timur</option>
+                                    <option value="Bali" {{ old('provinsi') == 'Bali' ? 'selected' : '' }}>Bali</option>
+                                    <option value="Nusa Tenggara Barat" {{ old('provinsi') == 'Nusa Tenggara Barat' ? 'selected' : '' }}>Nusa Tenggara Barat</option>
+                                    <option value="Nusa Tenggara Timur" {{ old('provinsi') == 'Nusa Tenggara Timur' ? 'selected' : '' }}>Nusa Tenggara Timur</option>
+                                    <option value="Kalimantan Barat" {{ old('provinsi') == 'Kalimantan Barat' ? 'selected' : '' }}>Kalimantan Barat</option>
+                                    <option value="Kalimantan Tengah" {{ old('provinsi') == 'Kalimantan Tengah' ? 'selected' : '' }}>Kalimantan Tengah</option>
+                                    <option value="Kalimantan Selatan" {{ old('provinsi') == 'Kalimantan Selatan' ? 'selected' : '' }}>Kalimantan Selatan</option>
+                                    <option value="Kalimantan Timur" {{ old('provinsi') == 'Kalimantan Timur' ? 'selected' : '' }}>Kalimantan Timur</option>
+                                    <option value="Kalimantan Utara" {{ old('provinsi') == 'Kalimantan Utara' ? 'selected' : '' }}>Kalimantan Utara</option>
+                                    <option value="Sulawesi Utara" {{ old('provinsi') == 'Sulawesi Utara' ? 'selected' : '' }}>Sulawesi Utara</option>
+                                    <option value="Sulawesi Tengah" {{ old('provinsi') == 'Sulawesi Tengah' ? 'selected' : '' }}>Sulawesi Tengah</option>
+                                    <option value="Sulawesi Selatan" {{ old('provinsi') == 'Sulawesi Selatan' ? 'selected' : '' }}>Sulawesi Selatan</option>
+                                    <option value="Sulawesi Tenggara" {{ old('provinsi') == 'Sulawesi Tenggara' ? 'selected' : '' }}>Sulawesi Tenggara</option>
+                                    <option value="Gorontalo" {{ old('provinsi') == 'Gorontalo' ? 'selected' : '' }}>Gorontalo</option>
+                                    <option value="Sulawesi Barat" {{ old('provinsi') == 'Sulawesi Barat' ? 'selected' : '' }}>Sulawesi Barat</option>
+                                    <option value="Maluku" {{ old('provinsi') == 'Maluku' ? 'selected' : '' }}>Maluku</option>
+                                    <option value="Maluku Utara" {{ old('provinsi') == 'Maluku Utara' ? 'selected' : '' }}>Maluku Utara</option>
+                                    <option value="Papua" {{ old('provinsi') == 'Papua' ? 'selected' : '' }}>Papua</option>
+                                    <option value="Papua Barat" {{ old('provinsi') == 'Papua Barat' ? 'selected' : '' }}>Papua Barat</option>
+                                    <option value="Papua Selatan" {{ old('provinsi') == 'Papua Selatan' ? 'selected' : '' }}>Papua Selatan</option>
+                                    <option value="Papua Tengah" {{ old('provinsi') == 'Papua Tengah' ? 'selected' : '' }}>Papua Tengah</option>
+                                    <option value="Papua Pegunungan" {{ old('provinsi') == 'Papua Pegunungan' ? 'selected' : '' }}>Papua Pegunungan</option>
+                                    <option value="Papua Barat Daya" {{ old('provinsi') == 'Papua Barat Daya' ? 'selected' : '' }}>Papua Barat Daya</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -217,16 +340,16 @@
                         {{-- GPS status --}}
                         <div id="gps-status-box" style="display:flex; align-items:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:12px; background:#f1f5f9; border:1.5px solid #e2e8f0; margin-bottom:1rem;">
                             <span id="gps-dot" style="width:10px; height:10px; border-radius:50%; background:#94a3b8; flex-shrink:0;"></span>
-                            <span id="gps-text" style="font-size:0.8125rem; font-weight:600; color:#64748b;">Mendeteksi lokasi...</span>
+                            <span id="gps-text" style="font-size:0.8125rem; font-weight:600; color:#64748b;">Klik tombol "Deteksi Lokasi Saya" untuk mengambil koordinat</span>
                         </div>
                         <div class="pcf-grid">
                             <div>
-                                <label class="pcf-lbl">Latitude <span class="pcf-req">*</span></label>
-                                <input type="text" name="latitude" id="inp-lat" value="{{ old('latitude') }}" required placeholder="-6.20880000" class="pcf-input" readonly>
+                                <label class="pcf-lbl">Latitude</label>
+                                <input type="text" name="latitude" id="inp-lat" value="{{ old('latitude') }}" placeholder="-6.20880000" class="pcf-input" readonly>
                             </div>
                             <div>
-                                <label class="pcf-lbl">Longitude <span class="pcf-req">*</span></label>
-                                <input type="text" name="longitude" id="inp-lng" value="{{ old('longitude') }}" required placeholder="106.84560000" class="pcf-input" readonly>
+                                <label class="pcf-lbl">Longitude</label>
+                                <input type="text" name="longitude" id="inp-lng" value="{{ old('longitude') }}" placeholder="106.84560000" class="pcf-input" readonly>
                             </div>
                         </div>
                         <div style="display:flex; gap:0.75rem; margin-top:1rem; flex-wrap:wrap;">
@@ -240,7 +363,8 @@
                             </button>
                         </div>
                         <div style="font-size:0.6875rem; color:#94a3b8; margin-top:0.75rem; line-height:1.6;">
-                            📱 Pastikan GPS/lokasi di HP Anda aktif. Koordinat ini akan digunakan untuk memverifikasi sales berada di lokasi toko saat melakukan penjualan.
+                            📱 Pastikan GPS/lokasi di HP Anda aktif. Koordinat ini akan digunakan untuk memverifikasi sales berada di lokasi toko saat melakukan penjualan.<br>
+                            ⚠️ Jika akses dari HP tidak berfungsi, akses website menggunakan <strong>HTTPS</strong> (bukan HTTP) atau aktifkan lokasi di pengaturan browser.
                         </div>
                         @error('latitude')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
                         @error('longitude')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
@@ -257,29 +381,46 @@
                         </div>
                     </div>
                     <div class="pcf-card-body">
-                        <div id="foto-preview-wrap" style="text-align:center;">
-                            <img id="foto-preview" src="" alt="Preview" style="display:none; max-width:100%; max-height:300px; border-radius:12px; border:2px solid #e2e8f0; margin-bottom:1rem;">
-                        </div>
-                        <div class="pcf-grid" style="gap:0.75rem;">
+                        <input type="file" name="foto_toko" id="inp-foto-depan" accept="image/*" style="display:none;">
+                        <input type="file" name="foto_toko_dalam" id="inp-foto-dalam" accept="image/*" style="display:none;">
+                        <div class="pcf-grid" style="gap:1rem;">
                             <div>
-                                <label class="pcf-btn" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.875rem 1rem; border-radius:12px; border:2px dashed #f9a8d4; background:#fdf2f8; cursor:pointer; width:100%; font-size:0.8125rem; font-weight:600; color:#be185d; transition:all 0.2s;">
-                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                    📱 Kamera / Upload Foto
-                                    <input type="file" name="foto_toko" id="inp-foto-toko" accept="image/*" capture="environment" style="display:none;" @if($isSalesRole) required @endif>
-                                </label>
-                            </div>
-                            <div style="display:flex; align-items:center;">
-                                <div style="font-size:0.75rem; color:#64748b; line-height:1.5;">
-                                    @if($isSalesRole)
-                                    <strong style="color:#be185d;">⚠️ Wajib upload foto toko</strong><br>
-                                    Supervisor akan menentukan limit berdasarkan kondisi toko.
-                                    @else
-                                    Foto toko membantu menilai kelayakan limit pelanggan.
-                                    @endif
+                                <label class="pcf-lbl">Tampak Depan</label>
+                                <div id="preview-depan-wrap" style="text-align:center; margin-bottom:0.5rem;">
+                                    <img id="preview-depan" src="" alt="Preview Depan" style="display:none; max-width:100%; max-height:200px; border-radius:10px; border:2px solid #e2e8f0;">
                                 </div>
+                                <button type="button" class="pcf-btn btn-camera" data-target="inp-foto-depan" data-preview="preview-depan" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:10px; border:2px dashed #f9a8d4; background:#fdf2f8; cursor:pointer; width:100%; font-size:0.75rem; font-weight:600; color:#be185d; font-family:inherit;">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    📷 Buka Kamera
+                                </button>
+                                @error('foto_toko')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
+                            </div>
+                            <div>
+                                <label class="pcf-lbl">Tampak Dalam</label>
+                                <div id="preview-dalam-wrap" style="text-align:center; margin-bottom:0.5rem;">
+                                    <img id="preview-dalam" src="" alt="Preview Dalam" style="display:none; max-width:100%; max-height:200px; border-radius:10px; border:2px solid #e2e8f0;">
+                                </div>
+                                <button type="button" class="pcf-btn btn-camera" data-target="inp-foto-dalam" data-preview="preview-dalam" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.75rem 1rem; border-radius:10px; border:2px dashed #f9a8d4; background:#fdf2f8; cursor:pointer; width:100%; font-size:0.75rem; font-weight:600; color:#be185d; font-family:inherit;">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                    📷 Buka Kamera
+                                </button>
+                                @error('foto_toko_dalam')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
                             </div>
                         </div>
-                        @error('foto_toko')<div class="pcf-err"><svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>{{ $message }}</div>@enderror
+                        @if($isSalesRole)
+                        <div style="font-size:0.75rem; color:#be185d; font-weight:600; margin-top:0.75rem;">⚠️ Kedua foto wajib diisi untuk penilaian limit oleh supervisor</div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Camera Modal --}}
+                <div id="camera-modal" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.95);">
+                    <div style="position:relative; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1rem;">
+                        <video id="camera-video" autoplay playsinline style="max-width:100%; max-height:75vh; border-radius:16px; object-fit:contain;"></video>
+                        <div style="display:flex; gap:1rem; margin-top:1.25rem; flex-wrap:wrap; justify-content:center;">
+                            <button type="button" id="btn-camera-capture" style="padding:0.875rem 2.5rem; border-radius:50px; border:none; background:linear-gradient(135deg,#f59e0b,#ea580c); color:#fff; font-weight:700; font-size:0.9375rem; cursor:pointer; box-shadow:0 4px 20px rgba(234,88,12,0.4);">📸 Ambil Foto</button>
+                            <button type="button" id="btn-camera-close" style="padding:0.875rem 2rem; border-radius:50px; border:none; background:rgba(255,255,255,0.15); color:#fff; font-weight:600; font-size:0.9375rem; cursor:pointer;">✕ Tutup</button>
+                        </div>
                     </div>
                 </div>
 
@@ -340,7 +481,7 @@
                         <label class="pcf-lbl">💰 Limit Hutang (Rp)</label>
                         <div class="pcf-money-wrap">
                             <span class="pcf-money-prefix">Rp</span>
-                            <input type="number" name="limit_hutang" value="{{ old('limit_hutang') }}" placeholder="0" class="pcf-input">
+                            <input type="text" inputmode="numeric" name="limit_hutang" value="{{ old('limit_hutang') }}" placeholder="0" class="pcf-input" data-currency>
                         </div>
                         <div class="pcf-help">
                             <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -401,18 +542,81 @@
 
     @push('scripts')
     <script>
-    // Foto preview
-    document.getElementById('inp-foto-toko').addEventListener('change', function(e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-            var preview = document.getElementById('foto-preview');
-            preview.src = ev.target.result;
-            preview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    });
+    // Camera capture via MediaDevices API
+    (function() {
+        var modal = document.getElementById('camera-modal');
+        var video = document.getElementById('camera-video');
+        var btnCapture = document.getElementById('btn-camera-capture');
+        var btnClose = document.getElementById('btn-camera-close');
+        var canvas = document.createElement('canvas');
+        var stream = null;
+        var currentInput = null;
+        var currentPreview = null;
+
+        document.querySelectorAll('.btn-camera').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                currentInput = document.getElementById(this.dataset.target);
+                currentPreview = document.getElementById(this.dataset.preview);
+                openCamera();
+            });
+        });
+
+        function openCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Browser tidak mendukung kamera. Gunakan HP dengan browser terbaru.');
+                return;
+            }
+            modal.style.display = 'block';
+            navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+            })
+            .then(function(s) {
+                stream = s;
+                video.srcObject = s;
+                video.play();
+            })
+            .catch(function(err) {
+                alert('Tidak dapat mengakses kamera: ' + err.message + '\nPastikan akses HTTPS dan izinkan kamera.');
+                modal.style.display = 'none';
+            });
+        }
+
+        function closeCamera() {
+            if (stream) {
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                stream = null;
+            }
+            video.srcObject = null;
+            modal.style.display = 'none';
+        }
+
+        btnCapture.addEventListener('click', function() {
+            if (!stream || !video.videoWidth) return;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.toBlob(function(blob) {
+                var file = new File([blob], 'foto_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                var dt = new DataTransfer();
+                dt.items.add(file);
+                currentInput.files = dt.files;
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    currentPreview.src = ev.target.result;
+                    currentPreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+                closeCamera();
+            }, 'image/jpeg', 0.85);
+        });
+
+        btnClose.addEventListener('click', closeCamera);
+
+        // Close on backdrop click
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeCamera();
+        });
+    })();
 
     // GPS Detection
     (function() {
@@ -423,6 +627,11 @@
         var btnDetect = document.getElementById('btn-detect-gps');
         var btnClear = document.getElementById('btn-clear-gps');
         var watchId = null;
+
+        // Show initial info (no auto-detect)
+        gpsDot.style.background = '#94a3b8';
+        gpsText.textContent = 'Klik "Deteksi Lokasi Saya" untuk mengambil koordinat.';
+        gpsText.style.color = '#64748b';
 
         function setStatus(state, text) {
             gpsText.textContent = text;
@@ -513,8 +722,7 @@
             setStatus('', 'Koordinat direset. Klik "Deteksi Lokasi Saya" untuk mengambil ulang.');
         });
 
-        // Auto-detect on page load
-        detectGPS();
+        // No auto-detect — user must tap button
     })();
     </script>
     @endpush

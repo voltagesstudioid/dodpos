@@ -338,6 +338,12 @@ class DashboardController extends Controller
                     'warehouseId',
                     'opnameToday',
                 ));
+            case 'kasir':
+                return redirect()->route('kasir.index');
+            case 'gudang':
+                return redirect()->route('gudang.dashboard');
+            case 'pasgar':
+                return redirect()->route('pasgar.dashboard');
             case 'admin4':
                 // Dashboard untuk Admin 4 (Gudang Keluar & Distribusi)
                 $today = now()->toDateString();

@@ -45,14 +45,10 @@ class ProdukController extends Controller
             'aktif' => MinyakProduk::where('status', 'aktif')->count(),
         ];
 
-        // Hide stok_rendah from sales (warehouse info)
-        if (! $this->isSales()) {
-            $stats['stok_rendah'] = MinyakProduk::whereColumn('stok_gudang', '<=', 'stok_minimum')->count();
-        }
-
+        $jenisList = MinyakJenis::orderBy('urutan')->orderBy('nama')->get();
         $isSalesRole = $this->isSales();
 
-        return view('minyak.produk.index', compact('produks', 'stats', 'isSalesRole'));
+        return view('minyak.produk.index', compact('produks', 'stats', 'jenisList', 'isSalesRole'));
     }
 
     public function create()
@@ -65,33 +61,20 @@ class ProdukController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:100',
+            'nama' => 'required|string|max:100|unique:minyak_produk,nama',
             'jenis' => 'nullable|string|max:50',
             'satuan' => 'required|string|max:20',
             'harga_jual' => 'required|numeric|min:1',
             'harga_modal' => 'nullable|numeric|min:0',
-            'stok_gudang' => 'nullable|integer|min:0',
-            'stok_minimum' => 'nullable|integer|min:0',
             'keterangan' => 'nullable|string',
             'status' => 'required|in:aktif,nonaktif',
         ]);
 
-        // Logic: harga_jual must be >= harga_modal (can't sell below cost)
         if (!empty($validated['harga_modal']) && (float) $validated['harga_modal'] > 0) {
             if ((float) $validated['harga_jual'] < (float) $validated['harga_modal']) {
                 return back()->withErrors(['harga_jual' => 'Harga jual tidak boleh lebih rendah dari harga modal (HPP).'])
                     ->withInput();
             }
-        }
-
-        // Logic: default stok_minimum to 100 if not provided
-        if (empty($validated['stok_minimum']) || (int) $validated['stok_minimum'] === 0) {
-            $validated['stok_minimum'] = 100;
-        }
-
-        // Logic: default stok_gudang to 0 if not provided
-        if (!isset($validated['stok_gudang'])) {
-            $validated['stok_gudang'] = 0;
         }
 
         $validated['kode_produk'] = MinyakProduk::generateKode();
@@ -104,7 +87,7 @@ class ProdukController extends Controller
 
     public function show(MinyakProduk $produk)
     {
-        $produk->load(['loadings.sales', 'penjualans.pelanggan']);
+        $produk->load(['penjualans.pelanggan']);
         
         return view('minyak.produk.show', compact('produk'));
     }
@@ -119,26 +102,21 @@ class ProdukController extends Controller
     public function update(Request $request, MinyakProduk $produk)
     {
         $validated = $request->validate([
-            'nama' => 'required|string|max:100',
+            'nama' => 'required|string|max:100|unique:minyak_produk,nama,' . $produk->id,
             'jenis' => 'nullable|string|max:50',
             'satuan' => 'required|string|max:20',
             'harga_jual' => 'required|numeric|min:1',
             'harga_modal' => 'nullable|numeric|min:0',
-            'stok_minimum' => 'nullable|integer|min:0',
             'keterangan' => 'nullable|string',
             'status' => 'required|in:aktif,nonaktif',
         ]);
 
-        // Logic: harga_jual must be >= harga_modal (can't sell below cost)
         if (!empty($validated['harga_modal']) && (float) $validated['harga_modal'] > 0) {
             if ((float) $validated['harga_jual'] < (float) $validated['harga_modal']) {
                 return back()->withErrors(['harga_jual' => 'Harga jual tidak boleh lebih rendah dari harga modal (HPP).'])
                     ->withInput();
             }
         }
-
-        // Logic: stok_gudang is NOT editable via this form - preserve existing value
-        // Stock changes should go through Loading (penerimaan barang)
 
         $produk->update($validated);
 

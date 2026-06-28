@@ -46,11 +46,6 @@ class MinyakSales extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function loadings()
-    {
-        return $this->hasMany(MinyakLoading::class, 'sales_id');
-    }
-
     public function penjualans()
     {
         return $this->hasMany(MinyakPenjualan::class, 'sales_id');

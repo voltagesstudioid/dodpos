@@ -148,19 +148,7 @@
         .pr-harga-val { font-size:0.875rem; font-weight:700; color:#0f172a; letter-spacing:-0.01em; }
         .pr-harga-sub { font-size:0.6875rem; color:#94a3b8; margin-top:1px; }
 
-        /* Stok */
-        .pr-stok { text-align:right; }
-        .pr-stok-val { font-size:0.875rem; font-weight:700; color:#0f172a; }
-        .pr-stok-bar { height:4px; border-radius:99px; background:#e2e8f0; margin-top:5px; overflow:hidden; min-width:60px; }
-        .pr-stok-bar-fill { height:100%; border-radius:99px; transition:width 0.4s ease; }
-        .pr-stok-badge {
-            display:inline-flex; align-items:center; gap:0.25rem;
-            padding:0.2rem 0.5rem; border-radius:6px; font-size:0.6875rem; font-weight:700;
-        }
-        .pr-stok-badge.ok   { background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; }
-        .pr-stok-badge.warn { background:#fffbeb; color:#d97706; border:1px solid #fde68a; }
-        .pr-stok-badge.danger { background:#fff1f2; color:#dc2626; border:1px solid #fecdd3; }
-        .pr-stok-min { font-size:0.6875rem; color:#94a3b8; margin-top:2px; }
+
 
         /* Actions */
         .pr-acts { display:flex; gap:0.375rem; align-items:center; justify-content:center; }
@@ -204,7 +192,7 @@
                     <div class="pr-hdr-ico">🛢️</div>
                     <div>
                         <div class="pr-hdr-title">Data Produk</div>
-                        <div class="pr-hdr-sub">Kelola produk BBM, pelumas, dan stok gudang minyak</div>
+                        <div class="pr-hdr-sub">Kelola produk Minyak</div>
                     </div>
                 </div>
                 @if(! $isSalesRole)
@@ -233,22 +221,7 @@
                     <div class="pr-kpi-val green">{{ $stats['aktif'] }}</div>
                     <div class="pr-kpi-foot">Produk aktif diperdagangkan</div>
                 </div>
-                @if(! $isSalesRole)
-                <div class="pr-kpi red">
-                    <div class="pr-kpi-top">
-                        <span class="pr-kpi-lbl">Stok Rendah</span>
-                        <div class="pr-kpi-ico red">⚠️</div>
-                    </div>
-                    <div class="pr-kpi-val red">{{ $stats['stok_rendah'] }}</div>
-                    <div class="pr-kpi-foot">Produk di bawah stok minimum</div>
-                    @if($stats['stok_rendah'] > 0)
-                        <div class="pr-kpi-alert">
-                            <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                            Perlu restok segera
-                        </div>
-                    @endif
-                </div>
-                @endif
+
             </div>
 
             {{-- Filter Bar --}}
@@ -265,8 +238,8 @@
                         <label class="pr-flbl">Jenis</label>
                         <select name="jenis" class="pr-fsel">
                             <option value="">Semua Jenis</option>
-                            @foreach(['Pertalite','Pertamax','Solar'] as $j)
-                                <option value="{{ $j }}" {{ request('jenis') == $j ? 'selected' : '' }}>{{ $j }}</option>
+                            @foreach($jenisList as $j)
+                                <option value="{{ $j->nama }}" {{ request('jenis') == $j->nama ? 'selected' : '' }}>{{ $j->nama }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -300,7 +273,6 @@
                                 <th style="text-align:center;">Jenis</th>
                                 <th style="text-align:center;">Satuan</th>
                                 <th style="text-align:right;">Harga Jual</th>
-                                <th style="text-align:right;">Stok Gudang</th>
                                 <th style="text-align:center;">Aksi</th>
                             </tr>
                         </thead>
@@ -309,11 +281,6 @@
                                 @php
                                     $jenisKey = strtolower($p->jenis ?? '');
                                     $jenisClass = in_array($jenisKey, ['pertalite','pertamax','solar']) ? $jenisKey : 'default';
-                                    $stokMin = $p->stok_minimum ?: 1;
-                                    $stokPct = $stokMin > 0 ? min(round(($p->stok_gudang / max($stokMin * 3, 1)) * 100), 100) : 100;
-                                    $isLow = $p->stok_gudang <= $p->stok_minimum;
-                                    $stokColor = $isLow ? 'danger' : ($stokPct < 40 ? 'warn' : 'ok');
-                                    $stokGrad = $isLow ? 'linear-gradient(90deg,#ef4444,#dc2626)' : ($stokPct < 40 ? 'linear-gradient(90deg,#f59e0b,#d97706)' : 'linear-gradient(90deg,#10b981,#059669)');
                                 @endphp
                                 <tr>
                                     <td>
@@ -345,22 +312,7 @@
                                             @endif
                                         </div>
                                     </td>
-                                    <td>
-                                        <div class="pr-stok">
-                                            @if($isLow)
-                                                <div class="pr-stok-badge danger">
-                                                    <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                                                    {{ number_format($p->stok_gudang) }} {{ $p->satuan }}
-                                                </div>
-                                            @else
-                                                <div class="pr-stok-val">{{ number_format($p->stok_gudang) }} <span style="font-weight:400;color:#64748b;font-size:0.75rem;">{{ $p->satuan }}</span></div>
-                                            @endif
-                                            <div class="pr-stok-bar">
-                                                <div class="pr-stok-bar-fill" style="width:{{ $stokPct }}%; background:{{ $stokGrad }};"></div>
-                                            </div>
-                                            <div class="pr-stok-min">Min: {{ number_format($p->stok_minimum) }}</div>
-                                        </div>
-                                    </td>
+
                                     <td style="text-align:center;">
                                         <div class="pr-acts">
                                             <a href="{{ route('minyak.produk.show', $p) }}" class="pr-act pr-act-view">
@@ -378,7 +330,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="6">
                                         <div class="pr-empty">
                                             <div class="pr-empty-ico">
                                                 <svg width="32" height="32" fill="none" stroke="#c2410c" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>

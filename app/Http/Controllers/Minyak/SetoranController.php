@@ -116,21 +116,24 @@ class SetoranController extends Controller
     public function create()
     {
         $isSalesRole = $this->isSales();
-        $todaySummary = null;
-        $todayDebtPayment = 0;
 
         if ($isSalesRole) {
             $profile = $this->getSalesProfile();
             $sales = collect([$profile]);
-
-            // Get today's sales summary for the form
-            $todaySummary = $this->calculateSalesSummary($profile->id, today()->toDateString());
-            $todayDebtPayment = $this->calculateDebtPayments($profile->id, today()->toDateString());
+            $salesId = $profile->id;
         } else {
             $sales = MinyakSales::aktif()->get();
+            $salesId = null;
         }
-        
-        return view('minyak.setoran.create', compact('sales', 'isSalesRole', 'todaySummary', 'todayDebtPayment'));
+
+        // Cari summary untuk tanggal default (hari ini)
+        $defaultDate = old('tanggal', today()->toDateString());
+        $summary = $salesId ? $this->calculateSalesSummary($salesId, $defaultDate) : null;
+        $debtPayment = $salesId ? $this->calculateDebtPayments($salesId, $defaultDate) : 0;
+
+        return view('minyak.setoran.create', compact(
+            'sales', 'isSalesRole', 'summary', 'debtPayment', 'salesId'
+        ));
     }
 
     public function store(Request $request)

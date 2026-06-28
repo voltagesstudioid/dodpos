@@ -14,8 +14,8 @@ class MinyakPelanggan extends Model
     protected $fillable = [
         'regional_id',
         'kode_pelanggan', 'nama_toko', 'nama_pemilik', 'no_hp', 'email',
-        'alamat', 'kecamatan', 'kota', 'latitude', 'longitude',
-        'tipe', 'limit_hutang', 'total_hutang', 'status', 'foto_toko',
+        'alamat', 'kecamatan', 'kota', 'provinsi', 'latitude', 'longitude',
+        'tipe', 'limit_hutang', 'total_hutang', 'status', 'foto_toko', 'foto_toko_dalam',
     ];
 
     protected $casts = [

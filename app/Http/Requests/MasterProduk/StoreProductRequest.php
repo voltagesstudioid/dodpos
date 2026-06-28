@@ -11,6 +11,36 @@ class StoreProductRequest extends FormRequest
         return $this->user()?->can('create_master_produk') ?? false;
     }
 
+    protected function prepareForValidation()
+    {
+        $input = $this->all();
+
+        // Strip dots from main numeric fields
+        $fieldsToStrip = ['price', 'purchase_price', 'stock', 'min_stock'];
+        foreach ($fieldsToStrip as $field) {
+            if (isset($input[$field])) {
+                $input[$field] = (float) str_replace('.', '', (string) $input[$field]);
+            }
+        }
+
+        // Strip dots from units array
+        if (isset($input['units']) && is_array($input['units'])) {
+            $unitFields = [
+                'purchase_price', 'sell_price_ecer', 'sell_price_grosir',
+                'sell_price_jual1', 'sell_price_jual2', 'sell_price_jual3', 'sell_price_minimal'
+            ];
+            foreach ($input['units'] as $idx => $unit) {
+                foreach ($unitFields as $uf) {
+                    if (isset($unit[$uf])) {
+                        $input['units'][$idx][$uf] = (float) str_replace('.', '', (string) $unit[$uf]);
+                    }
+                }
+            }
+        }
+
+        $this->replace($input);
+    }
+
     public function rules(): array
     {
         return [

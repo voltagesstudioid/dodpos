@@ -56,6 +56,23 @@ class MasterProdukController extends Controller
         return view('master.produk.index', compact('tab', 'stats', 'categories', 'units', 'warehouses'));
     }
 
+    public function create(): View
+    {
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $units = Unit::orderBy('name')->get(['id', 'name', 'abbreviation']);
+
+        return view('master.produk.create', compact('categories', 'units'));
+    }
+
+    public function edit(Product $product): View
+    {
+        $product->load(['unitConversions.unit']);
+        $categories = Category::orderBy('name')->get(['id', 'name']);
+        $units = Unit::orderBy('name')->get(['id', 'name', 'abbreviation']);
+
+        return view('master.produk.edit', compact('product', 'categories', 'units'));
+    }
+
     // ─────────── PRODUK ───────────
 
     public function searchProducts(Request $request): JsonResponse
@@ -137,7 +154,7 @@ class MasterProdukController extends Controller
         ]);
     }
 
-    public function storeProduct(StoreProductRequest $request): JsonResponse
+    public function storeProduct(StoreProductRequest $request)
     {
         try {
             DB::beginTransaction();
@@ -167,10 +184,18 @@ class MasterProdukController extends Controller
                 'sku' => $product->sku, 'name' => $product->name,
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Produk berhasil ditambahkan.']);
+            if ($request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Produk berhasil ditambahkan.']);
+            }
+            
+            return redirect()->route('master.produk')->with('success', 'Produk berhasil ditambahkan.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Gagal menyimpan produk: ' . $e->getMessage()], 500);
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Gagal menyimpan produk: ' . $e->getMessage()], 500);
+            }
+            
+            return back()->withInput()->with('error', 'Gagal menyimpan produk: ' . $e->getMessage());
         }
     }
 
@@ -207,10 +232,13 @@ class MasterProdukController extends Controller
         ]);
     }
 
-    public function updateProduct(UpdateProductRequest $request, Product $product): JsonResponse
+    public function updateProduct(UpdateProductRequest $request, Product $product)
     {
         if (ProductStock::where('product_id', $product->id)->where('stock', '>', 0)->exists() && $request->stock !== null) {
-            return response()->json(['success' => false, 'message' => 'Stok tidak bisa diubah melalui form ini. Gunakan fitur Penyesuaian Stok.'], 422);
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Stok tidak bisa diubah melalui form ini. Gunakan fitur Penyesuaian Stok.'], 422);
+            }
+            return back()->withInput()->with('error', 'Stok tidak bisa diubah melalui form ini. Gunakan fitur Penyesuaian Stok.');
         }
 
         try {
@@ -239,10 +267,16 @@ class MasterProdukController extends Controller
                 'sku' => $product->sku, 'name' => $product->name,
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Produk berhasil diperbarui.']);
+            if ($request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Produk berhasil diperbarui.']);
+            }
+            return redirect()->route('master.produk')->with('success', 'Produk berhasil diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Gagal memperbarui produk: ' . $e->getMessage()], 500);
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Gagal memperbarui produk: ' . $e->getMessage()], 500);
+            }
+            return back()->withInput()->with('error', 'Gagal memperbarui produk: ' . $e->getMessage());
         }
     }
 
@@ -533,6 +567,14 @@ class MasterProdukController extends Controller
 
     private function saveUnitConversions(Product $product, array $units): void
     {
+        $unitIds = [];
+        foreach ($units as $u) {
+            if (in_array($u['unit_id'], $unitIds)) {
+                throw new \InvalidArgumentException('Satuan duplikat tidak diperbolehkan.');
+            }
+            $unitIds[] = $u['unit_id'];
+        }
+
         $baseSet = false;
         $minFactor = PHP_INT_MAX;
         $minIdx = 0;
@@ -541,8 +583,9 @@ class MasterProdukController extends Controller
             if (!empty($u['is_base_unit'])) {
                 $baseSet = true;
             }
-            if ((int) $u['conversion_factor'] < $minFactor) {
-                $minFactor = (int) $u['conversion_factor'];
+            $factor = (float) $u['conversion_factor'];
+            if ($factor > 0 && $factor < $minFactor) {
+                $minFactor = $factor;
                 $minIdx = $idx;
             }
         }

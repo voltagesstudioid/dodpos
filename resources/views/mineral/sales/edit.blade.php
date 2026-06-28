@@ -57,6 +57,12 @@
         .mne-err { color:#ef4444; font-size:0.75rem; font-weight:600; margin-top:2px; }
         .mne-inp.is-invalid, .mne-txt.is-invalid { border-color:#fecaca; background:#fef2f2; }
 
+        .mne-money { display:flex; align-items:stretch; border:1.5px solid #e2e8f0; border-radius:10px; overflow:hidden; transition:all 0.2s; background:#fcfcfd; }
+        .mne-money:focus-within { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.12); }
+        .mne-money-pfx { display:flex; align-items:center; padding:0 0.875rem; background:#f8fafc; color:#64748b; font-weight:700; font-size:0.8125rem; border-right:1px solid #e2e8f0; white-space:nowrap; }
+        .mne-money-inp { flex:1; padding:0.6875rem 0.875rem; border:none; background:transparent; font-size:0.875rem; font-weight:700; font-family:'JetBrains Mono',monospace; outline:none; min-width:0; }
+        .mne-hint { font-size:0.6875rem; color:#94a3b8; margin-top:0.375rem; }
+
         /* ── RADIO CARDS ── */
         .mne-radios { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
         .mne-radio { position:relative; }
@@ -169,8 +175,11 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                 Target Harian <span class="mne-opt">(Opsional)</span>
                             </label>
-                            <input type="number" name="target_harian" value="{{ old('target_harian', $sales->target_harian) }}"
-                                class="mne-inp mono @error('target_harian') is-invalid @enderror" placeholder="0" min="0" step="0.01">
+                            <div class="mne-money">
+                                <span class="mne-money-pfx">Rp</span>
+                                <input type="text" inputmode="decimal" name="target_harian" value="{{ old('target_harian', $sales->target_harian) }}"
+                                    class="mne-money-inp @error('target_harian') is-invalid @enderror" placeholder="0" data-currency>
+                            </div>
                             @error('target_harian')<div class="mne-err">{{ $message }}</div>@enderror
                         </div>
 
@@ -195,28 +204,24 @@
                     <div class="mne-card-title">Informasi Kendaraan</div>
                 </div>
                 <div class="mne-card-body">
-                    <div class="mne-grid2">
-                        <div class="mne-fg">
-                            <label class="mne-lbl">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                                No Kendaraan (Plat) <span class="mne-opt">(Opsional)</span>
-                            </label>
-                            <input type="text" name="no_kendaraan" value="{{ old('no_kendaraan', $sales->no_kendaraan) }}"
-                                class="mne-inp mono @error('no_kendaraan') is-invalid @enderror"
-                                placeholder="B 1234 ABC" style="text-transform:uppercase;">
-                            @error('no_kendaraan')<div class="mne-err">{{ $message }}</div>@enderror
+                    <div class="mne-fg">
+                        <label class="mne-lbl">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            Tugaskan Kendaraan <span class="mne-opt">(Opsional)</span>
+                        </label>
+                        <select name="vehicle_id" class="mne-inp @error('vehicle_id') is-invalid @enderror" style="max-width:400px;">
+                            <option value="">-- Pilih kendaraan --</option>
+                            @foreach($vehicles as $v)
+                                <option value="{{ $v->id }}" {{ old('vehicle_id', $sales->vehicle_id) == $v->id ? 'selected' : '' }}>
+                                    {{ strtoupper($v->license_plate) }}@if($v->type) · {{ $v->type }}@endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="mne-hint" style="font-size:0.6875rem;color:#94a3b8;margin-top:0.375rem;">
+                            Data kendaraan diambil dari menu Operasional &rarr; Data Kendaraan.
+                            <a href="{{ route('operasional.kendaraan.index') }}" target="_blank" style="color:#0891b2;font-weight:600;">Tambah kendaraan baru</a>
                         </div>
-
-                        <div class="mne-fg">
-                            <label class="mne-lbl">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
-                                Jenis Kendaraan <span class="mne-opt">(Opsional)</span>
-                            </label>
-                            <input type="text" name="jenis_kendaraan" value="{{ old('jenis_kendaraan', $sales->jenis_kendaraan) }}"
-                                class="mne-inp @error('jenis_kendaraan') is-invalid @enderror"
-                                placeholder="Motor, Pickup, Truck">
-                            @error('jenis_kendaraan')<div class="mne-err">{{ $message }}</div>@enderror
-                        </div>
+                        @error('vehicle_id')<div class="mne-err">{{ $message }}</div>@enderror
                     </div>
                 </div>
             </div>
@@ -231,6 +236,14 @@
                 </div>
                 <div class="mne-card-body">
                     <div style="display:flex;flex-direction:column;gap:1.125rem;">
+                        <div style="margin-bottom:0.5rem; display:flex; align-items:center; gap:12px;">
+                            <input type="checkbox" name="is_inti" id="cb-is-inti" value="1" {{ old('is_inti', $sales->is_inti) ? 'checked' : '' }} style="width:20px; height:20px; accent-color:#0891b2; cursor:pointer;">
+                            <div>
+                                <label for="cb-is-inti" style="font-size:0.875rem; font-weight:700; color:#0f172a; cursor:pointer;">Jadikan sebagai Mobil Inti</label>
+                                <div class="mne-hint" style="margin-top:0;">Centang jika sales ini bertugas membawa stok utama untuk didistribusikan ke sales sub (Mobil Sub).</div>
+                            </div>
+                        </div>
+
                         <div class="mne-fg">
                             <label class="mne-lbl" style="margin-bottom:0.5rem;">Status Sales <span class="mne-req">*</span></label>
                             <div class="mne-radios">

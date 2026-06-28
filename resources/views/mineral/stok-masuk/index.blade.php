@@ -85,12 +85,12 @@
                     <div class="sm-hdr-ico">📦</div>
                     <div>
                         <div class="sm-hdr-title">Penerimaan & Koreksi Stok</div>
-                        <div class="sm-hdr-sub">Kelola stok masuk gudang dan koreksi stok fisik</div>
+                        <div class="sm-hdr-sub">Kelola penerimaan barang ke kendaraan dan koreksi stok</div>
                     </div>
                 </div>
                 <a href="{{ route('mineral.stok-masuk.create') }}" class="sm-hdr-btn">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Tambah Stok
+                    Tambah Penerimaan
                 </a>
             </div>
 
@@ -150,6 +150,7 @@
                             <tr>
                                 <th style="text-align:left;">No. Referensi</th>
                                 <th style="text-align:left;">Tanggal</th>
+                                <th style="text-align:left;">Kendaraan</th>
                                 <th style="text-align:left;">Produk</th>
                                 <th style="text-align:center;">Tipe</th>
                                 <th style="text-align:right;">Stok Sebelum</th>
@@ -165,6 +166,7 @@
                             <tr>
                                 <td><span class="sm-ref">{{ $r->no_referensi }}</span></td>
                                 <td>{{ $r->created_at->format('d M Y H:i') }}</td>
+                                <td>{{ $r->vehicle?->license_plate ?? '-' }}</td>
                                 <td>{{ $r->produk->nama ?? '-' }}</td>
                                 <td style="text-align:center;">
                                     <span class="sm-tipe {{ $r->tipe }}">{{ ucfirst($r->tipe) }}</span>
@@ -190,7 +192,7 @@
                                     <div style="display:flex; gap:0.375rem; justify-content:center;">
                                         <a href="{{ route('mineral.stok-masuk.show', $r->id) }}" class="sm-act detail">Detail</a>
                                         @if($r->status === 'aktif')
-                                        <form action="{{ route('mineral.stok-masuk.destroy', $r->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Batalkan data ini? Stok gudang akan dikurangi kembali.')">
+                                        <form action="{{ route('mineral.stok-masuk.destroy', $r->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Batalkan data ini? Stok kendaraan akan dikurangi kembali.')">
                                             @csrf @method('DELETE')
                                             <button type="submit" class="sm-act del">Batal</button>
                                         </form>
@@ -200,16 +202,16 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="10">
+                                <td colspan="11">
                                     <div class="sm-empty">
                                         <div class="sm-empty-ico">
                                             <svg width="32" height="32" fill="none" stroke="#0891b2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                                         </div>
                                         <div class="sm-empty-title">Belum Ada Data</div>
-                                        <div class="sm-empty-sub">Mulai catat penerimaan atau koreksi stok gudang</div>
+                                        <div class="sm-empty-sub">Mulai catat penerimaan barang ke kendaraan atau koreksi stok</div>
                                         <a href="{{ route('mineral.stok-masuk.create') }}" class="sm-empty-cta">
                                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                                            Tambah Stok Pertama
+                                            Tambah Penerimaan Pertama
                                         </a>
                                     </div>
                                 </td>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MineralLoading;
 use App\Models\MineralSales;
 use App\Models\MineralProduk;
+use App\Models\VehicleStock;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,13 +14,19 @@ use Illuminate\Support\Facades\DB;
 
 class LoadingController extends Controller
 {
+    private function userCanApprove(): bool
+    {
+        $role = strtolower(Auth::user()->role ?? '');
+        return in_array($role, ['supervisor', 'admin1', 'admin2']);
+    }
+
     public function index(Request $request)
     {
         $search = $request->input('search');
         $sales_id = $request->input('sales_id');
         $tanggal = $request->input('tanggal');
 
-        $loadings = MineralLoading::with(['sales', 'produk'])
+        $loadings = MineralLoading::with(['sales', 'produk', 'mobilInti'])
             ->when($search, function ($query) use ($search) {
                 $query->whereHas('sales', function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%");
@@ -33,13 +40,13 @@ class LoadingController extends Controller
             ->when($tanggal, function ($query) use ($tanggal) {
                 $query->whereDate('tanggal', $tanggal);
             })
+            ->orderByRaw("FIELD(status_approval, 'pending', 'approved', 'rejected')")
             ->orderBy('tanggal', 'desc')
             ->paginate(15)
             ->withQueryString();
 
         $sales = MineralSales::aktif()->get();
 
-        // Group today's loading totals by product satuan (unit)
         $totalPerUnit = MineralLoading::whereDate('mineral_loading.tanggal', today())
             ->join('mineral_produk', 'mineral_loading.produk_id', '=', 'mineral_produk.id')
             ->select('mineral_produk.satuan', DB::raw('SUM(mineral_loading.jumlah_loading) as total'))
@@ -52,69 +59,129 @@ class LoadingController extends Controller
             'total_sales' => MineralLoading::whereDate('tanggal', today())->distinct('sales_id')->count(),
         ];
 
-        return view('mineral.loading.index', compact('loadings', 'sales', 'stats'));
+        $canApprove = $this->userCanApprove();
+        $pendingCount = MineralLoading::where('status_approval', 'pending')->count();
+
+        return view('mineral.loading.index', compact('loadings', 'sales', 'stats', 'canApprove', 'pendingCount'));
     }
 
     public function create()
     {
-        $sales = MineralSales::aktif()->get();
+        $salesSub = MineralSales::with('vehicle')->aktif()->where('is_inti', false)->get();
         $produks = MineralProduk::where('status', 'aktif')->get();
+        $mobilInti = MineralSales::with('vehicle')->aktif()->where('is_inti', true)->get();
         
-        return view('mineral.loading.create', compact('sales', 'produks'));
+        return view('mineral.loading.create', compact('salesSub', 'produks', 'mobilInti'));
+    }
+
+    public function vehicleStock(Request $request, $vehicleId, $produkId)
+    {
+        $stock = VehicleStock::where('vehicle_id', $vehicleId)
+            ->where('produk_id', $produkId)
+            ->first();
+
+        return response()->json([
+            'vehicle_id' => $vehicleId,
+            'produk_id' => $produkId,
+            'jumlah' => $stock ? (float) $stock->jumlah : 0,
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'tanggal' => 'required|date',
-            'sales_id' => 'required|exists:mineral_sales,id',
             'produk_id' => 'required|exists:mineral_produk,id',
-            'jumlah_loading' => 'required|numeric|min:0.01',
+            'mobil_inti_id' => 'required|exists:mineral_sales,id',
+            'items' => 'required|array|min:1',
+            'items.*.sales_id' => 'required|exists:mineral_sales,id',
+            'items.*.jumlah' => 'required|numeric|min:0.01',
             'keterangan' => 'nullable|string',
         ]);
 
-        // Cek duplikasi: 1 sales + 1 produk + 1 tanggal = 1 loading record
-        $existing = MineralLoading::where('sales_id', $validated['sales_id'])
-            ->where('produk_id', $validated['produk_id'])
-            ->whereDate('tanggal', $validated['tanggal'])
-            ->first();
-
-        if ($existing) {
+        $mobilInti = MineralSales::find($validated['mobil_inti_id']);
+        if (!$mobilInti || !$mobilInti->is_inti) {
             return redirect()->back()->withInput()
-                ->with('error', 'Loading untuk produk ini pada tanggal yang sama sudah ada. Silakan edit loading yang sudah ada.');
+                ->with('error', 'Sales yang dipilih sebagai Mobil Inti tidak valid.');
+        }
+
+        if (!$mobilInti->vehicle_id) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Mobil Inti belum memiliki kendaraan yang terhubung.');
         }
 
         DB::beginTransaction();
         try {
-            $produk = MineralProduk::find($validated['produk_id']);
-            if ($produk->stok_gudang < $validated['jumlah_loading']) {
-                DB::rollBack();
-                return redirect()->back()->withInput()
-                    ->with('error', 'Stok gudang tidak mencukupi. Stok tersedia: ' . number_format($produk->stok_gudang, 2) . ' ' . $produk->satuan);
+            $salesIds = collect($validated['items'])->pluck('sales_id')->unique();
+
+            foreach ($salesIds as $sid) {
+                if ((int) $sid === (int) $validated['mobil_inti_id']) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Sales pemohon tidak boleh sama dengan Mobil Inti.');
+                }
+                $salesCheck = MineralSales::find($sid);
+                if ($salesCheck && $salesCheck->is_inti) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', "Sales {$salesCheck->nama} adalah Mobil Inti dan tidak bisa meminta stok ke dirinya sendiri.");
+                }
+
+                if (!$salesCheck->vehicle_id) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', "Sales {$salesCheck->nama} belum dihubungkan dengan kendaraan.");
+                }
             }
 
-            $validated['sisa_stok'] = $validated['jumlah_loading'];
-            $validated['terjual'] = 0;
-            $validated['status'] = 'loading';
-            $validated['created_by'] = Auth::id();
+            $existingLoadings = MineralLoading::where('produk_id', $validated['produk_id'])
+                ->whereDate('tanggal', $validated['tanggal'])
+                ->where('mobil_inti_id', $validated['mobil_inti_id'])
+                ->where('status_approval', '!=', 'rejected')
+                ->whereIn('sales_id', $salesIds)
+                ->pluck('sales_id')
+                ->toArray();
 
-            $produk->stok_gudang -= $validated['jumlah_loading'];
-            $produk->save();
+            if (!empty($existingLoadings)) {
+                $dupNames = MineralSales::whereIn('id', $existingLoadings)->pluck('nama')->implode(', ');
+                DB::rollBack();
+                return redirect()->back()->withInput()
+                    ->with('error', 'Sales berikut sudah memiliki permintaan aktif untuk produk, tanggal & mobil inti ini: ' . $dupNames);
+            }
 
-            $loading = MineralLoading::create($validated);
+            foreach ($validated['items'] as $item) {
+                MineralLoading::create([
+                    'tanggal' => $validated['tanggal'],
+                    'sales_id' => $item['sales_id'],
+                    'mobil_inti_id' => $validated['mobil_inti_id'],
+                    'produk_id' => $validated['produk_id'],
+                    'jumlah_loading' => (float) $item['jumlah'],
+                    'sisa_stok' => 0,
+                    'terjual' => 0,
+                    'status' => 'loading',
+                    'status_approval' => 'pending',
+                    'keterangan' => $validated['keterangan'] ?? null,
+                    'created_by' => Auth::id(),
+                ]);
+            }
 
-            AuditService::logInventory('loading.create', 'MineralLoading', $loading->id, [
-                'produk' => $produk->nama,
-                'sales_id' => $validated['sales_id'],
-                'jumlah_loading' => $validated['jumlah_loading'],
-                'stok_gudang_sebelum' => $produk->stok_gudang + $validated['jumlah_loading'],
-                'stok_gudang_sesudah' => $produk->stok_gudang,
+            AuditService::logInventory('loading.create', 'MineralLoading', 0, [
+                'tanggal' => $validated['tanggal'],
+                'produk_id' => $validated['produk_id'],
+                'mobil_inti_id' => $validated['mobil_inti_id'],
+                'jumlah_sales' => count($validated['items']),
+                'total_loading' => collect($validated['items'])->sum('jumlah'),
             ]);
 
             DB::commit();
 
+            $count = count($validated['items']);
+            $msg = $count > 1
+                ? "Permintaan penugasan berhasil! {$count} sales menunggu persetujuan."
+                : 'Permintaan penugasan berhasil, menunggu persetujuan.';
+
             return redirect()->route('mineral.loading.index')
-                ->with('success', 'Loading harian berhasil ditambahkan.');
+                ->with('success', $msg);
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->withInput()
@@ -124,13 +191,18 @@ class LoadingController extends Controller
 
     public function show(MineralLoading $loading)
     {
-        $loading->load(['sales', 'produk', 'creator']);
+        $loading->load(['sales', 'produk', 'creator', 'mobilInti', 'approver']);
         
         return view('mineral.loading.show', compact('loading'));
     }
 
     public function edit(MineralLoading $loading)
     {
+        if ($loading->status_approval !== 'approved') {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Hanya penugasan yang sudah disetujui yang dapat diedit.');
+        }
+
         $sales = MineralSales::aktif()->get();
         $produks = MineralProduk::where('status', 'aktif')->get();
         
@@ -139,6 +211,11 @@ class LoadingController extends Controller
 
     public function update(Request $request, MineralLoading $loading)
     {
+        if ($loading->status_approval !== 'approved') {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Hanya penugasan yang sudah disetujui yang dapat diedit.');
+        }
+
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'sales_id' => 'required|exists:mineral_sales,id',
@@ -150,68 +227,9 @@ class LoadingController extends Controller
 
         DB::beginTransaction();
         try {
-            $oldJumlah = (float) $loading->jumlah_loading;
-            $newJumlah = (float) $validated['jumlah_loading'];
-            $diff = $newJumlah - $oldJumlah;
+            $validated['sisa_stok'] = (float) $validated['jumlah_loading'] - (float) $loading->terjual;
 
-            $oldProdukId = $loading->produk_id;
-            $newProdukId = $validated['produk_id'];
-
-            if ($oldProdukId !== $newProdukId) {
-                // Produk berubah: kembalikan stok lama, kurangi stok baru
-                $oldProduk = MineralProduk::find($oldProdukId);
-                $oldProduk->stok_gudang += $oldJumlah;
-                $oldProduk->save();
-
-                $newProduk = MineralProduk::find($newProdukId);
-                if ($newProduk->stok_gudang < $newJumlah) {
-                    DB::rollBack();
-                    return redirect()->back()->withInput()
-                        ->with('error', 'Stok gudang tidak cukup untuk produk baru. Stok tersedia: ' . number_format($newProduk->stok_gudang, 2) . ' ' . $newProduk->satuan);
-                }
-                $newProduk->stok_gudang -= $newJumlah;
-                $newProduk->save();
-
-                $validated['sisa_stok'] = $newJumlah - (float) $loading->terjual;
-                $validated['terjual'] = $loading->terjual;
-
-                AuditService::logInventory('loading.update.product_change', 'MineralLoading', $loading->id, [
-                    'old_produk_id' => $oldProdukId,
-                    'new_produk_id' => $newProdukId,
-                    'old_jumlah' => $oldJumlah,
-                    'new_jumlah' => $newJumlah,
-                ]);
-            } elseif ($diff != 0) {
-                // Produk sama, jumlah berubah: sesuaikan stok gudang
-                $produk = MineralProduk::find($newProdukId);
-
-                if ($diff > 0) {
-                    if ($produk->stok_gudang < $diff) {
-                        DB::rollBack();
-                        return redirect()->back()->withInput()
-                            ->with('error', 'Stok gudang tidak cukup untuk penambahan. Stok tersedia: ' . number_format($produk->stok_gudang, 2) . ' ' . $produk->satuan);
-                    }
-                }
-
-                $stokSebelum = $produk->stok_gudang;
-                $produk->stok_gudang -= $diff;
-                $produk->save();
-
-                $validated['sisa_stok'] = $newJumlah - (float) $loading->terjual;
-                $validated['terjual'] = $loading->terjual;
-
-                AuditService::logInventory('loading.update.quantity_change', 'MineralLoading', $loading->id, [
-                    'produk' => $produk->nama,
-                    'old_jumlah' => $oldJumlah,
-                    'new_jumlah' => $newJumlah,
-                    'diff' => $diff,
-                    'stok_gudang_sebelum' => $stokSebelum,
-                    'stok_gudang_sesudah' => $produk->stok_gudang,
-                ]);
-            }
-
-            // Auto-update status
-            if (isset($validated['sisa_stok']) && $validated['sisa_stok'] <= 0) {
+            if ($validated['sisa_stok'] <= 0) {
                 $validated['status'] = 'selesai';
             }
 
@@ -220,7 +238,7 @@ class LoadingController extends Controller
             DB::commit();
 
             return redirect()->route('mineral.loading.index')
-                ->with('success', 'Loading harian berhasil diperbarui.');
+                ->with('success', 'Penugasan kendaraan berhasil diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->withInput()
@@ -232,24 +250,32 @@ class LoadingController extends Controller
     {
         DB::beginTransaction();
         try {
-            $produk = MineralProduk::find($loading->produk_id);
-            $stokSebelum = $produk->stok_gudang;
-            $produk->stok_gudang += $loading->jumlah_loading;
-            $produk->save();
+            if ($loading->status_approval === 'approved') {
+                $mobilInti = MineralSales::find($loading->mobil_inti_id);
+                $subSales = MineralSales::find($loading->sales_id);
 
-            AuditService::logInventory('loading.delete', 'MineralLoading', $loading->id, [
-                'produk' => $produk->nama,
-                'jumlah_loading' => $loading->jumlah_loading,
-                'stok_gudang_sebelum' => $stokSebelum,
-                'stok_gudang_sesudah' => $produk->stok_gudang,
-            ]);
+                if ($mobilInti && $subSales && $mobilInti->vehicle_id && $subSales->vehicle_id) {
+                    VehicleStock::where('vehicle_id', $subSales->vehicle_id)
+                        ->where('produk_id', $loading->produk_id)
+                        ->decrement('jumlah', (float) $loading->jumlah_loading);
+
+                    $returnStock = VehicleStock::firstOrNew([
+                        'vehicle_id' => $mobilInti->vehicle_id,
+                        'produk_id' => $loading->produk_id,
+                    ]);
+                    $returnStock->jumlah = ((float) $returnStock->jumlah) + (float) $loading->jumlah_loading;
+                    $returnStock->save();
+
+                    MineralProduk::find($loading->produk_id)?->recalculateStokGudang();
+                }
+            }
 
             $loading->delete();
 
             DB::commit();
 
             return redirect()->route('mineral.loading.index')
-                ->with('success', 'Loading harian berhasil dihapus.');
+                ->with('success', 'Penugasan kendaraan berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -257,96 +283,107 @@ class LoadingController extends Controller
         }
     }
 
-    /**
-     * Show batch distribution form (split stock to multiple vehicles).
-     */
-    public function distribusi(Request $request)
+    public function approve(MineralLoading $loading)
     {
-        $sales = MineralSales::aktif()->get();
-        $produks = MineralProduk::where('status', 'aktif')->orderBy('nama')->get();
+        if (!$this->userCanApprove()) {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Anda tidak memiliki izin untuk menyetujui permintaan.');
+        }
 
-        return view('mineral.loading.distribusi', compact('sales', 'produks'));
-    }
-
-    /**
-     * Store batch distribution — create multiple loading records at once.
-     */
-    public function storeDistribusi(Request $request)
-    {
-        $validated = $request->validate([
-            'tanggal' => 'required|date',
-            'produk_id' => 'required|exists:mineral_produk,id',
-            'items' => 'required|array|min:1',
-            'items.*.sales_id' => 'required|exists:mineral_sales,id',
-            'items.*.jumlah' => 'required|numeric|min:1',
-            'keterangan' => 'nullable|string',
-        ]);
+        if ($loading->status_approval !== 'pending') {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Permintaan ini sudah diproses.');
+        }
 
         DB::beginTransaction();
         try {
-            $produk = MineralProduk::findOrFail($validated['produk_id']);
-            $totalDistribusi = collect($validated['items'])->sum('jumlah');
+            $mobilInti = MineralSales::findOrFail($loading->mobil_inti_id);
+            $subSales = MineralSales::findOrFail($loading->sales_id);
 
-            // Validate total vs available stock
-            if ($totalDistribusi > $produk->stok_gudang) {
+            $mainVehicleId = $mobilInti->vehicle_id;
+            $subVehicleId = $subSales->vehicle_id;
+
+            if (!$mainVehicleId || !$subVehicleId) {
                 DB::rollBack();
-                return redirect()->back()->withInput()
-                    ->with('error', 'Total distribusi (' . number_format($totalDistribusi, 2, ',', '.') . ' ' . $produk->satuan . ') melebihi stok gudang (' . number_format($produk->stok_gudang, 2, ',', '.') . ' ' . $produk->satuan . ').');
+                return redirect()->route('mineral.loading.index')
+                    ->with('error', 'Mobil inti atau sales sub belum memiliki data kendaraan.');
             }
 
-            // Check for duplicate sales on same date+product
-            $salesIds = collect($validated['items'])->pluck('sales_id')->unique();
-            $existingLoadings = MineralLoading::where('produk_id', $validated['produk_id'])
-                ->whereDate('tanggal', $validated['tanggal'])
-                ->whereIn('sales_id', $salesIds)
-                ->pluck('sales_id')
-                ->toArray();
+            $mainStock = VehicleStock::firstOrNew([
+                'vehicle_id' => $mainVehicleId,
+                'produk_id' => $loading->produk_id,
+            ]);
 
-            if (!empty($existingLoadings)) {
-                $dupNames = MineralSales::whereIn('id', $existingLoadings)->pluck('nama')->implode(', ');
+            $jumlah = (float) $loading->jumlah_loading;
+
+            if ((float) $mainStock->jumlah < $jumlah) {
                 DB::rollBack();
-                return redirect()->back()->withInput()
-                    ->with('error', 'Sales berikut sudah memiliki loading untuk produk & tanggal ini: ' . $dupNames);
+                return redirect()->route('mineral.loading.index')
+                    ->with('error', 'Stok di mobil inti tidak mencukupi. Tersedia: ' . ((float) $mainStock->jumlah) . ', diminta: ' . $jumlah);
             }
 
-            $created = [];
-            $stokSebelum = (float) $produk->stok_gudang;
+            VehicleStock::where('vehicle_id', $mainVehicleId)
+                ->where('produk_id', $loading->produk_id)
+                ->decrement('jumlah', $jumlah);
 
-            foreach ($validated['items'] as $item) {
-                $loading = MineralLoading::create([
-                    'tanggal' => $validated['tanggal'],
-                    'sales_id' => $item['sales_id'],
-                    'produk_id' => $validated['produk_id'],
-                    'jumlah_loading' => (float) $item['jumlah'],
-                    'sisa_stok' => (float) $item['jumlah'],
-                    'terjual' => 0,
-                    'status' => 'loading',
-                    'keterangan' => $validated['keterangan'] ?? null,
-                    'created_by' => Auth::id(),
-                ]);
-                $created[] = $loading;
-            }
+            $subStock = VehicleStock::firstOrNew([
+                'vehicle_id' => $subVehicleId,
+                'produk_id' => $loading->produk_id,
+            ]);
+            $subStock->jumlah = ((float) $subStock->jumlah) + $jumlah;
+            $subStock->save();
 
-            // Reduce stok_gudang by total
-            $produk->stok_gudang = $stokSebelum - $totalDistribusi;
-            $produk->save();
+            $loading->update([
+                'sisa_stok' => $jumlah,
+                'status_approval' => 'approved',
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
 
-            AuditService::logInventory('loading.distribusi', 'MineralProduk', $produk->id, [
-                'produk' => $produk->nama,
-                'total_distribusi' => $totalDistribusi,
-                'jumlah_sales' => count($validated['items']),
-                'stok_gudang_sebelum' => $stokSebelum,
-                'stok_gudang_sesudah' => $produk->stok_gudang,
+            MineralProduk::find($loading->produk_id)?->recalculateStokGudang();
+
+            AuditService::logInventory('loading.approve', 'MineralLoading', $loading->id, [
+                'sales_id' => $loading->sales_id,
+                'mobil_inti_id' => $loading->mobil_inti_id,
+                'produk_id' => $loading->produk_id,
+                'jumlah' => $jumlah,
             ]);
 
             DB::commit();
 
             return redirect()->route('mineral.loading.index')
-                ->with('success', 'Distribusi stok berhasil! ' . count($created) . ' sales dimuat, total ' . number_format($totalDistribusi, 2, ',', '.') . ' ' . $produk->satuan . '.');
+                ->with('success', 'Permintaan penugasan disetujui. Stok telah dipindahkan ke mobil sub.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withInput()
-                ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Gagal menyetujui: ' . $e->getMessage());
         }
+    }
+
+    public function reject(Request $request, MineralLoading $loading)
+    {
+        if (!$this->userCanApprove()) {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Anda tidak memiliki izin untuk menolak permintaan.');
+        }
+
+        if ($loading->status_approval !== 'pending') {
+            return redirect()->route('mineral.loading.index')
+                ->with('error', 'Permintaan ini sudah diproses.');
+        }
+
+        $validated = $request->validate([
+            'alasan' => 'required|string|max:500',
+        ]);
+
+        $loading->update([
+            'status_approval' => 'rejected',
+            'approved_by' => Auth::id(),
+            'approved_at' => now(),
+            'alasan' => $validated['alasan'],
+        ]);
+
+        return redirect()->route('mineral.loading.index')
+            ->with('success', 'Permintaan penugasan ditolak.');
     }
 }

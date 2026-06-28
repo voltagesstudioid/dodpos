@@ -45,6 +45,14 @@ class RegionalController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->has('harga') && is_array($request->harga)) {
+            $harga = $request->harga;
+            foreach ($harga as $k => $v) {
+                if ($v) $harga[$k] = str_replace(['.', ','], ['', '.'], $v);
+            }
+            $request->merge(['harga' => $harga]);
+        }
+
         $validated = $request->validate([
             'nama' => 'required|string|max:100',
             'deskripsi' => 'nullable|string',
@@ -107,6 +115,14 @@ class RegionalController extends Controller
 
     public function update(Request $request, MinyakRegional $regional)
     {
+        if ($request->has('harga') && is_array($request->harga)) {
+            $harga = $request->harga;
+            foreach ($harga as $k => $v) {
+                if ($v) $harga[$k] = str_replace(['.', ','], ['', '.'], $v);
+            }
+            $request->merge(['harga' => $harga]);
+        }
+
         $validated = $request->validate([
             'nama' => 'required|string|max:100',
             'deskripsi' => 'nullable|string',
@@ -151,10 +167,16 @@ class RegionalController extends Controller
 
     public function destroy(MinyakRegional $regional)
     {
-        // Check if has active sales or pelanggan
+        // Check if has active sales
         if ($regional->sales()->where('status', 'aktif')->exists()) {
             return redirect()->back()
                 ->with('error', 'Tidak dapat menghapus regional yang masih memiliki sales aktif.');
+        }
+
+        // Check if has pelanggan
+        if ($regional->pelanggans()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Tidak dapat menghapus regional yang masih memiliki pelanggan.');
         }
 
         $regional->delete();

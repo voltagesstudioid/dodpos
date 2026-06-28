@@ -209,10 +209,10 @@
 
             {{-- Quick Actions --}}
             <div class="sd-actions">
-                <a href="{{ route('mineral.kunjungan.checkin') }}" class="sd-action">
+                <a href="{{ route('mineral.kunjungan.index') }}" class="sd-action">
                     <div class="sd-action-ico blue">📍</div>
-                    <div class="sd-action-title">Check-in Kunjungan</div>
-                    <div class="sd-action-sub">Catat kunjungan ke pelanggan</div>
+                    <div class="sd-action-title">Riwayat Kunjungan</div>
+                    <div class="sd-action-sub">Lihat kunjungan (tercatat otomatis)</div>
                 </a>
                 <a href="{{ route('mineral.penjualan.create') }}" class="sd-action">
                     <div class="sd-action-ico green">💰</div>

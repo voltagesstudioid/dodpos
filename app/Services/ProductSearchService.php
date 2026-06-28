@@ -76,7 +76,7 @@ class ProductSearchService
                 'factor'  => $uc->conversion_factor,
                 'prices'         => $this->priceService->getAllPrices($uc, $productDefaultPrice),
                 'purchase_price' => $this->priceService->parseNumber($uc->purchase_price ?? 0),
-                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->purchase_price ?? 0) * 1.05),
+                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->sell_price_minimal ?? 0)),
                 'is_base'        => $uc->is_base_unit,
             ])->values()->toArray();
 
@@ -98,7 +98,7 @@ class ProductSearchService
                     'minimal'=> $basePrice,
                 ],
                 'purchase_price' => $productPurchasePrice,
-                'minimal_price'  => max(0, $productPurchasePrice * 1.05),
+                'minimal_price'  => max(0, $basePrice),
                 'is_base' => true,
             ]];
         }
@@ -148,7 +148,7 @@ class ProductSearchService
                 'factor'  => $uc->conversion_factor,
                 'prices'         => $this->priceService->getAllPrices($uc, $productDefaultPrice),
                 'purchase_price' => $this->priceService->parseNumber($uc->purchase_price ?? 0),
-                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->purchase_price ?? 0) * 1.05),
+                'minimal_price'  => max(0, $this->priceService->parseNumber($uc->sell_price_minimal ?? 0)),
                 'is_base'        => $uc->is_base_unit,
             ])->values()->toArray();
 
@@ -170,7 +170,7 @@ class ProductSearchService
                     'minimal'=> $basePrice,
                 ],
                 'purchase_price' => $productPurchasePrice,
-                'minimal_price'  => max(0, $productPurchasePrice * 1.05),
+                'minimal_price'  => max(0, $basePrice),
                 'is_base' => true,
             ]];
         }

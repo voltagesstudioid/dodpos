@@ -7,7 +7,6 @@ use App\Models\MinyakPenjualan;
 use App\Models\MinyakSales;
 use App\Models\MinyakPelanggan;
 use App\Models\MinyakProduk;
-use App\Models\MinyakLoading;
 use App\Models\MinyakHutang;
 use App\Models\MinyakKunjungan;
 use App\Models\MinyakRegionalHarga;
@@ -29,38 +28,20 @@ class PenjualanController extends Controller
         return MinyakSales::where('user_id', Auth::id())->first();
     }
 
-    /**
-     * Find the active loading record for a sales+product combination.
-     * Prioritize loading with sisa_stok > 0, fallback to most recent.
-     */
-    private function findLoadingRecord(int $salesId, int $produkId): ?MinyakLoading
+    private function getPelanggansList()
     {
-        // First try: loading with remaining stock
-        $loading = MinyakLoading::where('sales_id', $salesId)
-            ->where('produk_id', $produkId)
-            ->where('sisa_stok', '>', 0)
-            ->orderBy('tanggal', 'desc')
-            ->first();
-
-        if ($loading) return $loading;
-
-        // Fallback: most recent loading for this sales+product
-        return MinyakLoading::where('sales_id', $salesId)
-            ->where('produk_id', $produkId)
-            ->orderBy('tanggal', 'desc')
-            ->first();
-    }
-
-    /**
-     * Auto-update loading status to 'selesai' when all stock is sold.
-     */
-    private function updateLoadingStatus(MinyakLoading $loading): void
-    {
-        if ($loading->sisa_stok <= 0 && $loading->status !== 'selesai') {
-            $loading->status = 'selesai';
-            $loading->save();
+        $query = MinyakPelanggan::where('status', 'aktif');
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile && $profile->regional_id) {
+                $query->where('regional_id', $profile->regional_id);
+            } else {
+                $query->whereNull('regional_id');
+            }
         }
+        return $query->orderBy('nama_toko')->get();
     }
+
 
     /**
      * Store nota photo from file upload (mobile) or base64 (desktop webcam).
@@ -121,6 +102,8 @@ class PenjualanController extends Controller
         $pelanggan_id = $request->input('pelanggan_id');
         $status = $request->input('status');
         $tipe_bayar = $request->input('tipe_bayar');
+        $tanggal_awal = $request->input('tanggal_awal');
+        $tanggal_akhir = $request->input('tanggal_akhir');
 
         $query = MinyakPenjualan::with(['sales', 'pelanggan', 'produk']);
 
@@ -140,10 +123,12 @@ class PenjualanController extends Controller
 
         $penjualans = $query
             ->when($search, function ($q) use ($search) {
-                $q->where('no_faktur', 'like', "%{$search}%")
-                    ->orWhereHas('pelanggan', function ($q2) use ($search) {
-                        $q2->where('nama_toko', 'like', "%{$search}%");
-                    });
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('no_faktur', 'like', "%{$search}%")
+                        ->orWhereHas('pelanggan', function ($q2) use ($search) {
+                            $q2->where('nama_toko', 'like', "%{$search}%");
+                        });
+                });
             })
             ->when($pelanggan_id, function ($q) use ($pelanggan_id) {
                 $q->where('pelanggan_id', $pelanggan_id);
@@ -154,11 +139,17 @@ class PenjualanController extends Controller
             ->when($tipe_bayar, function ($q) use ($tipe_bayar) {
                 $q->where('tipe_bayar', $tipe_bayar);
             })
+            ->when($tanggal_awal, function ($q) use ($tanggal_awal) {
+                $q->whereDate('tanggal_jual', '>=', $tanggal_awal);
+            })
+            ->when($tanggal_akhir, function ($q) use ($tanggal_akhir) {
+                $q->whereDate('tanggal_jual', '<=', $tanggal_akhir);
+            })
             ->orderBy('tanggal_jual', 'desc')
             ->paginate(15)
             ->withQueryString();
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
 
         // Stats scoped to visible data
         $baseQuery = MinyakPenjualan::query();
@@ -190,7 +181,7 @@ class PenjualanController extends Controller
             $sales = MinyakSales::aktif()->get();
         }
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
         $produks = MinyakProduk::where('status', 'aktif')->get();
 
         // Build regional price map for JS lookup
@@ -235,6 +226,25 @@ class PenjualanController extends Controller
             $profile = $this->getSalesProfile();
             if (! $profile) abort(403, 'Profil sales tidak ditemukan.');
             $validated['sales_id'] = $profile->id;
+
+            // Check minimum price
+            $minPrice = 0;
+            $hargaRegional = \App\Models\MinyakRegionalHarga::where('regional_id', $profile->regional_id)
+                ->where('produk_id', $validated['produk_id'])
+                ->first();
+            if ($hargaRegional) {
+                $minPrice = (float) $hargaRegional->harga_jual;
+            } else {
+                $produk = \App\Models\MinyakProduk::find($validated['produk_id']);
+                if ($produk) {
+                    $minPrice = (float) $produk->harga_jual;
+                }
+            }
+
+            if ((float) $validated['harga_satuan'] < $minPrice) {
+                return redirect()->back()->withInput()
+                    ->with('error', 'Harga satuan tidak boleh di bawah harga jual (Rp ' . number_format($minPrice, 0, ',', '.') . ')');
+            }
         }
 
         // Radius validation: sales must be within 20 meters of customer's registered location
@@ -262,32 +272,6 @@ class PenjualanController extends Controller
                         ->with('error', 'Anda berada ' . round($distance) . ' meter dari lokasi pelanggan (maksimum ' . $maxRadius . ' meter). Pastikan Anda berada di dekat toko pelanggan.');
                 }
             }
-        }
-
-        // Apply regional pricing if harga_satuan not explicitly set by user
-        $salesProfile = MinyakSales::find($validated['sales_id']);
-        if ($salesProfile && $salesProfile->regional_id) {
-            $regionalHarga = MinyakRegionalHarga::where('regional_id', $salesProfile->regional_id)
-                ->where('produk_id', $validated['produk_id'])
-                ->first();
-            if ($regionalHarga && $regionalHarga->harga_jual > 0) {
-                // If the form sent the default product price, override with regional price
-                $produk = MinyakProduk::find($validated['produk_id']);
-                if ($produk && (float) $validated['harga_satuan'] === (float) $produk->harga_jual) {
-                    $validated['harga_satuan'] = $regionalHarga->harga_jual;
-                }
-            }
-        }
-
-        // Validasi stok loading cukup
-        $loading = $this->findLoadingRecord($validated['sales_id'], $validated['produk_id']);
-        if (! $loading) {
-            return redirect()->back()->withInput()
-                ->with('error', 'Tidak ada loading untuk produk ini. Silakan buat loading terlebih dahulu.');
-        }
-        if ($loading->sisa_stok < $validated['jumlah']) {
-            return redirect()->back()->withInput()
-                ->with('error', 'Stok di kendaraan tidak cukup. Sisa stok: ' . number_format($loading->sisa_stok, 0, ',', '.') . ' ' . ($loading->produk->satuan ?? 'liter'));
         }
 
         $validated['no_faktur'] = MinyakPenjualan::generateFaktur();
@@ -321,29 +305,31 @@ class PenjualanController extends Controller
 
         DB::beginTransaction();
         try {
-            // Auto-create kunjungan record for visit tracking
-            $kunjungan = MinyakKunjungan::create([
-                'sales_id'         => $validated['sales_id'],
-                'pelanggan_id'     => $validated['pelanggan_id'],
-                'waktu_checkin'    => now(),
-                'latitude_checkin' => $validated['latitude'] ?? null,
-                'longitude_checkin'=> $validated['longitude'] ?? null,
-                'foto_checkin'     => $validated['foto_nota'] ?? null,
-                'catatan'          => 'Auto dari penjualan ' . $validated['no_faktur'],
-                'status'           => 'checkin',
-                'ada_penjualan'    => true,
-            ]);
-            $validated['kunjungan_id'] = $kunjungan->id;
+            // Auto-create kunjungan record for visit tracking (skip if already checked in today)
+            $existingKunjungan = MinyakKunjungan::where('sales_id', $validated['sales_id'])
+                ->where('pelanggan_id', $validated['pelanggan_id'])
+                ->whereDate('waktu_checkin', today())
+                ->first();
+
+            if ($existingKunjungan) {
+                $validated['kunjungan_id'] = $existingKunjungan->id;
+                $existingKunjungan->update(['ada_penjualan' => true]);
+            } else {
+                $kunjungan = MinyakKunjungan::create([
+                    'sales_id'         => $validated['sales_id'],
+                    'pelanggan_id'     => $validated['pelanggan_id'],
+                    'waktu_checkin'    => now(),
+                    'latitude_checkin' => $validated['latitude'] ?? null,
+                    'longitude_checkin'=> $validated['longitude'] ?? null,
+                    'foto_checkin'     => $validated['foto_nota'] ?? null,
+                    'catatan'          => 'Auto dari penjualan ' . $validated['no_faktur'],
+                    'status'           => 'checkin',
+                    'ada_penjualan'    => true,
+                ]);
+                $validated['kunjungan_id'] = $kunjungan->id;
+            }
 
             $penjualan = MinyakPenjualan::create($validated);
-
-            // Kurangi stok loading sales (gunakan record yang sudah divalidasi)
-            $loading->terjual += $validated['jumlah'];
-            $loading->sisa_stok -= $validated['jumlah'];
-            $loading->save();
-
-            // Auto-update loading status jika semua stok terjual
-            $this->updateLoadingStatus($loading);
 
             // Jika hutang, buat record hutang
             if ($validated['hutang'] > 0) {
@@ -372,7 +358,6 @@ class PenjualanController extends Controller
                 ]);
 
                 // Update total hutang pelanggan
-                $pelanggan = $pelanggan ?? MinyakPelanggan::find($validated['pelanggan_id']);
                 $pelanggan->total_hutang = (float) $pelanggan->total_hutang + (float) $validated['hutang'];
                 $pelanggan->save();
             }
@@ -441,7 +426,7 @@ class PenjualanController extends Controller
             $sales = MinyakSales::aktif()->get();
         }
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
         $produks = MinyakProduk::where('status', 'aktif')->get();
 
         return view('minyak.penjualan.edit', compact('penjualan', 'sales', 'pelanggans', 'produks', 'isSalesRole'));
@@ -481,48 +466,35 @@ class PenjualanController extends Controller
         if ($this->isSales()) {
             $profile = $this->getSalesProfile();
             $validated['sales_id'] = $profile->id;
+
+            // Check minimum price
+            $minPrice = 0;
+            $hargaRegional = \App\Models\MinyakRegionalHarga::where('regional_id', $profile->regional_id)
+                ->where('produk_id', $validated['produk_id'])
+                ->first();
+            if ($hargaRegional) {
+                $minPrice = (float) $hargaRegional->harga_jual;
+            } else {
+                $produk = \App\Models\MinyakProduk::find($validated['produk_id']);
+                if ($produk) {
+                    $minPrice = (float) $produk->harga_jual;
+                }
+            }
+
+            if ((float) $validated['harga_satuan'] < $minPrice) {
+                return redirect()->back()->withInput()
+                    ->with('error', 'Harga satuan tidak boleh di bawah harga jual (Rp ' . number_format($minPrice, 0, ',', '.') . ')');
+            }
         }
 
         DB::beginTransaction();
         try {
             $oldJumlah = (int) $penjualan->jumlah;
             $oldProdukId = $penjualan->produk_id;
-            $oldSalesId = $penjualan->sales_id;
             $oldHutang = (float) $penjualan->hutang;
 
-            // Kembalikan stok loading lama
-            $oldLoading = $this->findLoadingRecord($oldSalesId, $oldProdukId);
-            if ($oldLoading) {
-                $oldLoading->terjual = max(0, $oldLoading->terjual - $oldJumlah);
-                $oldLoading->sisa_stok += $oldJumlah;
-                $oldLoading->save();
-            }
-
-            // Validasi stok loading baru
-            $newSalesId = $validated['sales_id'] ?? $oldSalesId;
-            $newProdukId = $validated['produk_id'];
-            $newJumlah = $validated['jumlah'];
-
-            $newLoading = $this->findLoadingRecord($newSalesId, $newProdukId);
-            if (! $newLoading) {
-                DB::rollBack();
-                return redirect()->back()->withInput()
-                    ->with('error', 'Tidak ada loading untuk produk ini.');
-            }
-            if ($newLoading->sisa_stok < $newJumlah) {
-                DB::rollBack();
-                return redirect()->back()->withInput()
-                    ->with('error', 'Stok di kendaraan tidak cukup. Sisa: ' . number_format($newLoading->sisa_stok, 0, ',', '.') . ' ' . ($newLoading->produk->satuan ?? 'liter'));
-            }
-
-            // Kurangi stok loading baru
-            $newLoading->terjual += $newJumlah;
-            $newLoading->sisa_stok -= $newJumlah;
-            $newLoading->save();
-            $this->updateLoadingStatus($newLoading);
-
             // Recalculate totals
-            $validated['total'] = $newJumlah * $validated['harga_satuan'];
+            $validated['total'] = $validated['jumlah'] * $validated['harga_satuan'];
 
             if ($validated['tipe_bayar'] === 'tunai') {
                 $validated['bayar'] = $validated['total'];
@@ -620,9 +592,9 @@ class PenjualanController extends Controller
 
             AuditService::log('minyak_penjualan.update', 'MinyakPenjualan', $penjualan->id, [
                 'old_jumlah' => $oldJumlah,
-                'new_jumlah' => $newJumlah,
+                'new_jumlah' => $validated['jumlah'],
                 'old_produk_id' => $oldProdukId,
-                'new_produk_id' => $newProdukId,
+                'new_produk_id' => $validated['produk_id'],
                 'total' => $validated['total'],
             ]);
 
@@ -694,7 +666,6 @@ class PenjualanController extends Controller
 
     /**
      * Soft cancel: set status to 'batal' instead of hard delete.
-     * Returns stock to loading and handles hutang cleanup.
      */
     public function destroy(MinyakPenjualan $penjualan)
     {
@@ -715,18 +686,6 @@ class PenjualanController extends Controller
 
         DB::beginTransaction();
         try {
-            // Kembalikan stok ke loading yang tepat
-            $loading = $this->findLoadingRecord($penjualan->sales_id, $penjualan->produk_id);
-            if ($loading) {
-                $loading->terjual = max(0, $loading->terjual - $penjualan->jumlah);
-                $loading->sisa_stok += $penjualan->jumlah;
-                // Reset status from 'selesai' back to 'proses' if stock returned
-                if ($loading->status === 'selesai') {
-                    $loading->status = 'proses';
-                }
-                $loading->save();
-            }
-
             // Hapus hutang jika ada
             if ($penjualan->hutang) {
                 $pelanggan = MinyakPelanggan::find($penjualan->pelanggan_id);

@@ -67,14 +67,13 @@ class ProdukController extends Controller
             'satuan'      => ['required', 'string', Rule::in($activeSatuan)],
             'harga_jual'  => ['required', 'numeric', 'min:0'],
             'harga_modal' => ['nullable', 'numeric', 'min:0'],
-            'stok_gudang'  => ['nullable', 'integer', 'min:0'],
             'stok_minimum' => ['nullable', 'integer', 'min:0'],
             'keterangan'   => ['nullable', 'string', 'max:500'],
             'status'       => ['required', 'in:aktif,nonaktif'],
         ]);
 
         // Apply safe defaults for nullable fields
-        $validated['stok_gudang']  = $validated['stok_gudang']  ?? 0;
+        $validated['stok_gudang']  = 0;
         $validated['stok_minimum'] = $validated['stok_minimum'] ?? 10;
         $validated['harga_modal']  = $validated['harga_modal']  ?? 0;
 
@@ -120,14 +119,12 @@ class ProdukController extends Controller
             'satuan'      => ['required', 'string', Rule::in($activeSatuan)],
             'harga_jual'  => ['required', 'numeric', 'min:0'],
             'harga_modal' => ['nullable', 'numeric', 'min:0'],
-            'stok_gudang'  => ['nullable', 'integer', 'min:0'],
             'stok_minimum' => ['nullable', 'integer', 'min:0'],
             'keterangan'   => ['nullable', 'string', 'max:500'],
             'status'       => ['required', 'in:aktif,nonaktif'],
         ]);
 
         // Apply safe defaults for nullable fields
-        $validated['stok_gudang']  = $validated['stok_gudang']  ?? 0;
         $validated['stok_minimum'] = $validated['stok_minimum'] ?? 10;
         $validated['harga_modal']  = $validated['harga_modal']  ?? 0;
 

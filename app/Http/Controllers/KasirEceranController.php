@@ -245,7 +245,7 @@ class KasirEceranController extends Controller
 
             DB::commit();
 
-            return response()->json(['success' => true, 'change' => $trx->change_amount, 'transaction_id' => $trx->id]);
+            return response()->json(['success' => true, 'change' => $trx->change_amount, 'transaction_id' => $trx->id, 'invoice_number' => $trx->invoice_number]);
 
         } catch (\Exception $e) {
             DB::rollBack();

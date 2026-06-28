@@ -77,6 +77,32 @@ class ReferenceNumberService
     }
 
     /**
+     * Generate invoice number for POS transactions.
+     * Format: INV-{TYPE}-YYYYMMDD-XXXX (separate sequence per type)
+     */
+    public static function generateInvoiceNumber(string $type = 'eceran'): string
+    {
+        $prefix = $type === 'grosir' ? 'INV-GRS' : 'INV-ECR';
+        $date = date('Ymd');
+        $base = "{$prefix}-{$date}";
+        $pattern = $base . '-%';
+
+        $last = \App\Models\Transaction::where('invoice_number', 'like', $pattern)
+            ->lockForUpdate()
+            ->orderByRaw("CAST(SUBSTRING(invoice_number, -4) AS UNSIGNED) DESC")
+            ->first();
+
+        if (! $last) {
+            return $base . '-0001';
+        }
+
+        $lastNum = (int) substr($last->invoice_number, -4);
+        $nextNum = $lastNum + 1;
+
+        return $base . '-' . str_pad((string) $nextNum, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Generate Customer Credit number (HTG-YYYYMMDD-XXX)
      */
     public static function generateCreditNumber(string $type = 'debt'): string

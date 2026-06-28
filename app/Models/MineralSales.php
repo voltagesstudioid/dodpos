@@ -13,6 +13,7 @@ class MineralSales extends Model
 
     protected $fillable = [
         'user_id',
+        'vehicle_id',
         'regional_id',
         'kode_sales',
         'nama',
@@ -24,10 +25,12 @@ class MineralSales extends Model
         'target_harian',
         'status',
         'keterangan',
+        'is_inti',
     ];
 
     protected $casts = [
         'target_harian' => 'decimal:2',
+        'is_inti' => 'boolean',
     ];
 
     public function user()
@@ -38,6 +41,11 @@ class MineralSales extends Model
     public function regional()
     {
         return $this->belongsTo(MineralRegional::class, 'regional_id');
+    }
+
+    public function vehicle()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_id');
     }
 
     public function loadings()

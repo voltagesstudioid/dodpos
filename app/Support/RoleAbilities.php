@@ -151,6 +151,14 @@ class RoleAbilities
             ], true);
         }
 
+        if ($role === 'sales') {
+            return in_array($ability, [
+                'view_daftar_harga',
+                'view_pelanggan',
+                'view_transaksi',
+            ], true);
+        }
+
         if ($role === 'sales_pasgar') {
             return in_array($ability, [
                 'view_pasgar_dashboard',

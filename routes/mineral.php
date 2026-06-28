@@ -13,7 +13,7 @@ use App\Http\Controllers\Mineral\HutangController;
 use App\Http\Controllers\Mineral\SetoranController;
 use App\Http\Controllers\Mineral\KunjunganController;
 use App\Http\Controllers\Mineral\LaporanController;
-use App\Http\Controllers\Mineral\RekonsiliasiController;
+
 use App\Http\Controllers\Mineral\RegionalController;
 use App\Http\Controllers\Mineral\SettingController;
 
@@ -49,12 +49,8 @@ Route::prefix('mineral')->name('mineral.')->middleware('role:supervisor|admin4|s
     Route::resource('penjualan', PenjualanController::class);
     Route::get('/penjualan/{penjualan}/print', [PenjualanController::class, 'printStruk'])->name('penjualan.print');
 
-    // Kunjungan
+    // Kunjungan (auto tercatat saat penjualan dibuat)
     Route::get('/kunjungan', [KunjunganController::class, 'index'])->name('kunjungan.index');
-    Route::get('/kunjungan/checkin', [KunjunganController::class, 'checkinForm'])->name('kunjungan.checkin');
-    Route::post('/kunjungan/checkin', [KunjunganController::class, 'storeCheckin'])->name('kunjungan.checkin.store');
-    Route::post('/kunjungan/{kunjungan}/checkout', [KunjunganController::class, 'storeCheckout'])->name('kunjungan.checkout');
-    Route::post('/kunjungan/{kunjungan}/cancel', [KunjunganController::class, 'cancel'])->name('kunjungan.cancel');
     Route::get('/kunjungan/{kunjungan}', [KunjunganController::class, 'show'])->name('kunjungan.show');
 
     // Setoran
@@ -84,12 +80,10 @@ Route::prefix('mineral')->name('mineral.')->middleware('role:supervisor|admin4')
     // Master Data - Produk (CRUD)
     Route::resource('produk', ProdukController::class)->except(['index']);
 
-    // Loading Harian
+    // Penugasan Kendaraan
     Route::resource('loading', LoadingController::class);
-
-    // Distribusi Stok (batch loading)
-    Route::get('/loading-distribusi', [LoadingController::class, 'distribusi'])->name('loading.distribusi');
-    Route::post('/loading-distribusi', [LoadingController::class, 'storeDistribusi'])->name('loading.distribusi.store');
+    Route::post('/loading/{loading}/approve', [LoadingController::class, 'approve'])->name('loading.approve');
+    Route::post('/loading/{loading}/reject', [LoadingController::class, 'reject'])->name('loading.reject');
 
     // Penjualan verify
     Route::post('/penjualan/{penjualan}/verify', [PenjualanController::class, 'verify'])->name('penjualan.verify');
@@ -111,8 +105,9 @@ Route::prefix('mineral')->name('mineral.')->middleware('role:supervisor|admin4')
         Route::delete('/satuan/{satuan}', [SettingController::class, 'destroySatuan'])->name('satuan.destroy');
     });
 
-    // Laporan & Rekonsiliasi
+    // Laporan
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan');
-    Route::get('/rekonsiliasi', [RekonsiliasiController::class, 'index'])->name('rekonsiliasi.index');
-    Route::post('/rekonsiliasi', [RekonsiliasiController::class, 'store'])->name('rekonsiliasi.store');
+
+    // API Internal for AJAX
+    Route::get('/api/vehicle-stock/{vehicle}/{produk}', [LoadingController::class, 'vehicleStock'])->name('api.vehicle-stock');
 });

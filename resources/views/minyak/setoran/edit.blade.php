@@ -103,7 +103,7 @@
                         <label class="st-lbl">Total Setor <span class="st-req">*</span></label>
                         <div class="st-money">
                             <span class="st-money-pfx">Rp</span>
-                            <input type="number" name="total_setor" value="{{ old('total_setor', $setoran->total_setor) }}" min="0" step="100" class="st-inp" required>
+                            <input type="text" inputmode="decimal" name="total_setor" value="{{ old('total_setor', $setoran->total_setor) }}" min="0" class="st-inp" required data-currency>
                         </div>
                         @error('total_setor')<div class="st-err">{{ $message }}</div>@enderror
                     </div>

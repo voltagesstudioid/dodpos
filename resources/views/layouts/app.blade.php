@@ -741,8 +741,11 @@
             @endcanany
 
             {{-- SDM & Penggajian Self-Service (tidak untuk supervisor, admin, admin1-4, sales) --}}
-            @php $role = strtolower(auth()->user()?->role ?? ''); @endphp
-            @if(auth()->check() && !in_array($role, ['supervisor', 'admin', 'admin1', 'admin2', 'admin3', 'admin4', 'sales']))
+            @php 
+                $role = strtolower(auth()->user()?->role ?? ''); 
+                $isSales = str_starts_with($role, 'sales');
+            @endphp
+            @if(auth()->check() && !in_array($role, ['supervisor', 'admin', 'admin1', 'admin2', 'admin3', 'admin4']) && !$isSales)
             <div class="nav-group {{ request()->routeIs('sdm.absensi.self_*','sdm.cuti.self_*','sdm.penggajian.self_*') ? 'open' : '' }}" id="grp-sdm-self">
                 <button class="nav-group-header" onclick="toggleGroup('grp-sdm-self')" type="button">
                     <span class="nav-group-label">🧑‍🤝‍🧑 SDM &amp; Penggajian</span>
@@ -757,13 +760,9 @@
             @endif
 
             {{-- Karyawan Self-Service (admin1-4, sales) --}}
-            @if(auth()->check() && in_array($role, ['admin1', 'admin2', 'admin3', 'admin4', 'sales']))
-            <div class="nav-group {{ request()->routeIs('sdm.cuti.self_*','sdm.penggajian.self_*','sdm.kasbon.self_*','sdm.absensi.*') ? 'open' : '' }}" id="grp-karyawan-self">
-                <button class="nav-group-header" onclick="toggleGroup('grp-karyawan-self')" type="button">
-                    <span class="nav-group-label">🧑‍💼 Karyawan</span>
-                    <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <div class="nav-group-items">
+            @if(auth()->check() && (in_array($role, ['admin1', 'admin2', 'admin3', 'admin4']) || $isSales))
+                @if($isSales)
+                    <div style="padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 1rem;">🧑‍💼 KARYAWAN</div>
                     <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
                     @can('view_absensi')
                     <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.index','sdm.absensi.monthly*') ? 'active' : '' }}"><span class="nav-item-icon">⏰</span><span>Daftar Absensi</span></a>
@@ -771,8 +770,23 @@
                     <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
                     <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">🏖️</span><span>Cuti</span></a>
                     <a href="{{ route('sdm.kasbon.self_index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
-                </div>
-            </div>
+                @else
+                    <div class="nav-group {{ request()->routeIs('sdm.cuti.self_*','sdm.penggajian.self_*','sdm.kasbon.self_*','sdm.absensi.*') ? 'open' : '' }}" id="grp-karyawan-self">
+                        <button class="nav-group-header" onclick="toggleGroup('grp-karyawan-self')" type="button">
+                            <span class="nav-group-label">🧑‍💼 Karyawan</span>
+                            <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="nav-group-items">
+                            <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
+                            @can('view_absensi')
+                            <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.index','sdm.absensi.monthly*') ? 'active' : '' }}"><span class="nav-item-icon">⏰</span><span>Daftar Absensi</span></a>
+                            @endcan
+                            <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
+                            <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">🏖️</span><span>Cuti</span></a>
+                            <a href="{{ route('sdm.kasbon.self_index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
+                        </div>
+                    </div>
+                @endif
             @endif
 
             {{-- SDM & Penggajian (Supervisor) --}}
@@ -986,7 +1000,7 @@
             @endcanany
 
             {{-- Minyak --}}
-            @if(in_array($role, ['supervisor', 'sales_minyak', 'admin1']))
+            @if(in_array($role, ['supervisor', 'admin1']))
             @php $minyakActive = request()->routeIs('minyak.*'); @endphp
             <div class="nav-group nav-group-premium minyak {{ $minyakActive ? 'open' : '' }}" id="grp-minyak">
                 <button class="nav-group-header" onclick="toggleGroup('grp-minyak')" type="button">
@@ -1014,10 +1028,6 @@
                     {{-- Operasional (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
-                        <a href="{{ route('minyak.loading.index') }}" class="nav-item {{ request()->routeIs('minyak.loading.*') && !request()->routeIs('minyak.loading.distribusi*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Harian</span></a>
-                        <a href="{{ route('minyak.loading.distribusi') }}" class="nav-item {{ request()->routeIs('minyak.loading.distribusi*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Distribusi Stok</span></a>
-                        <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                        <a href="{{ route('minyak.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('minyak.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
                         <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
@@ -1030,7 +1040,6 @@
                         <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
                         <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
-                        <a href="{{ route('minyak.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('minyak.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     {{-- Laporan (supervisor) --}}
@@ -1049,34 +1058,18 @@
                         <div class="nav-subgroup-label"><span class="subgroup-icon">📈</span> Analisis</div>
                         <a href="{{ route('minyak.laporan') }}" class="nav-item {{ request()->routeIs('minyak.laporan*') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Laporan Penjualan</span></a>
                     </div>
-                @else
-                    {{-- Sales Minyak navigation (limited) --}}
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Transaksi & Kunjungan</div>
-                        <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
-                        <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
-                    </div>
-                    <div class="nav-subgroup-divider"></div>
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Kelola Stok</div>
-                        <a href="{{ route('minyak.stok.index') }}" class="nav-item {{ request()->routeIs('minyak.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                    </div>
-                    <div class="nav-subgroup-divider"></div>
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Hutang Pelanggan</span></a>
-                    </div>
-                    <div class="nav-subgroup-divider"></div>
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
-                        <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
-                        <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
-                    </div>
                 @endif
                 </div>
             </div>
+            @elseif($role === 'sales_minyak')
+                {{-- Sales Minyak navigation (Flat, no dropdown) --}}
+                <div style="padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 1rem;">🛢️ MENU MINYAK</div>
+                <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
+                <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
+                <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
+                <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Hutang Pelanggan</span></a>
+                <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
+                <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
             @endif
 
             {{-- Mineral --}}
@@ -1108,10 +1101,9 @@
                     {{-- Operasional (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
-                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') && !request()->routeIs('mineral.loading.distribusi*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Harian</span></a>
-                        <a href="{{ route('mineral.loading.distribusi') }}" class="nav-item {{ request()->routeIs('mineral.loading.distribusi*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Distribusi Stok</span></a>
+                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Penugasan Kendaraan</span></a>
                         <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
+                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
@@ -1124,7 +1116,6 @@
                         <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
                         <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
-                        <a href="{{ route('mineral.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('mineral.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     {{-- Laporan (supervisor) --}}
@@ -1154,7 +1145,7 @@
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
                         <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
+                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
@@ -1216,7 +1207,6 @@
                         <a href="{{ route('gula.hutang.total') }}" class="nav-item {{ request()->routeIs('gula.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
                         <a href="{{ route('gula.hutang.lunas') }}" class="nav-item {{ request()->routeIs('gula.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
-                        <a href="{{ route('gula.rekonsiliasi.index') }}" class="nav-item {{ request()->routeIs('gula.rekonsiliasi*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Rekonsiliasi</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     {{-- Laporan (supervisor) --}}
@@ -1652,31 +1642,56 @@
     {{-- Global Auto-Currency Formatting --}}
     <script>
     (function(){
-        // Format number with dots as thousand separators (Indonesian)
+        // ── Indonesian Rupiah Currency Formatting ──
+        // Format: 1.500 (integer) or 1.500,50 (decimal, comma separator)
         function formatCurrency(raw){
-            var s = String(raw).replace(/[^0-9]/g,'');
-            if(!s) return '';
-            return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            var parts = String(raw).split('.');
+            var intPart = (parts[0] || '').replace(/[^0-9]/g,'');
+            if(!intPart) return '';
+            var out = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            if(parts.length > 1){
+                var dec = (parts[1] || '').replace(/[^0-9]/g,'').slice(0,2);
+                if(dec.length) out += ',' + dec;
+            }
+            return out;
         }
-        // Strip formatting to raw digits
         function parseCurrency(formatted){
-            return String(formatted).replace(/[^0-9]/g,'') || '0';
+            var s = String(formatted).trim();
+            if(!s) return '0';
+            // Remove all dots (thousand separators)
+            s = s.replace(/\./g, '');
+            // Replace comma with dot (decimal separator)
+            s = s.replace(',', '.');
+            // Remove any non-numeric characters except dot
+            s = s.replace(/[^0-9.]/g, '');
+            
+            // Ensure only one dot remains and keep up to 2 decimal places
+            var parts = s.split('.');
+            if(parts.length > 1){
+                s = parts[0] + '.' + parts.slice(1).join('').slice(0, 2);
+            }
+            return s || '0';
         }
-        // Auto-format on input (event delegation for dynamic inputs too)
+        // Auto-format on input
         document.addEventListener('input', function(e){
             var el = e.target;
             if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
+            // Preserve trailing decimal separator so user can continue typing
+            var lastChar = el.value.slice(-1);
+            var isDecimalTyped = (lastChar === ',' || lastChar === '.');
             var cursor = el.selectionStart || 0;
             var oldVal = el.value;
             var rawBefore = parseCurrency(oldVal);
-            // Count digits before cursor
             var digitsBefore = 0;
             for(var i=0; i<cursor && i<oldVal.length; i++){
                 if(oldVal[i] >= '0' && oldVal[i] <= '9') digitsBefore++;
             }
             var formatted = formatCurrency(rawBefore);
+            // Re-attach trailing comma if user just typed one and it didn't survive formatting
+            if(isDecimalTyped && !formatted.slice(-1).match(/[0-9]/) && !formatted.includes(',')){
+                formatted += ',';
+            }
             el.value = formatted;
-            // Restore cursor position based on digit count
             var newCursor = 0;
             var digitCount = 0;
             for(var j=0; j<formatted.length; j++){
@@ -1686,15 +1701,15 @@
             if(digitCount < digitsBefore) newCursor = formatted.length;
             el.setSelectionRange(newCursor, newCursor);
         }, true);
-        // On focus: format existing value
+        // On focus: format existing value (skip if already formatted with comma or dot)
         document.addEventListener('focusin', function(e){
             var el = e.target;
             if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
-            if(el.value && !el.value.includes('.')){
+            if(el.value && !el.value.includes('.') && !el.value.includes(',')){
                 el.value = formatCurrency(el.value);
             }
         }, true);
-        // Before form submit: strip formatting to raw digits
+        // Before form submit: strip formatting to raw number
         document.addEventListener('submit', function(e){
             var form = e.target;
             if(!form || !form.querySelectorAll) return;
@@ -1702,7 +1717,6 @@
             inputs.forEach(function(el){
                 if(el.value) el.value = parseCurrency(el.value);
             });
-            // Re-format after a microtask (in case submit is prevented)
             setTimeout(function(){
                 inputs.forEach(function(el){
                     if(el.value) el.value = formatCurrency(el.value);

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Mineral;
 use App\Http\Controllers\Controller;
 use App\Models\MineralStokMasuk;
 use App\Models\MineralProduk;
+use App\Models\Vehicle;
+use App\Models\VehicleStock;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +20,7 @@ class StokMasukController extends Controller
         $tipe = $request->input('tipe');
         $produk_id = $request->input('produk_id');
 
-        $records = MineralStokMasuk::with(['produk', 'creator'])
+        $records = MineralStokMasuk::with(['produk', 'creator', 'vehicle'])
             ->when($search, function ($q) use ($search) {
                 $q->where('no_referensi', 'like', "%{$search}%")
                     ->orWhereHas('produk', function ($q2) use ($search) {
@@ -51,13 +53,15 @@ class StokMasukController extends Controller
     public function create()
     {
         $produks = MineralProduk::where('status', 'aktif')->orderBy('nama')->get();
-        return view('mineral.stok-masuk.create', compact('produks'));
+        $vehicles = Vehicle::orderBy('license_plate')->get();
+        return view('mineral.stok-masuk.create', compact('produks', 'vehicles'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'produk_id' => 'required|exists:mineral_produk,id',
+            'vehicle_id' => 'required|exists:vehicles,id',
             'tipe' => 'required|in:penerimaan,koreksi',
             'jumlah' => 'required|numeric|min:0.01',
             'sumber' => 'nullable|string|max:100',
@@ -69,21 +73,34 @@ class StokMasukController extends Controller
             $produk = MineralProduk::findOrFail($validated['produk_id']);
             $stokSebelum = (float) $produk->stok_gudang;
 
+            // Update vehicle_stocks
+            $vehicleStock = VehicleStock::firstOrNew([
+                'vehicle_id' => $validated['vehicle_id'],
+                'produk_id' => $validated['produk_id'],
+            ]);
+
+            $oldJumlah = (float) ($vehicleStock->exists ? $vehicleStock->jumlah : 0);
+
             if ($validated['tipe'] === 'penerimaan') {
-                // Penerimaan: always adds stock
-                $produk->stok_gudang = $stokSebelum + (float) $validated['jumlah'];
+                $vehicleStock->jumlah = $oldJumlah + (float) $validated['jumlah'];
             } else {
-                // Koreksi: set stock to the corrected value
-                // jumlah here = the actual stock count (new stock value)
-                $produk->stok_gudang = (float) $validated['jumlah'];
-                $validated['jumlah'] = (float) $validated['jumlah'] - $stokSebelum; // diff (+/-)
+                // Koreksi: user enters the actual physical stock count in the vehicle
+                $vehicleStock->jumlah = max(0, (float) $validated['jumlah']);
+                $validated['jumlah'] = (float) $validated['jumlah'] - $oldJumlah;
             }
 
-            $produk->save();
+            $vehicleStock->save();
+
+            // Sync stok_gudang total
+            $produk->recalculateStokGudang();
+
+            // Reload to get the actual stok_gudang after recalculation
+            $produk->refresh();
 
             $record = MineralStokMasuk::create([
                 'no_referensi' => MineralStokMasuk::generateReferensi($validated['tipe']),
                 'produk_id' => $validated['produk_id'],
+                'vehicle_id' => $validated['vehicle_id'],
                 'tipe' => $validated['tipe'],
                 'jumlah' => $validated['jumlah'],
                 'stok_sebelum' => $stokSebelum,
@@ -97,6 +114,7 @@ class StokMasukController extends Controller
             AuditService::log('mineral_stok_masuk.create', 'MineralStokMasuk', $record->id, [
                 'no_referensi' => $record->no_referensi,
                 'produk_id' => $validated['produk_id'],
+                'vehicle_id' => $validated['vehicle_id'],
                 'tipe' => $validated['tipe'],
                 'jumlah' => $validated['jumlah'],
                 'stok_sebelum' => $stokSebelum,
@@ -105,7 +123,7 @@ class StokMasukController extends Controller
 
             DB::commit();
 
-            $label = $validated['tipe'] === 'penerimaan' ? 'Penerimaan stok' : 'Koreksi stok';
+            $label = $validated['tipe'] === 'penerimaan' ? 'Penerimaan barang' : 'Koreksi stok';
             return redirect()->route('mineral.stok-masuk.index')
                 ->with('success', $label . ' berhasil disimpan.');
         } catch (\Exception $e) {
@@ -117,7 +135,7 @@ class StokMasukController extends Controller
 
     public function show(MineralStokMasuk $stokMasuk)
     {
-        $stokMasuk->load(['produk', 'creator']);
+        $stokMasuk->load(['produk', 'creator', 'vehicle']);
         return view('mineral.stok-masuk.show', compact('stokMasuk'));
     }
 
@@ -132,16 +150,21 @@ class StokMasukController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($stokMasuk->tipe === 'penerimaan' && $stokMasuk->vehicle_id) {
+                $vehicleStock = VehicleStock::where('vehicle_id', $stokMasuk->vehicle_id)
+                    ->where('produk_id', $stokMasuk->produk_id)
+                    ->first();
+
+                if ($vehicleStock) {
+                    $vehicleStock->jumlah = max(0, (float) $vehicleStock->jumlah - (float) $stokMasuk->jumlah);
+                    $vehicleStock->save();
+                }
+            }
+
+            // Sync stok_gudang total
             $produk = MineralProduk::find($stokMasuk->produk_id);
             if ($produk) {
-                if ($stokMasuk->tipe === 'penerimaan') {
-                    // Reverse: subtract the received amount
-                    $produk->stok_gudang = max(0, (float) $produk->stok_gudang - (float) $stokMasuk->jumlah);
-                } else {
-                    // Koreksi reversal: we can't perfectly reverse, so just note it
-                    // The user should create a new koreksi to fix the stock
-                }
-                $produk->save();
+                $produk->recalculateStokGudang();
             }
 
             $stokMasuk->update(['status' => 'batal']);

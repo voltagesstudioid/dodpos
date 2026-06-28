@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MinyakHutang;
 use App\Models\MinyakHutangBayar;
 use App\Models\MinyakPelanggan;
+use App\Models\MinyakSales;
 use App\Services\AuditService;
 use App\Services\FileUploadService;
 use Illuminate\Http\Request;
@@ -22,7 +23,21 @@ class HutangController extends Controller
 
     private function getSalesProfile()
     {
-        return \App\Models\MinyakSales::where('user_id', Auth::id())->first();
+        return MinyakSales::where('user_id', Auth::id())->first();
+    }
+
+    private function getPelanggansList()
+    {
+        $query = MinyakPelanggan::where('status', 'aktif');
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile && $profile->regional_id) {
+                $query->where('regional_id', $profile->regional_id);
+            } else {
+                $query->whereNull('regional_id');
+            }
+        }
+        return $query->orderBy('nama_toko')->get();
     }
 
     public function index(Request $request)
@@ -63,7 +78,7 @@ class HutangController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
 
         // Stats scoped
         $baseQuery = MinyakHutang::query();
@@ -119,7 +134,7 @@ class HutangController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
 
         $baseQuery = MinyakHutang::where('status', '!=', 'lunas');
         if ($this->isSales()) {
@@ -146,14 +161,22 @@ class HutangController extends Controller
     {
         $salesProfile = $this->isSales() ? $this->getSalesProfile() : null;
 
-        $pelanggans = MinyakPelanggan::with(['hutangs' => function($q) use ($salesProfile) {
+        $pelanggansQuery = MinyakPelanggan::with(['hutangs' => function($q) use ($salesProfile) {
             $q->where('status', '!=', 'lunas');
             if ($salesProfile) {
                 $q->whereHas('penjualan', function ($q2) use ($salesProfile) {
                     $q2->where('sales_id', $salesProfile->id);
                 });
             }
-        }])->get();
+        }]);
+        if ($this->isSales()) {
+            if ($salesProfile && $salesProfile->regional_id) {
+                $pelanggansQuery->where('regional_id', $salesProfile->regional_id);
+            } else {
+                $pelanggansQuery->whereNull('regional_id');
+            }
+        }
+        $pelanggans = $pelanggansQuery->get();
 
         foreach ($pelanggans as $p) {
             $p->calculated_debt = $p->hutangs->sum('sisa');
@@ -196,7 +219,7 @@ class HutangController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $pelanggans = MinyakPelanggan::where('status', 'aktif')->get();
+        $pelanggans = $this->getPelanggansList();
         $isSalesRole = $this->isSales();
 
         return view('minyak.hutang.lunas', compact('hutangs', 'pelanggans', 'isSalesRole'));
@@ -441,6 +464,223 @@ class HutangController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
+    }
+
+    public function byPelanggan(Request $request, MinyakPelanggan $pelanggan)
+    {
+        MinyakHutang::markAllOverdue();
+
+        // Authorize: sales only see their own
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile && $profile->regional_id && $pelanggan->regional_id !== $profile->regional_id) {
+                abort(403, 'Anda hanya bisa melihat pelanggan di regional Anda.');
+            }
+        }
+
+        $hutangs = MinyakHutang::with(['penjualan.sales', 'pembayarans'])
+            ->where('pelanggan_id', $pelanggan->id)
+            ->where('status', '!=', 'lunas')
+            ->where('sisa', '>', 0)
+            ->orderBy('jatuh_tempo', 'asc')
+            ->orderBy('created_at', 'asc');
+
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile) {
+                $hutangs->whereHas('penjualan', function ($q) use ($profile) {
+                    $q->where('sales_id', $profile->id);
+                });
+            }
+        }
+
+        $hutangs = $hutangs->get();
+
+        $totalRaw = 0;
+        $totalSisa = 0;
+        $totalPending = 0;
+        $totalEffectiveSisa = 0;
+
+        foreach ($hutangs as $h) {
+            $h->effective_sisa = (float) $h->sisa;
+            $pendingSum = $h->pembayarans->where('status', 'pending')->sum('jumlah');
+            if ($pendingSum > 0) {
+                $h->effective_sisa = max(0, $h->effective_sisa - (float) $pendingSum);
+                $totalPending += $pendingSum;
+            }
+            $totalRaw += (float) $h->total_hutang;
+            $totalSisa += (float) $h->sisa;
+            $totalEffectiveSisa += $h->effective_sisa;
+        }
+
+        $isSalesRole = $this->isSales();
+
+        return view('minyak.hutang.bypelanggan', compact(
+            'pelanggan', 'hutangs', 'totalRaw', 'totalSisa',
+            'totalPending', 'totalEffectiveSisa', 'isSalesRole'
+        ));
+    }
+
+    public function bayarSemua(Request $request, MinyakPelanggan $pelanggan)
+    {
+        if ($this->isSales()) {
+            $profile = $this->getSalesProfile();
+            if ($profile && $profile->regional_id && $pelanggan->regional_id !== $profile->regional_id) {
+                abort(403, 'Anda hanya bisa mencatat pembayaran pelanggan di regional Anda.');
+            }
+        }
+
+        $rules = [
+            'jumlah'       => 'required|numeric|min:1',
+            'cara_bayar'   => 'required|in:tunai,transfer',
+            'keterangan'   => 'nullable|string|max:500',
+        ];
+
+        if ($request->input('cara_bayar') === 'transfer') {
+            $rules['id_transaksi']   = 'required|string|min:3|max:100';
+            $rules['bukti_transfer'] = 'required|image|mimes:jpeg,jpg,png,webp|max:4096';
+        }
+
+        $validated = $request->validate($rules);
+
+        $buktiPath = null;
+        if ($request->hasFile('bukti_transfer')) {
+            try {
+                $upload = FileUploadService::uploadImage(
+                    $request->file('bukti_transfer'),
+                    'hutang/minyak',
+                    'public',
+                    ['max_width' => 1200, 'max_height' => 1200]
+                );
+                $buktiPath = $upload['path'];
+            } catch (\Exception $e) {
+                return back()->withInput()->with('error', 'Gagal upload bukti transfer: ' . $e->getMessage());
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            // Lock all related hutang rows
+            $hutangs = MinyakHutang::where('pelanggan_id', $pelanggan->id)
+                ->where('status', '!=', 'lunas')
+                ->where('sisa', '>', 0)
+                ->orderBy('jatuh_tempo', 'asc')
+                ->orderBy('created_at', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            if ($hutangs->isEmpty()) {
+                DB::rollBack();
+                return back()->with('error', 'Tidak ada hutang yang perlu dibayar.');
+            }
+
+            // Calculate total effective sisa across all
+            $totalEffective = 0;
+            $hutangData = [];
+            foreach ($hutangs as $h) {
+                $pendingSum = $h->pembayarans()->where('status', 'pending')->sum('jumlah');
+                $effective = max(0, (float) $h->sisa - (float) $pendingSum);
+                $totalEffective += $effective;
+                $hutangData[] = [
+                    'model' => $h,
+                    'effective_sisa' => $effective,
+                ];
+            }
+
+            if ($totalEffective <= 0) {
+                DB::rollBack();
+                return back()->with('error', 'Semua hutang sudah tercover oleh pembayaran pending.');
+            }
+
+            if ($validated['jumlah'] > $totalEffective) {
+                DB::rollBack();
+                return back()->with('error', 'Jumlah pembayaran melebihi total sisa hutang (sisa: Rp ' . number_format($totalEffective, 0, ',', '.') . ').');
+            }
+
+            $isSales = $this->isSales();
+            $sisaJumlah = (float) $validated['jumlah'];
+            $paymentIds = [];
+            $newConfirmedTotal = 0;
+
+            foreach ($hutangData as $hd) {
+                if ($sisaJumlah <= 0) break;
+
+                $h = $hd['model'];
+                $effective = $hd['effective_sisa'];
+
+                if ($effective <= 0) continue;
+
+                $payAmount = min($sisaJumlah, $effective);
+
+                // Determine confirmation needs per payment
+                $needsConfirmation = $isSales && (
+                    $validated['cara_bayar'] === 'transfer' ||
+                    $payAmount >= 500000
+                );
+                $paymentStatus = $needsConfirmation ? 'pending' : 'confirmed';
+
+                $payment = MinyakHutangBayar::create([
+                    'hutang_id'      => $h->id,
+                    'tanggal_bayar'  => now(),
+                    'jumlah'         => $payAmount,
+                    'cara_bayar'     => $validated['cara_bayar'],
+                    'id_transaksi'   => $validated['id_transaksi'] ?? null,
+                    'bukti_transfer' => $buktiPath,
+                    'keterangan'     => $validated['keterangan'] ?? null,
+                    'created_by'     => Auth::id(),
+                    'status'         => $paymentStatus,
+                    'confirmed_by'   => $needsConfirmation ? null : Auth::id(),
+                    'confirmed_at'   => $needsConfirmation ? null : now(),
+                ]);
+
+                $paymentIds[] = $payment->id;
+
+                if ($paymentStatus === 'confirmed') {
+                    $totalDibayar = $h->pembayarans()->where('status', 'confirmed')->sum('jumlah');
+                    $h->dibayar = $totalDibayar;
+                    $h->sisa    = max(0, (float) $h->total_hutang - (float) $totalDibayar);
+                    $h->status  = $h->sisa <= 0 ? 'lunas' : 'belum_lunas';
+                    $h->save();
+                    $newConfirmedTotal += $payAmount;
+                }
+
+                $sisaJumlah -= $payAmount;
+            }
+
+            // Update pelanggan total_hutang only for confirmed payments
+            if ($newConfirmedTotal > 0) {
+                $pelanggan->total_hutang = max(0, (float) $pelanggan->total_hutang - $newConfirmedTotal);
+                $pelanggan->save();
+            }
+
+            AuditService::log(
+                'minyak_hutang.bayar_semua',
+                'MinyakPelanggan',
+                $pelanggan->id,
+                [
+                    'jumlah' => (float) $validated['jumlah'],
+                    'payment_ids' => $paymentIds,
+                    'confirmed_total' => $newConfirmedTotal,
+                    'pending_total' => (float) $validated['jumlah'] - $newConfirmedTotal,
+                ],
+                'info'
+            );
+
+            DB::commit();
+
+            $hasPending = count($paymentIds) > 0 && $newConfirmedTotal < (float) $validated['jumlah'];
+            $msg = 'Pembayaran Rp ' . number_format((float) $validated['jumlah'], 0, ',', '.') . ' berhasil dicatat.';
+            if ($hasPending) {
+                $msg .= ' Sebagian menunggu konfirmasi supervisor.';
+            } else {
+                $msg .= ' Semua hutang berhasil dibayar!';
+            }
+
+            return redirect()->route('minyak.hutang.pelanggan', $pelanggan->id)->with('success', $msg);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('minyak.hutang.pelanggan', $pelanggan->id)->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 }
