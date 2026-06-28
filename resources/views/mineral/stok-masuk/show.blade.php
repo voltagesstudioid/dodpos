@@ -99,19 +99,19 @@
                 <div class="sm-flow">
                     <div class="sm-flow-box">
                         <div class="sm-flow-lbl">Stok Sebelum</div>
-                        <div class="sm-flow-val blue">{{ number_format((float) $stokMasuk->stok_sebelum, 2, ',', '.') }}</div>
+                        <div class="sm-flow-val blue">{{ number_format((float) $stokMasuk->stok_sebelum, 2, '.', '') }}</div>
                         <div style="font-size:10px;color:#94a3b8;">{{ $satuan }}</div>
                     </div>
                     <div class="sm-flow-arrow">→</div>
                     <div class="sm-flow-box" style="border-color:{{ $diff >= 0 ? '#bbf7d0' : '#fecaca' }}; background:{{ $diff >= 0 ? '#f0fdf4' : '#fef2f2' }};">
                         <div class="sm-flow-lbl">Perubahan</div>
-                        <div class="sm-flow-val {{ $diff >= 0 ? 'green' : 'red' }}">{{ $diffSign }}{{ number_format($diff, 2, ',', '.') }}</div>
+                        <div class="sm-flow-val {{ $diff >= 0 ? 'green' : 'red' }}">{{ $diffSign }}{{ number_format($diff, 2, '.', '') }}</div>
                         <div class="sm-flow-diff {{ $diffClass }}">{{ $stokMasuk->tipe === 'penerimaan' ? 'Penerimaan' : 'Selisih Koreksi' }}</div>
                     </div>
                     <div class="sm-flow-arrow">→</div>
                     <div class="sm-flow-box">
                         <div class="sm-flow-lbl">Stok Sesudah</div>
-                        <div class="sm-flow-val green">{{ number_format((float) $stokMasuk->stok_sesudah, 2, ',', '.') }}</div>
+                        <div class="sm-flow-val green">{{ number_format((float) $stokMasuk->stok_sesudah, 2, '.', '') }}</div>
                         <div style="font-size:10px;color:#94a3b8;">{{ $satuan }}</div>
                     </div>
                 </div>

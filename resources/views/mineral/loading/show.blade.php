@@ -122,11 +122,11 @@
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Kendaraan Sub</span>
-                        <span class="ds-val mono">{{ $loading->sales->no_kendaraan ?? '-' }}</span>
+                        <span class="ds-val mono">{{ $loading->vehicleSub?->license_plate ?? '-' }}</span>
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Mobil Inti (Sumber)</span>
-                        <span class="ds-val">{{ $loading->mobilInti->nama ?? '-' }} ({{ $loading->mobilInti->no_kendaraan ?? '-' }})</span>
+                        <span class="ds-val">{{ $loading->vehicleInti?->license_plate ?? '-' }} · {{ $loading->vehicleInti?->type ?? '-' }}</span>
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Produk</span>
@@ -202,15 +202,15 @@
                 <div class="ds-grid3">
                     <div class="ds-item">
                         <span class="ds-lbl">Jumlah Penugasan</span>
-                        <span class="ds-val mono" style="color:#2563eb;">{{ number_format($loading->jumlah_loading) }} {{ $loading->produk->satuan ?? '' }}</span>
+                        <span class="ds-val mono" style="color:#2563eb;">{{ number_format($loading->jumlah_loading, 0, ',', '.') }} {{ $loading->produk->satuan ?? '' }}</span>
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Terjual</span>
-                        <span class="ds-val mono" style="color:#059669;">{{ number_format($loading->terjual) }} {{ $loading->produk->satuan ?? '' }}</span>
+                        <span class="ds-val mono" style="color:#059669;">{{ number_format($loading->terjual, 0, ',', '.') }} {{ $loading->produk->satuan ?? '' }}</span>
                     </div>
                     <div class="ds-item">
                         <span class="ds-lbl">Sisa Stok</span>
-                        <span class="ds-val mono" style="color:#d97706;">{{ number_format($loading->sisa_stok) }} {{ $loading->produk->satuan ?? '' }}</span>
+                        <span class="ds-val mono" style="color:#d97706;">{{ number_format($loading->sisa_stok, 0, ',', '.') }} {{ $loading->produk->satuan ?? '' }}</span>
                     </div>
                 </div>
 
@@ -254,6 +254,26 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                 Kembali
             </a>
+            @if($loading->status_approval === 'pending' && $canApprove)
+                <form method="POST" action="{{ route('mineral.loading.approve', $loading) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="ds-btn" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;" onclick="return confirm('Setujui permintaan ini? Stok akan dipindahkan dari mobil inti ke mobil sub.')">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Setuju
+                    </button>
+                </form>
+                <button type="button" class="ds-btn" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;" onclick="document.getElementById('reject-form').classList.toggle('hidden')">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Tolak
+                </button>
+                <form id="reject-form" method="POST" action="{{ route('mineral.loading.reject', $loading) }}" style="display:none;" class="hidden">
+                    @csrf
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <input type="text" name="alasan" placeholder="Alasan penolakan" required style="padding:6px 12px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px;width:200px;font-family:inherit;">
+                        <button type="submit" style="padding:6px 16px;border-radius:8px;background:#dc2626;color:#fff;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">Kirim</button>
+                    </div>
+                </form>
+            @endif
             @if($loading->status_approval === 'approved' && $loading->status !== 'selesai')
             <a href="{{ route('mineral.loading.edit', $loading->id) }}" class="ds-btn ds-btn-edit">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

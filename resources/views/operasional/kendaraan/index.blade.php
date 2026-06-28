@@ -56,17 +56,17 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                     <div>
-                        <div class="tr-stat-value">{{ $assignedVehicles }}</div>
-                        <div class="tr-stat-label">Ditugaskan</div>
+                        <div class="tr-stat-value">{{ $activeVehicles }}</div>
+                        <div class="tr-stat-label">Kendaraan Aktif</div>
                     </div>
                 </div>
                 <div class="tr-stat-card">
                     <div class="tr-stat-icon bg-warning">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     </div>
                     <div>
-                        <div class="tr-stat-value">{{ $totalExpensesCount }}</div>
-                        <div class="tr-stat-label">Total Transaksi</div>
+                        <div class="tr-stat-value">{{ $assignedVehicles }}</div>
+                        <div class="tr-stat-label">Sedang Ditugaskan</div>
                     </div>
                 </div>
                 <a href="{{ route('operasional.kendaraan.export') }}" class="tr-stat-card tr-stat-clickable">
@@ -87,8 +87,15 @@
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" name="search" class="tr-search-input" placeholder="Cari plat nomor, jenis..." value="{{ request('search') }}">
                     </div>
-                    <button type="submit" class="tr-btn tr-btn-dark">Cari</button>
-                    @if(request('search'))
+                    <select name="status" class="tr-filter-select">
+                        <option value="">Semua Status</option>
+                        <option value="aktif" {{ request('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                        <option value="standby" {{ request('status') == 'standby' ? 'selected' : '' }}>Standby</option>
+                        <option value="maintenance" {{ request('status') == 'maintenance' ? 'selected' : '' }}>Maintenance</option>
+                        <option value="nonaktif" {{ request('status') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                    </select>
+                    <button type="submit" class="tr-btn tr-btn-dark">Filter</button>
+                    @if(request('search') || request('status'))
                         <a href="{{ route('operasional.kendaraan.index') }}" class="tr-btn tr-btn-outline">Reset</a>
                     @endif
                 </form>
@@ -100,18 +107,19 @@
                     <table class="tr-table">
                         <thead>
                             <tr>
-                                <th style="width: 70px;" class="c">No</th>
+                                <th style="width: 50px;" class="c">No</th>
                                 <th>Plat Nomor</th>
                                 <th>Jenis / Tipe</th>
-                                <th>Ditugaskan Kepada</th>
-                                <th>Keterangan</th>
-                                <th class="r" style="width: 180px;">Aksi</th>
+                                <th class="c" style="width: 100px;">Kapasitas</th>
+                                <th class="c" style="width: 120px;">Status</th>
+                                <th>Driver Saat Ini</th>
+                                <th class="r" style="width: 140px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($vehicles as $index => $kendaraan)
                                 <tr>
-                                    <td class="c tr-text-muted tr-font-mono">{{ $index + 1 }}</td>
+                                    <td class="c tr-text-muted tr-font-mono">{{ $vehicles->firstItem() + $index - $vehicles->firstItem() + 1 }}</td>
                                     <td>
                                         <div class="tr-license-plate">
                                             {{ strtoupper($kendaraan->license_plate) }}
@@ -119,12 +127,50 @@
                                     </td>
                                     <td>
                                         <div class="tr-font-bold tr-text-main">{{ $kendaraan->type ?: '—' }}</div>
+                                        @if($kendaraan->description)
+                                            <div class="tr-text-muted tr-text-small">{{ Str::limit($kendaraan->description, 40) }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="c">
+                                        <div class="tr-capacity-badge">
+                                            {{ number_format($kendaraan->capacity, 0) }}
+                                            <span class="tr-capacity-unit">unit</span>
+                                        </div>
+                                    </td>
+                                    <td class="c">
+                                        @php
+                                            $statusColors = [
+                                                'aktif' => 'success',
+                                                'standby' => 'info',
+                                                'maintenance' => 'warning',
+                                                'nonaktif' => 'danger'
+                                            ];
+                                            $statusLabels = [
+                                                'aktif' => 'Aktif',
+                                                'standby' => 'Standby',
+                                                'maintenance' => 'Maintenance',
+                                                'nonaktif' => 'Nonaktif'
+                                            ];
+                                            $color = $statusColors[$kendaraan->status] ?? 'secondary';
+                                        @endphp
+                                        <span class="tr-status-badge tr-status-{{ $color }}">
+                                            {{ $statusLabels[$kendaraan->status] ?? $kendaraan->status }}
+                                        </span>
                                     </td>
                                     <td>
-                                        @if($kendaraan->sales)
-                                            <div class="tr-sales-badge">
-                                                <span class="tr-sales-module tr-module-{{ strtolower($kendaraan->getSalesModuleLabel()) }}">{{ $kendaraan->getSalesModuleLabel() }}</span>
-                                                <span class="tr-sales-name">{{ $kendaraan->sales->nama }}</span>
+                                        @if($kendaraan->currentAssignment)
+                                            <div class="tr-driver-info">
+                                                <div class="tr-driver-avatar">
+                                                    {{ strtoupper(substr($kendaraan->currentAssignment->sales->nama ?? '?', 0, 1)) }}
+                                                </div>
+                                                <div class="tr-driver-details">
+                                                    <div class="tr-driver-name">{{ $kendaraan->currentAssignment->sales->nama ?? '-' }}</div>
+                                                    <div class="tr-driver-role">
+                                                        <span class="tr-role-badge tr-role-{{ $kendaraan->currentAssignment->role }}">
+                                                            {{ ucfirst($kendaraan->currentAssignment->role) }}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         @else
                                             <div class="tr-text-muted tr-unassigned">
@@ -132,9 +178,6 @@
                                                 Belum ditugaskan
                                             </div>
                                         @endif
-                                    </td>
-                                    <td>
-                                        <div class="tr-text-muted">{{ $kendaraan->description ?: '— Tidak ada keterangan' }}</div>
                                     </td>
                                     <td class="r">
                                         <div class="tr-actions-group">
@@ -157,7 +200,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <div class="tr-empty-state">
                                             <div class="tr-empty-icon">🚚</div>
                                             <h6>Belum ada kendaraan</h6>
@@ -193,11 +236,15 @@
             --tr-danger-bg: #fef2f2;
             --tr-success: #10b981;
             --tr-success-bg: #ecfdf5;
+            --tr-warning: #f59e0b;
+            --tr-warning-bg: #fffbeb;
+            --tr-info: #3b82f6;
+            --tr-info-bg: #eff6ff;
             --tr-radius: 14px;
         }
 
         .tr-page-wrapper { background-color: var(--tr-bg); min-height: 100vh; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .tr-page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+        .tr-page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
 
         /* HEADER */
         .tr-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; gap: 1.5rem; }
@@ -214,6 +261,8 @@
         .tr-btn-outline { border-color: var(--tr-border); background: white; color: var(--tr-text-main); }
         .tr-btn-outline:hover { background: #f1f5f9; }
         .tr-btn-disabled { background: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+        .tr-btn-dark { background: #1e293b; color: white; }
+        .tr-btn-dark:hover { background: #0f172a; }
 
         /* CARD & TABLE */
         .tr-card { background: var(--tr-surface); border: 1px solid var(--tr-border); border-radius: var(--tr-radius); box-shadow: 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; }
@@ -242,6 +291,7 @@
         
         .tr-text-muted { color: var(--tr-text-muted); }
         .tr-text-main { color: var(--tr-text-main); }
+        .tr-text-small { font-size: 0.8rem; }
         .tr-font-bold { font-weight: 700; }
         .tr-font-mono { font-family: ui-monospace, monospace; }
 
@@ -264,28 +314,42 @@
         .tr-stat-value.tr-stat-small { font-size: 1.125rem; }
         .tr-stat-label { font-size: 0.75rem; color: var(--tr-text-muted); margin-top: 0.25rem; font-weight: 600; }
         .bg-purple { background: #8b5cf6; }
-        .bg-warning { background: #f59e0b; }
-        .bg-success { background: #10b981; }
-        .tr-btn-dark { background: #1e293b; color: white; }
-        .tr-btn-dark:hover { background: #0f172a; }
+        .bg-warning { background: var(--tr-warning); }
+        .bg-success { background: var(--tr-success); }
 
-        /* Sales assignment badge */
-        .tr-sales-badge { display: flex; align-items: center; gap: 8px; }
-        .tr-sales-module { padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
-        .tr-module-gula { background: #fef3c7; color: #92400e; }
-        .tr-module-mineral { background: #dbeafe; color: #1e40af; }
-        .tr-module-minyak { background: #fce7f3; color: #9d174d; }
-        .tr-module-pasgar { background: #d1fae5; color: #065f46; }
-        .tr-sales-name { font-weight: 600; color: var(--tr-text-main); font-size: 0.875rem; }
+        /* Status Badge */
+        .tr-status-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .tr-status-success { background: var(--tr-success-bg); color: #065f46; }
+        .tr-status-info { background: var(--tr-info-bg); color: #1e40af; }
+        .tr-status-warning { background: var(--tr-warning-bg); color: #92400e; }
+        .tr-status-danger { background: var(--tr-danger-bg); color: #991b1b; }
+        .tr-status-secondary { background: #f1f5f9; color: #475569; }
+
+        /* Capacity Badge */
+        .tr-capacity-badge { display: inline-flex; align-items: baseline; gap: 4px; font-weight: 700; color: var(--tr-text-main); }
+        .tr-capacity-unit { font-size: 0.75rem; font-weight: 600; color: var(--tr-text-muted); }
+
+        /* Driver Info */
+        .tr-driver-info { display: flex; align-items: center; gap: 10px; }
+        .tr-driver-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--tr-indigo-light); color: var(--tr-indigo); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.875rem; flex-shrink: 0; }
+        .tr-driver-details { flex: 1; min-width: 0; }
+        .tr-driver-name { font-weight: 600; color: var(--tr-text-main); font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tr-driver-role { margin-top: 2px; }
+        .tr-role-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+        .tr-role-inti { background: #fef3c7; color: #92400e; }
+        .tr-role-sub { background: #dbeafe; color: #1e40af; }
+
         .tr-unassigned { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #94a3b8; }
 
         /* Filter */
         .tr-filter-bar { margin-bottom: 1rem; }
         .tr-filter-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-        .tr-search-box { position: relative; flex: 1; min-width: 250px; }
+        .tr-search-box { position: relative; flex: 1; min-width: 200px; }
         .tr-search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
         .tr-search-input { width: 100%; padding: 0.625rem 1rem 0.625rem 2.5rem; border: 1px solid var(--tr-border); border-radius: 10px; font-size: 0.875rem; }
         .tr-search-input:focus { outline: none; border-color: var(--tr-indigo); }
+        .tr-filter-select { padding: 0.625rem 1rem; border: 1px solid var(--tr-border); border-radius: 10px; font-size: 0.875rem; background: white; cursor: pointer; }
+        .tr-filter-select:focus { outline: none; border-color: var(--tr-indigo); }
 
         /* Pagination */
         .pagination { margin-top: 1.5rem; justify-content: center; }
@@ -295,6 +359,8 @@
         @media (max-width: 640px) {
             .tr-header { flex-direction: column; align-items: stretch; }
             .tr-btn { width: 100%; justify-content: center; }
+            .tr-filter-form { flex-direction: column; }
+            .tr-search-box { width: 100%; }
         }
     </style>
     @endpush

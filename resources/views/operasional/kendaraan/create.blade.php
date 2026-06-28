@@ -53,6 +53,33 @@
                                 @error('type') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
 
+                            {{-- Kapasitas --}}
+                            <div class="tr-form-group">
+                                <label class="tr-label">Kapasitas</label>
+                                <div class="tr-input-with-suffix">
+                                    <input type="number" name="capacity" step="0.01" min="0"
+                                        class="tr-input @error('capacity') is-invalid @enderror" 
+                                        value="{{ old('capacity', 0) }}" 
+                                        placeholder="0">
+                                    <span class="tr-input-suffix">unit</span>
+                                </div>
+                                @error('capacity') <div class="tr-error-msg">{{ $message }}</div> @enderror
+                                <p class="tr-hint">Kapasitas maksimal kendaraan dalam satuan unit produk.</p>
+                            </div>
+
+                            {{-- Status --}}
+                            <div class="tr-form-group">
+                                <label class="tr-label">Status <span class="tr-req">*</span></label>
+                                <select name="status" class="tr-select @error('status') is-invalid @enderror" required>
+                                    <option value="aktif" {{ old('status') == 'aktif' ? 'selected' : '' }}>Aktif</option>
+                                    <option value="standby" {{ old('status') == 'standby' ? 'selected' : '' }}>Standby</option>
+                                    <option value="maintenance" {{ old('status') == 'maintenance' ? 'selected' : '' }}>Maintenance</option>
+                                    <option value="nonaktif" {{ old('status') == 'nonaktif' ? 'selected' : '' }}>Nonaktif</option>
+                                </select>
+                                @error('status') <div class="tr-error-msg">{{ $message }}</div> @enderror
+                                <p class="tr-hint">Status ketersediaan kendaraan untuk operasional.</p>
+                            </div>
+
                             {{-- Deskripsi --}}
                             <div class="tr-form-group">
                                 <label class="tr-label">Keterangan Tambahan <span class="tr-optional">(Opsional)</span></label>
@@ -63,34 +90,15 @@
                                 @error('description') <div class="tr-error-msg">{{ $message }}</div> @enderror
                             </div>
 
-                            {{-- Ditugaskan Kepada Sales --}}
-                            <div class="tr-form-group">
-                                <label class="tr-label">
-                                    <span class="tr-label-with-icon">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                        Ditugaskan Kepada Sales
-                                    </span>
-                                    <span class="tr-optional">(Opsional)</span>
-                                </label>
-                                <select name="sales_assignment" 
-                                    class="tr-select @error('sales_assignment') is-invalid @enderror" 
-                                    id="sales_assignment">
-                                    <option value="">— Belum ditugaskan —</option>
-                                    @foreach($salesList as $module => $salesItems)
-                                        @if(count($salesItems) > 0)
-                                            <optgroup label="{{ $module }}">
-                                                @foreach($salesItems as $s)
-                                                    <option value="App\Models\{{ $module === 'Gula' ? 'GulaSales' : ($module === 'Mineral' ? 'MineralSales' : ($module === 'Minyak' ? 'MinyakSales' : 'PasgarSales')) }}:{{ $s['id'] }}" {{ old('sales_assignment') == "App\\Models\\" . ($module === 'Gula' ? 'GulaSales' : ($module === 'Mineral' ? 'MineralSales' : ($module === 'Minyak' ? 'MinyakSales' : 'PasgarSales'))) . ":" . $s['id'] ? 'selected' : '' }}>
-                                                        {{ $s['kode_sales'] }} — {{ $s['nama'] }}
-                                                        @if($s['no_kendaraan']) ({{ strtoupper($s['no_kendaraan']) }}) @endif
-                                                    </option>
-                                                @endforeach
-                                            </optgroup>
-                                        @endif
-                                    @endforeach
-                                </select>
-                                @error('sales_assignment') <div class="tr-error-msg">{{ $message }}</div> @enderror
-                                <p class="tr-hint">Pilih sales yang akan menggunakan kendaraan ini. Plat nomor akan otomatis tersimpan di profil sales.</p>
+                            {{-- Info Assignment --}}
+                            <div class="tr-info-box">
+                                <div class="tr-info-icon">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                                </div>
+                                <div class="tr-info-content">
+                                    <p class="tr-info-title">Penugasan Kendaraan</p>
+                                    <p class="tr-info-text">Setelah kendaraan dibuat, Anda dapat menugaskan kendaraan ini kepada sales melalui menu <strong>Sales → Assign Vehicle</strong> di modul Mineral.</p>
+                                </div>
                             </div>
                         </div>
 
@@ -157,8 +165,14 @@
             border: 1.5px solid var(--tr-border); border-radius: 10px;
             background-color: #fcfcfd; font-family: inherit; font-size: 0.9375rem; 
             color: var(--tr-text-main); transition: all 0.2s; outline: none;
+            box-sizing: border-box;
         }
         .tr-input:focus, .tr-textarea:focus { border-color: var(--tr-indigo); background-color: #ffffff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
+
+        /* ── INPUT WITH SUFFIX ── */
+        .tr-input-with-suffix { position: relative; display: flex; align-items: center; }
+        .tr-input-with-suffix .tr-input { padding-right: 4.5rem; }
+        .tr-input-suffix { position: absolute; right: 1rem; color: var(--tr-text-muted); font-size: 0.875rem; font-weight: 600; pointer-events: none; }
 
         /* ── SELECT ── */
         .tr-select {
@@ -174,16 +188,21 @@
             cursor: pointer;
         }
         .tr-select:focus { border-color: var(--tr-indigo); background-color: #ffffff; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
-        .tr-select optgroup { font-weight: 700; color: var(--tr-indigo); }
-        .tr-select option { font-weight: 400; padding: 6px 0; }
-
-        .tr-label-with-icon { display: inline-flex; align-items: center; gap: 5px; }
+        
         .tr-hint { margin-top: 8px; font-size: 0.75rem; color: var(--tr-text-muted); line-height: 1.5; }
         
         /* Spesifik Plat Nomor */
         .tr-plate-input { font-family: ui-monospace, monospace; font-weight: 700; letter-spacing: 0.1em; color: var(--tr-indigo); }
 
         .tr-textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+        /* ── INFO BOX ── */
+        .tr-info-box { display: flex; gap: 1rem; padding: 1rem 1.25rem; background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); border: 1px solid #bfdbfe; border-radius: 12px; margin-top: 0.5rem; }
+        .tr-info-icon { flex-shrink: 0; width: 40px; height: 40px; background: #3b82f6; color: white; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .tr-info-content { flex: 1; }
+        .tr-info-title { margin: 0 0 4px; font-size: 0.875rem; font-weight: 700; color: #1e40af; }
+        .tr-info-text { margin: 0; font-size: 0.8125rem; color: #1e40af; line-height: 1.5; opacity: 0.85; }
+        .tr-info-text strong { font-weight: 700; }
 
         /* ── BUTTONS ── */
         .tr-form-actions { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 1rem; align-items: center; }

@@ -39,6 +39,7 @@ class MineralStokMasuk extends Model
         $prefix = $tipe === 'penerimaan' ? 'TRM' : 'KRS';
         $date = date('Ymd');
         $last = self::where('no_referensi', 'like', "{$prefix}{$date}%")
+            ->lockForUpdate()
             ->orderBy('no_referensi', 'desc')
             ->first();
 

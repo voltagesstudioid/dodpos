@@ -461,14 +461,14 @@
                         </div>
                         <div class="pr-col-full">
                             <label class="pr-label">Mobil Inti (Sumber Stok) <span class="pr-req">*</span></label>
-                            <select name="mobil_inti_id" id="sel-mobil-inti" class="pr-input" required>
+                            <select name="vehicle_inti_id" id="sel-mobil-inti" class="pr-input" required>
                                 <option value="">Pilih Kendaraan Inti</option>
-                                @foreach($mobilInti as $mi)
-                                    @php $platInti = $mi->no_kendaraan ?: ($mi->vehicle->license_plate ?? 'Belum ada plat'); @endphp
-                                    <option value="{{ $mi->id }}" data-vehicle-id="{{ $mi->vehicle_id }}" {{ old('mobil_inti_id') == $mi->id ? 'selected' : '' }}>{{ $mi->nama }} ({{ $platInti }})</option>
+                                @foreach($vehiclesInti as $mi)
+                                    @php $platInti = $mi->license_plate ?? '-'; $driverInti = $mi->currentAssignment?->sales?->nama; @endphp
+                                    <option value="{{ $mi->id }}" data-vehicle-id="{{ $mi->id }}" {{ old('vehicle_inti_id') == $mi->id ? 'selected' : '' }}>{{ $driverInti ? $driverInti.' ('.$platInti.')' : $platInti }}</option>
                                 @endforeach
                             </select>
-                            @error('mobil_inti_id')<div class="pr-error-text">{{ $message }}</div>@enderror
+                            @error('vehicle_inti_id')<div class="pr-error-text">{{ $message }}</div>@enderror
                             <div id="stock-info" class="pr-stock-alert" style="display:none;"></div>
                         </div>
                     </div>
@@ -498,7 +498,7 @@
                                         <select name="items[{{ $i + 1 }}][sales_id]" class="pr-input" required>
                                             <option value="">Pilih Sales</option>
                                             @foreach($salesSub as $s)
-                                                @php $platSub = $s->no_kendaraan ?: ($s->vehicle->license_plate ?? ''); @endphp
+                                                @php $platSub = $s->no_kendaraan ?: ($s->currentAssignment?->vehicle?->license_plate ?? ''); @endphp
                                                 <option value="{{ $s->id }}" {{ ($item['sales_id'] ?? '') == $s->id ? 'selected' : '' }}>{{ $s->nama }} {{ $platSub ? '('.$platSub.')' : '' }}</option>
                                             @endforeach
                                         </select>
@@ -552,7 +552,7 @@
     @push('scripts')
     <script>
     var barisCount = {{ old('items') ? count(old('items')) : 0 }};
-    var subSalesData = @json($salesSub->map(fn($s) => ['id' => $s->id, 'nama' => $s->nama, 'plat' => $s->no_kendaraan ?: ($s->vehicle->license_plate ?? '')]));
+    var subSalesData = @json($salesSub->map(fn($s) => ['id' => $s->id, 'nama' => $s->nama, 'plat' => $s->no_kendaraan ?: ($s->currentAssignment?->vehicle?->license_plate ?? '')]));
     var stockData = {};
 
     function cekStok() {

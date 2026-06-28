@@ -4,7 +4,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         .sk-page { max-width:82rem; margin:0 auto; padding:0 1rem; font-family:'Plus Jakarta Sans',sans-serif; }
 
-        /* Header */
         .sk-hdr { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem; }
         .sk-hdr-l { display:flex; align-items:center; gap:1rem; }
         .sk-hdr-ico {
@@ -16,7 +15,6 @@
         .sk-hdr-title { font-size:1.5rem; font-weight:800; color:#0f172a; letter-spacing:-0.03em; line-height:1.2; }
         .sk-hdr-sub { font-size:0.8125rem; color:#64748b; margin-top:2px; }
 
-        /* Filter */
         .sk-filter {
             background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:1.125rem 1.375rem;
             margin-bottom:1.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.04);
@@ -44,19 +42,30 @@
         }
         .sk-btn-r:hover { background:#f1f5f9; border-color:#cbd5e1; color:#475569; }
 
-        /* Sales Card */
+        .sk-section-title {
+            font-size:1rem; font-weight:800; color:#0f172a; letter-spacing:-0.02em;
+            margin-bottom:1rem; display:flex; align-items:center; gap:0.625rem;
+        }
+        .sk-section-title .badge {
+            font-size:0.6875rem; font-weight:700; background:#e2e8f0; color:#475569;
+            padding:0.125rem 0.5rem; border-radius:6px;
+        }
+
         .sk-card {
             background:#fff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden;
             box-shadow:0 1px 3px rgba(0,0,0,0.04); margin-bottom:1.5rem; transition:all 0.3s;
         }
         .sk-card:hover { box-shadow:0 12px 32px rgba(0,0,0,0.07); border-color:transparent; }
 
-        /* Card Header */
         .sk-card-hdr {
             padding:1.25rem 1.5rem;
             background:linear-gradient(180deg,#eff6ff,#f0f7ff);
             border-bottom:2px solid #bfdbfe;
             display:flex; align-items:center; justify-content:space-between; gap:1rem;
+        }
+        .sk-card-hdr.vehicle {
+            background:linear-gradient(180deg,#f0fdf4,#ecfdf5);
+            border-bottom-color:#a7f3d0;
         }
         .sk-card-info { display:flex; align-items:center; gap:1rem; }
         .sk-card-av {
@@ -65,6 +74,10 @@
             background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff;
             box-shadow:0 6px 16px rgba(37,99,235,0.25);
         }
+        .sk-card-av.vehicle {
+            background:linear-gradient(135deg,#10b981,#059669);
+            box-shadow:0 6px 16px rgba(5,150,105,0.25);
+        }
         .sk-card-name { font-size:1rem; font-weight:700; color:#0f172a; letter-spacing:-0.02em; }
         .sk-card-meta { display:flex; align-items:center; gap:0.5rem; margin-top:0.25rem; }
         .sk-card-plate {
@@ -72,18 +85,19 @@
             background:linear-gradient(135deg,#eff6ff,#dbeafe); border:1px solid #bfdbfe;
             font-size:0.6875rem; font-weight:700; color:#1e40af; font-family:'JetBrains Mono',monospace;
         }
+        .sk-card-plate.vehicle {
+            background:linear-gradient(135deg,#ecfdf5,#d1fae5); border-color:#a7f3d0; color:#065f46;
+        }
         .sk-card-vtype { font-size:0.75rem; color:#64748b; }
 
-        /* Total Sisa */
         .sk-card-total { text-align:right; }
         .sk-card-total-lbl { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#94a3b8; }
         .sk-card-total-val { font-size:2rem; font-weight:800; color:#2563eb; letter-spacing:-0.03em; line-height:1; margin-top:0.25rem; }
+        .sk-card-total-val.vehicle { color:#059669; }
         .sk-card-total-unit { font-size:1rem; font-weight:600; color:#94a3b8; }
 
-        /* Card Body */
         .sk-card-body { padding:1.5rem; }
 
-        /* Metric Grid */
         .sk-metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
         .sk-metric {
             background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem;
@@ -105,7 +119,6 @@
         .sk-metric-val { font-size:1.5rem; font-weight:800; letter-spacing:-0.02em; color:#1e293b; }
         .sk-metric-val-unit { font-size:0.875rem; font-weight:600; color:#94a3b8; }
 
-        /* Detail Section */
         .sk-detail-title {
             font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#64748b;
             margin-bottom:0.75rem; display:flex; align-items:center; gap:0.5rem;
@@ -127,18 +140,16 @@
         .sk-tbl-body tr:last-child td { border-bottom:none; }
         .sk-tbl-body tr:hover td { background:#f8faff; }
 
-        /* Product cell */
         .sk-prod { display:flex; align-items:center; gap:0.5rem; }
         .sk-prod-dot { width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#2563eb); flex-shrink:0; }
         .sk-prod-name { font-size:0.8125rem; font-weight:600; color:#1e293b; }
 
-        /* Volume cells */
         .sk-vol { font-size:0.8125rem; }
         .sk-vol.loading { color:#2563eb; font-weight:600; }
         .sk-vol.terjual { color:#059669; font-weight:600; }
         .sk-vol.sisa    { color:#d97706; font-weight:700; }
+        .sk-vol.stok    { color:#059669; font-weight:700; }
 
-        /* Progress bar */
         .sk-progress { display:flex; align-items:center; gap:0.5rem; justify-content:flex-end; }
         .sk-progress-bar {
             width:60px; height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden;
@@ -150,7 +161,6 @@
         }
         .sk-progress-pct { font-size:0.6875rem; font-weight:700; color:#64748b; min-width:32px; text-align:right; }
 
-        /* Empty state inside card */
         .sk-card-empty { text-align:center; padding:2rem 1rem; }
         .sk-card-empty-ico {
             width:48px; height:48px; margin:0 auto 0.75rem; border-radius:12px;
@@ -158,7 +168,6 @@
         }
         .sk-card-empty-txt { font-size:0.8125rem; color:#94a3b8; }
 
-        /* Global empty */
         .sk-empty { text-align:center; padding:4rem 1.5rem; }
         .sk-empty-ico {
             width:80px; height:80px; margin:0 auto 1.25rem; border-radius:50%;
@@ -166,6 +175,15 @@
         }
         .sk-empty-title { font-size:1.125rem; font-weight:700; color:#475569; margin-bottom:0.25rem; }
         .sk-empty-sub { font-size:0.8125rem; color:#94a3b8; }
+
+        .sk-vehicle-role {
+            display:inline-flex; padding:0.125rem 0.5rem; border-radius:6px;
+            font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;
+        }
+        .sk-vehicle-role.inti { background:#dbeafe; color:#1e40af; }
+        .sk-vehicle-role.sub  { background:#d1fae5; color:#065f46; }
+
+        .sk-assign-info { font-size:0.75rem; color:#64748b; margin-top:0.25rem; }
 
         @media(max-width:768px) { .sk-metrics { grid-template-columns:1fr; } .sk-card-hdr { flex-direction:column; align-items:flex-start; } .sk-card-total { text-align:left; } }
         @media(max-width:640px) { .sk-hdr-title { font-size:1.25rem; } }
@@ -181,7 +199,7 @@
                     <div class="sk-hdr-ico">🚛</div>
                     <div>
                         <div class="sk-hdr-title">Stok Kendaraan</div>
-                        <div class="sk-hdr-sub">Monitoring stok mineral di setiap kendaraan sales</div>
+                        <div class="sk-hdr-sub">Monitoring stok mineral di setiap kendaraan inti & sub</div>
                     </div>
                 </div>
             </div>
@@ -198,6 +216,15 @@
                             @endforeach
                         </select>
                     </div>
+                    <div>
+                        <label class="sk-flbl">Kendaraan</label>
+                        <select name="vehicle_id" class="sk-fsel">
+                            <option value="">Semua Kendaraan</option>
+                            @foreach($allVehicles as $v)
+                                <option value="{{ $v->id }}" {{ request('vehicle_id') == $v->id ? 'selected' : '' }}>{{ $v->license_plate }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                     <button type="submit" class="sk-btn-f">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:-2px;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                         Filter
@@ -209,25 +236,126 @@
                 </form>
             </div>
 
-            {{-- Stok Per Sales --}}
+            {{-- SECTION 1: Stok Fisik Per Kendaraan --}}
+            <div class="sk-section-title">
+                🚚 Stok Fisik Kendaraan
+                <span class="badge">{{ count($stokPerVehicle) }} kendaraan</span>
+            </div>
+
+            <div class="sk-cards">
+                @forelse($stokPerVehicle as $data)
+                    <div class="sk-card">
+                        <div class="sk-card-hdr vehicle">
+                            <div class="sk-card-info">
+                                <div class="sk-card-av vehicle">🚛</div>
+                                <div>
+                                    <div class="sk-card-name">{{ $data['vehicle']->license_plate }}</div>
+                                    <div class="sk-card-meta">
+                                        <span class="sk-card-plate vehicle">{{ $data['vehicle']->type ?? 'Kendaraan' }}</span>
+                                        <span class="sk-vehicle-role {{ $data['assignment']?->role ?? 'sub' }}">
+                                            {{ $data['assignment']?->role === 'inti' ? 'INTI' : 'SUB' }}
+                                        </span>
+                                    </div>
+                                    @if($data['assignment']?->sales)
+                                        <div class="sk-assign-info">
+                                            👤 {{ $data['assignment']->sales->nama }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="sk-card-total">
+                                <div class="sk-card-total-lbl">Total Stok</div>
+                                <div class="sk-card-total-val vehicle">{{ number_format($data['total_stok'], 0, ',', '.') }} <span class="sk-card-total-unit">unit</span></div>
+                            </div>
+                        </div>
+
+                        <div class="sk-card-body">
+                            @if($data['detail']->count() > 0)
+                                <div class="sk-detail-title">Daftar Produk</div>
+                                <div class="sk-tbl">
+                                    <div style="overflow-x:auto;">
+                                        <table style="width:100%; border-collapse:separate; border-spacing:0;">
+                                            <thead class="sk-tbl-head">
+                                                <tr>
+                                                    <th style="text-align:left;">Produk</th>
+                                                    <th style="text-align:right;">Stok</th>
+                                                    <th style="text-align:right;">Satuan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="sk-tbl-body">
+                                                @foreach($data['detail'] as $item)
+                                                    <tr>
+                                                        <td>
+                                                            <div class="sk-prod">
+                                                                <span class="sk-prod-dot"></span>
+                                                                <span class="sk-prod-name">{{ $item['produk']->nama }}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td style="text-align:right;">
+                                                            <span class="sk-vol stok">{{ number_format($item['jumlah'], 0, ',', '.') }}</span>
+                                                        </td>
+                                                        <td style="text-align:right;">
+                                                            <span style="color:#94a3b8;font-size:0.75rem;">{{ $item['produk']->satuan ?? 'unit' }}</span>
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="sk-card-empty">
+                                    <div class="sk-card-empty-ico">
+                                        <svg width="24" height="24" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                                    </div>
+                                    <div class="sk-card-empty-txt">Tidak ada stok untuk kendaraan ini</div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <div class="sk-empty">
+                        <div class="sk-empty-ico">
+                            <svg width="36" height="36" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <div class="sk-empty-title">Tidak Ada Data Stok Kendaraan</div>
+                        <div class="sk-empty-sub">Belum ada stok yang tercatat di kendaraan manapun</div>
+                    </div>
+                @endforelse
+            </div>
+
+            {{-- SECTION 2: Stok Per Sales (dari loading) --}}
+            <div class="sk-section-title" style="margin-top:2rem;">
+                📋 Stok Loading Per Sales
+                <span class="badge">{{ count($stokPerSales) }} sales</span>
+            </div>
+
             <div class="sk-cards">
                 @forelse($stokPerSales as $data)
                     <div class="sk-card">
                         {{-- Card Header --}}
                         <div class="sk-card-hdr">
                             <div class="sk-card-info">
-                                <div class="sk-card-av">{{ substr($data['sales']->nama, 0, 1) }}</div>
+                                @php $salesInitial = substr($data['sales']->nama, 0, 1); @endphp
+                                <div class="sk-card-av">{{ $salesInitial }}</div>
                                 <div>
                                     <div class="sk-card-name">{{ $data['sales']->nama }}</div>
                                     <div class="sk-card-meta">
-                                        <span class="sk-card-plate">{{ $data['sales']->no_kendaraan ?? '-' }}</span>
-                                        <span class="sk-card-vtype">{{ $data['sales']->jenis_kendaraan ?? 'Tanpa Kendaraan' }}</span>
+                                        @php $vehicle = $data['sales']->currentAssignment?->vehicle; @endphp
+                                        @if($vehicle)
+                                            <span class="sk-card-plate">{{ $vehicle->license_plate }}</span>
+                                            <span class="sk-vehicle-role {{ $data['sales']->currentAssignment->role }}">
+                                                {{ strtoupper($data['sales']->currentAssignment->role) }}
+                                            </span>
+                                        @else
+                                            <span style="font-size:0.75rem;color:#94a3b8;">Tanpa kendaraan</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                             <div class="sk-card-total">
                                 <div class="sk-card-total-lbl">Total Sisa Stok</div>
-                                <div class="sk-card-total-val">{{ number_format($data['total_sisa']) }} <span class="sk-card-total-unit">L</span></div>
+                                <div class="sk-card-total-val">{{ number_format($data['total_sisa'], 0, ',', '.') }} <span class="sk-card-total-unit">unit</span></div>
                             </div>
                         </div>
 
@@ -238,17 +366,17 @@
                                 <div class="sk-metric blue">
                                     <div class="sk-metric-ico blue">📦</div>
                                     <div class="sk-metric-lbl">Total Loading</div>
-                                    <div class="sk-metric-val">{{ number_format($data['total_loading']) }} <span class="sk-metric-val-unit">L</span></div>
+                                    <div class="sk-metric-val">{{ number_format($data['total_loading'], 0, ',', '.') }} <span class="sk-metric-val-unit">unit</span></div>
                                 </div>
                                 <div class="sk-metric green">
                                     <div class="sk-metric-ico green">💰</div>
                                     <div class="sk-metric-lbl">Terjual</div>
-                                    <div class="sk-metric-val">{{ number_format($data['total_terjual']) }} <span class="sk-metric-val-unit">L</span></div>
+                                    <div class="sk-metric-val">{{ number_format($data['total_terjual'], 0, ',', '.') }} <span class="sk-metric-val-unit">unit</span></div>
                                 </div>
                                 <div class="sk-metric amber">
                                     <div class="sk-metric-ico amber">📊</div>
                                     <div class="sk-metric-lbl">Sisa</div>
-                                    <div class="sk-metric-val">{{ number_format($data['total_sisa']) }} <span class="sk-metric-val-unit">L</span></div>
+                                    <div class="sk-metric-val">{{ number_format($data['total_sisa'], 0, ',', '.') }} <span class="sk-metric-val-unit">unit</span></div>
                                 </div>
                             </div>
 
@@ -270,6 +398,7 @@
                                             <tbody class="sk-tbl-body">
                                                 @foreach($data['detail'] as $item)
                                                     @php
+                                                        $satuan = $item['produk']->satuan ?? 'unit';
                                                         $percentage = $item['loading'] > 0 ? round(($item['terjual'] / $item['loading']) * 100) : 0;
                                                     @endphp
                                                     <tr>
@@ -280,13 +409,13 @@
                                                             </div>
                                                         </td>
                                                         <td style="text-align:right;">
-                                                            <span class="sk-vol loading">{{ number_format($item['loading']) }} L</span>
+                                                            <span class="sk-vol loading">{{ number_format($item['loading'], 0, ',', '.') }} {{ $satuan }}</span>
                                                         </td>
                                                         <td style="text-align:right;">
-                                                            <span class="sk-vol terjual">{{ number_format($item['terjual']) }} L</span>
+                                                            <span class="sk-vol terjual">{{ number_format($item['terjual'], 0, ',', '.') }} {{ $satuan }}</span>
                                                         </td>
                                                         <td style="text-align:right;">
-                                                            <span class="sk-vol sisa">{{ number_format($item['sisa']) }} L</span>
+                                                            <span class="sk-vol sisa">{{ number_format($item['sisa'], 0, ',', '.') }} {{ $satuan }}</span>
                                                         </td>
                                                         <td style="text-align:right;">
                                                             <div class="sk-progress">
@@ -307,7 +436,7 @@
                                     <div class="sk-card-empty-ico">
                                         <svg width="24" height="24" fill="none" stroke="#3b82f6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                                     </div>
-                                    <div class="sk-card-empty-txt">Tidak ada data stok untuk kendaraan ini</div>
+                                    <div class="sk-card-empty-txt">Tidak ada data stok untuk sales ini</div>
                                 </div>
                             @endif
                         </div>
@@ -317,7 +446,7 @@
                         <div class="sk-empty-ico">
                             <svg width="36" height="36" fill="none" stroke="#2563eb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                         </div>
-                        <div class="sk-empty-title">Tidak Ada Data Stok Kendaraan</div>
+                        <div class="sk-empty-title">Tidak Ada Data Loading</div>
                         <div class="sk-empty-sub">Belum ada loading yang dicatat untuk sales manapun</div>
                     </div>
                 @endforelse

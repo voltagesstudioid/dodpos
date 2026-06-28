@@ -58,13 +58,10 @@ class ProdukController extends Controller
 
     public function store(Request $request)
     {
-        $activeJenis = MineralJenis::where('status', 'aktif')->pluck('nama')->toArray();
-        $activeSatuan = MineralSatuan::where('status', 'aktif')->pluck('nama')->toArray();
-
         $validated = $request->validate([
             'nama'        => ['required', 'string', 'max:100', Rule::unique('mineral_produk', 'nama')->whereNull('deleted_at')],
-            'jenis'       => ['nullable', 'string', Rule::in($activeJenis)],
-            'satuan'      => ['required', 'string', Rule::in($activeSatuan)],
+            'jenis'       => ['nullable', 'string', Rule::in(MineralJenis::where('status', 'aktif')->pluck('nama')->toArray())],
+            'satuan_id'   => ['required', 'exists:mineral_satuan,id'],
             'harga_jual'  => ['required', 'numeric', 'min:0'],
             'harga_modal' => ['nullable', 'numeric', 'min:0'],
             'stok_minimum' => ['nullable', 'integer', 'min:0'],
@@ -76,6 +73,10 @@ class ProdukController extends Controller
         $validated['stok_gudang']  = 0;
         $validated['stok_minimum'] = $validated['stok_minimum'] ?? 10;
         $validated['harga_modal']  = $validated['harga_modal']  ?? 0;
+
+        // Auto-set satuan string from satuan_id
+        $satuan = MineralSatuan::find($validated['satuan_id']);
+        $validated['satuan'] = $satuan?->nama ?? 'pcs';
 
         // Generate auto kode
         $validated['kode_produk'] = MineralProduk::generateKode();
@@ -110,13 +111,10 @@ class ProdukController extends Controller
 
     public function update(Request $request, MineralProduk $produk)
     {
-        $activeJenis = MineralJenis::where('status', 'aktif')->pluck('nama')->toArray();
-        $activeSatuan = MineralSatuan::where('status', 'aktif')->pluck('nama')->toArray();
-
         $validated = $request->validate([
             'nama'        => ['required', 'string', 'max:100', Rule::unique('mineral_produk', 'nama')->whereNull('deleted_at')->ignore($produk->id)],
-            'jenis'       => ['nullable', 'string', Rule::in($activeJenis)],
-            'satuan'      => ['required', 'string', Rule::in($activeSatuan)],
+            'jenis'       => ['nullable', 'string', Rule::in(MineralJenis::where('status', 'aktif')->pluck('nama')->toArray())],
+            'satuan_id'   => ['required', 'exists:mineral_satuan,id'],
             'harga_jual'  => ['required', 'numeric', 'min:0'],
             'harga_modal' => ['nullable', 'numeric', 'min:0'],
             'stok_minimum' => ['nullable', 'integer', 'min:0'],
@@ -127,6 +125,10 @@ class ProdukController extends Controller
         // Apply safe defaults for nullable fields
         $validated['stok_minimum'] = $validated['stok_minimum'] ?? 10;
         $validated['harga_modal']  = $validated['harga_modal']  ?? 0;
+
+        // Auto-set satuan string from satuan_id
+        $satuan = MineralSatuan::find($validated['satuan_id']);
+        $validated['satuan'] = $satuan?->nama ?? 'pcs';
 
         $produk->update($validated);
 

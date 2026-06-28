@@ -260,7 +260,7 @@
                         <div class="pl-kpi-left">
                             <span class="pl-kpi-lbl">Total Pelanggan</span>
                             <div>
-                                <span class="pl-kpi-val blue">{{ number_format($stats['total']) }}</span>
+                                <span class="pl-kpi-val blue">{{ number_format($stats['total'], 0, ',', '.') }}</span>
                             </div>
                             <div class="pl-kpi-foot">Seluruh data pelanggan</div>
                         </div>
@@ -272,7 +272,7 @@
                         <div class="pl-kpi-left">
                             <span class="pl-kpi-lbl">Aktif</span>
                             <div>
-                                <span class="pl-kpi-val green">{{ number_format($stats['aktif']) }}</span>
+                                <span class="pl-kpi-val green">{{ number_format($stats['aktif'], 0, ',', '.') }}</span>
                             </div>
                             <div class="pl-kpi-foot">Pelanggan aktif</div>
                         </div>
@@ -284,7 +284,7 @@
                         <div class="pl-kpi-left">
                             <span class="pl-kpi-lbl">Eceran</span>
                             <div>
-                                <span class="pl-kpi-val sky">{{ number_format($stats['eceran']) }}</span>
+                                <span class="pl-kpi-val sky">{{ number_format($stats['eceran'], 0, ',', '.') }}</span>
                             </div>
                             <div class="pl-kpi-foot">Tipe eceran</div>
                         </div>
@@ -296,7 +296,7 @@
                         <div class="pl-kpi-left">
                             <span class="pl-kpi-lbl">Grosir</span>
                             <div>
-                                <span class="pl-kpi-val purple">{{ number_format($stats['grosir']) }}</span>
+                                <span class="pl-kpi-val purple">{{ number_format($stats['grosir'], 0, ',', '.') }}</span>
                             </div>
                             <div class="pl-kpi-foot">Tipe grosir</div>
                         </div>

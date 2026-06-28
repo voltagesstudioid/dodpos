@@ -12,7 +12,7 @@ class MineralProduk extends Model
     protected $table = 'mineral_produk';
 
     protected $fillable = [
-        'kode_produk', 'nama', 'jenis', 'satuan', 'harga_jual', 'harga_modal',
+        'kode_produk', 'nama', 'jenis', 'satuan', 'satuan_id', 'harga_jual', 'harga_modal',
         'stok_gudang', 'stok_minimum', 'keterangan', 'status',
     ];
 
@@ -20,6 +20,11 @@ class MineralProduk extends Model
         'harga_jual' => 'decimal:2',
         'harga_modal' => 'decimal:2',
     ];
+
+    public function satuanRel()
+    {
+        return $this->belongsTo(MineralSatuan::class, 'satuan_id');
+    }
 
     public function vehicleStocks()
     {
@@ -61,9 +66,10 @@ class MineralProduk extends Model
 
     public static function generateKode()
     {
-        $prefix = 'PRM'; // Produk Mineral
+        $prefix = 'PRM';
         $date = date('Ymd');
         $last = self::where('kode_produk', 'like', "{$prefix}{$date}%")
+            ->lockForUpdate()
             ->orderBy('kode_produk', 'desc')
             ->first();
         

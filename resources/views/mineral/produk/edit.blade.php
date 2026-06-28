@@ -163,17 +163,17 @@
                                     <svg class="fm-lbl-ico" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
                                     Satuan <span class="fm-req">*</span>
                                 </label>
-                                <select name="satuan" required class="fm-input">
+                                <select name="satuan_id" required class="fm-input">
                                     <option value="">Pilih satuan</option>
-                                    @php $satuanVal = old('satuan', $produk->satuan); @endphp
+                                    @php $satuanVal = old('satuan_id', $produk->satuan_id); @endphp
                                     @foreach($satuanList as $s)
-                                        <option value="{{ $s->nama }}" {{ $satuanVal == $s->nama ? 'selected' : '' }}>{{ $s->nama }}@if($s->singkatan) ({{ $s->singkatan }})@endif</option>
+                                        <option value="{{ $s->id }}" {{ $satuanVal == $s->id ? 'selected' : '' }}>{{ $s->nama }}@if($s->singkatan) ({{ $s->singkatan }})@endif</option>
                                     @endforeach
-                                    @if($produk->satuan && !$satuanList->contains('nama', $produk->satuan))
-                                        <option value="{{ $produk->satuan }}" selected>{{ $produk->satuan }} (arsip)</option>
+                                    @if($produk->satuan_id && !$satuanList->contains('id', $produk->satuan_id))
+                                        <option value="{{ $produk->satuan_id }}" selected>{{ $produk->satuanRel?->nama ?? $produk->satuan }} (arsip)</option>
                                     @endif
                                 </select>
-                                @error('satuan')<div class="fm-error"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{{ $message }}</div>@enderror
+                                @error('satuan_id')<div class="fm-error"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{{ $message }}</div>@enderror
                             </div>
                         </div>
                     </div>

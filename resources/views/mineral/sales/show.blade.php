@@ -102,6 +102,29 @@
         .mns-target-lbl { font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:#1e40af; }
         .mns-target-val { font-family:'JetBrains Mono',monospace; font-size:0.875rem; font-weight:700; color:#2563eb; }
 
+        /* ── ASSIGN MODAL ── */
+        .mns-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.4); backdrop-filter:blur(2px); align-items:center; justify-content:center; }
+        .mns-modal.open { display:flex; }
+        .mns-modal-box { background:#fff; border-radius:20px; width:100%; max-width:480px; margin:1rem; box-shadow:0 24px 64px rgba(0,0,0,0.25); overflow:hidden; animation:mns-modal-in 0.2s ease; }
+        @keyframes mns-modal-in { from { opacity:0;transform:scale(0.95) translateY(8px); } to { opacity:1;transform:scale(1) translateY(0); } }
+        .mns-modal-hdr { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1px solid #f1f5f9; }
+        .mns-modal-title { font-size:1rem; font-weight:800; color:#0f172a; }
+        .mns-modal-close { width:32px;height:32px;border-radius:8px;border:none;background:#f1f5f9;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.125rem;color:#64748b;transition:all 0.2s; }
+        .mns-modal-close:hover { background:#e2e8f0;color:#0f172a; }
+        .mns-modal-body { padding:1.5rem; }
+        .mns-modal-body .mne-fg { margin-bottom:1rem; }
+        .mns-modal-body .mne-lbl { display:block; font-size:0.75rem; font-weight:700; color:#475569; margin-bottom:0.375rem; }
+        .mns-modal-body .mne-inp { width:100%; padding:0.625rem 0.875rem; border:1.5px solid #e2e8f0; border-radius:10px; font-size:0.875rem; outline:none; transition:border-color 0.2s; background:#fff; }
+        .mns-modal-body .mne-inp:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.15); }
+        .mns-modal-body .mne-hint { font-size:0.6875rem; color:#94a3b8; margin-top:0.25rem; }
+        .mns-modal-body .mne-err { font-size:0.6875rem; color:#ef4444; margin-top:0.25rem; }
+        .mns-modal-ftr { display:flex; gap:0.75rem; justify-content:flex-end; padding:1rem 1.5rem; border-top:1px solid #f1f5f9; background:#fafafa; }
+        .mns-modal-ftr .mns-btn { padding:0.5rem 1.25rem; border-radius:10px; font-size:0.8125rem; font-weight:700; border:none; cursor:pointer; transition:all 0.2s; }
+        .mns-modal-ftr .mns-btn-primary { background:linear-gradient(135deg,#3b82f6,#2563eb); color:#fff; box-shadow:0 4px 12px rgba(37,99,235,0.3); }
+        .mns-modal-ftr .mns-btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(37,99,235,0.4); }
+        .mns-modal-ftr .mns-btn-cancel { background:#f1f5f9; color:#475569; }
+        .mns-modal-ftr .mns-btn-cancel:hover { background:#e2e8f0; }
+
         @media(max-width:768px) {
             .mns-grid { grid-template-columns:1fr; }
             .mns-stats { grid-template-columns:1fr; }
@@ -200,47 +223,61 @@
                     <div class="mns-card-title">Informasi Kendaraan</div>
                 </div>
                 <div class="mns-card-body">
-                    <div class="mns-fields">
-                        @php
-                            $vehicleLabel = null;
-                            $vehicleType = null;
-                            if ($sales->vehicle) {
-                                $vehicleLabel = strtoupper($sales->vehicle->license_plate);
-                                $vehicleType = $sales->vehicle->type;
-                            } elseif ($sales->no_kendaraan) {
-                                $vehicleLabel = strtoupper($sales->no_kendaraan);
-                                $vehicleType = $sales->jenis_kendaraan;
-                            }
-                        @endphp
-                        <div class="mns-field">
-                            <div class="mns-field-ico">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                    @php $a = $sales->currentAssignment; @endphp
+                    @if($a && $a->vehicle)
+                        <div class="mns-fields">
+                            <div class="mns-field">
+                                <div class="mns-field-ico">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                </div>
+                                <div class="mns-field-info">
+                                    <span class="mns-field-lbl">Plat Nomor</span>
+                                    <span class="mns-plate">{{ strtoupper($a->vehicle->license_plate) }}</span>
+                                </div>
                             </div>
-                            <div class="mns-field-info">
-                                <span class="mns-field-lbl">Plat Nomor</span>
-                                @if($vehicleLabel)
-                                    <span class="mns-plate">{{ $vehicleLabel }}</span>
-                                @else
-                                    <span class="mns-field-val empty">Belum terdaftar</span>
-                                @endif
+                            <div class="mns-field">
+                                <div class="mns-field-ico">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
+                                </div>
+                                <div class="mns-field-info">
+                                    <span class="mns-field-lbl">Jenis Kendaraan</span>
+                                    <span class="mns-field-val">{{ $a->vehicle->type ?: '—' }}</span>
+                                </div>
+                            </div>
+                            <div class="mns-field">
+                                <div class="mns-field-ico">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                </div>
+                                <div class="mns-field-info">
+                                    <span class="mns-field-lbl">Role</span>
+                                    <span class="mns-field-val" style="text-transform:uppercase;font-weight:700;color:#0891b2;">{{ $a->role }}</span>
+                                </div>
+                            </div>
+                            <div class="mns-field">
+                                <div class="mns-field-ico">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                </div>
+                                <div class="mns-field-info">
+                                    <span class="mns-field-lbl">Aktif Sejak</span>
+                                    <span class="mns-field-val">{{ $a->tanggal_mulai->format('d M Y') }}</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="mns-field">
-                            <div class="mns-field-ico">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 12l-4-4-4 4"/><path d="M12 16V8"/></svg>
-                            </div>
-                            <div class="mns-field-info">
-                                <span class="mns-field-lbl">Jenis Kendaraan</span>
-                                <span class="mns-field-val">{{ $vehicleType ?: '—' }}</span>
-                            </div>
+                        <form method="POST" action="{{ route('mineral.sales.end_assignment', $a) }}" style="margin-top:1rem;">
+                            @csrf
+                            <button type="submit" class="mns-edit-btn" style="background:linear-gradient(135deg,#f97316,#ea580c);font-size:0.75rem;padding:0.5rem 1rem;" onclick="return confirm('Akhiri assignment kendaraan ini?')">
+                                Akhiri Assignment
+                            </button>
+                        </form>
+                    @else
+                        <div style="text-align:center;padding:1.5rem 1rem;">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="display:block;margin:0 auto 0.75rem;"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            <span class="mns-field-val empty" style="display:block;margin-bottom:0.75rem;">Belum ada kendaraan ditugaskan</span>
+                            <button type="button" onclick="document.getElementById('assignModal').classList.add('open')" class="mns-edit-btn" style="font-size:0.8125rem;padding:0.5rem 1.25rem;display:inline-flex;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Assign Kendaraan
+                            </button>
                         </div>
-                    </div>
-                    @if($sales->target_harian)
-                    <div class="mns-target">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                        <span class="mns-target-lbl">Target Harian</span>
-                        <span class="mns-target-val">Rp {{ number_format($sales->target_harian, 0, ',', '.') }}</span>
-                    </div>
                     @endif
                 </div>
             </div>
@@ -280,7 +317,7 @@
                         </div>
                         <div class="mns-stat-info">
                             <span class="mns-stat-lbl">Jumlah Transaksi</span>
-                            <span class="mns-stat-val">{{ number_format($sales->penjualans->count()) }}</span>
+                            <span class="mns-stat-val">{{ number_format($sales->penjualans->count(), 0, ',', '.') }}</span>
                         </div>
                     </div>
                 </div>
@@ -344,4 +381,55 @@
         </div>
 
     </div>
+
+    {{-- ─── ASSIGN VEHICLE MODAL ─── --}}
+    <div id="assignModal" class="mns-modal" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="mns-modal-box">
+            <form method="POST" action="{{ route('mineral.sales.assign_vehicle', $sales) }}">
+                @csrf
+                <div class="mns-modal-hdr">
+                    <div class="mns-modal-title">Assign Kendaraan</div>
+                    <button type="button" class="mns-modal-close" onclick="document.getElementById('assignModal').classList.remove('open')">&times;</button>
+                </div>
+                <div class="mns-modal-body">
+                    <div class="mne-fg">
+                        <label class="mne-lbl">Pilih Kendaraan *</label>
+                        <select name="vehicle_id" class="mne-inp" required>
+                            <option value="">-- Pilih Kendaraan --</option>
+                            @foreach($vehicles as $v)
+                                <option value="{{ $v->id }}">{{ strtoupper($v->license_plate) }} @if($v->type)· {{ $v->type }}@endif @if($v->capacity)({{ $v->capacity }} unit)@endif</option>
+                            @endforeach
+                        </select>
+                        @error('vehicle_id')<div class="mne-err">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="mne-fg">
+                        <label class="mne-lbl">Role *</label>
+                        <select name="role" class="mne-inp" required>
+                            <option value="">-- Pilih Role --</option>
+                            <option value="inti">Mobil Inti (Pembawa Stok)</option>
+                            <option value="sub">Mobil Sub (Distribusi)</option>
+                        </select>
+                    </div>
+                    <div class="mne-fg">
+                        <label class="mne-lbl">Tanggal Mulai *</label>
+                        <input type="date" name="tanggal_mulai" class="mne-inp" value="{{ date('Y-m-d') }}" required>
+                    </div>
+                    <div class="mne-fg">
+                        <label class="mne-lbl">Tanggal Selesai <span style="color:#94a3b8;font-weight:400;">(opsional)</span></label>
+                        <input type="date" name="tanggal_selesai" class="mne-inp">
+                        <div class="mne-hint">Kosongkan jika masih berlangsung</div>
+                    </div>
+                    <div class="mne-fg">
+                        <label class="mne-lbl">Keterangan <span style="color:#94a3b8;font-weight:400;">(opsional)</span></label>
+                        <input type="text" name="keterangan" class="mne-inp" placeholder="Catatan assignment">
+                    </div>
+                </div>
+                <div class="mns-modal-ftr">
+                    <button type="button" class="mns-btn mns-btn-cancel" onclick="document.getElementById('assignModal').classList.remove('open')">Batal</button>
+                    <button type="submit" class="mns-btn mns-btn-primary">Simpan Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </x-app-layout>

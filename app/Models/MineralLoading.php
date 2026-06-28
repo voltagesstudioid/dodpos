@@ -9,14 +9,17 @@ class MineralLoading extends Model
     protected $table = 'mineral_loading';
 
     protected $fillable = [
-        'tanggal', 'sales_id', 'produk_id', 'jumlah_loading', 'sisa_stok',
-        'terjual', 'status', 'keterangan', 'created_by',
-        'mobil_inti_id', 'status_approval', 'approved_by', 'approved_at', 'alasan',
+        'tanggal', 'sales_id', 'vehicle_inti_id', 'vehicle_sub_id', 'produk_id',
+        'jumlah_loading', 'sisa_stok', 'terjual', 'status', 'keterangan', 'created_by',
+        'status_approval', 'approved_by', 'approved_at', 'alasan',
     ];
 
     protected $casts = [
         'tanggal' => 'date',
         'approved_at' => 'datetime',
+        'jumlah_loading' => 'decimal:2',
+        'sisa_stok' => 'decimal:2',
+        'terjual' => 'decimal:2',
     ];
 
     public function sales()
@@ -24,9 +27,14 @@ class MineralLoading extends Model
         return $this->belongsTo(MineralSales::class, 'sales_id');
     }
 
-    public function mobilInti()
+    public function vehicleInti()
     {
-        return $this->belongsTo(MineralSales::class, 'mobil_inti_id');
+        return $this->belongsTo(Vehicle::class, 'vehicle_inti_id');
+    }
+
+    public function vehicleSub()
+    {
+        return $this->belongsTo(Vehicle::class, 'vehicle_sub_id');
     }
 
     public function produk()
@@ -42,5 +50,15 @@ class MineralLoading extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function getVehicleIntiNameAttribute(): ?string
+    {
+        return $this->vehicleInti?->license_plate;
+    }
+
+    public function getVehicleSubNameAttribute(): ?string
+    {
+        return $this->vehicleSub?->license_plate;
     }
 }

@@ -29,9 +29,6 @@ class HutangController extends Controller
 
     public function index(Request $request)
     {
-        // Auto-mark overdue hutang sebelum query
-        MineralHutang::markAllOverdue();
-
         $search      = $request->input('search');
         $pelanggan_id = $request->input('pelanggan_id');
         $status      = $request->input('status');
@@ -88,7 +85,6 @@ class HutangController extends Controller
 
     public function piutang(Request $request)
     {
-        MineralHutang::markAllOverdue();
         $search      = $request->input('search');
         $pelanggan_id = $request->input('pelanggan_id');
 

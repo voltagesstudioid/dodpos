@@ -204,25 +204,39 @@
                     <div class="mne-card-title">Informasi Kendaraan</div>
                 </div>
                 <div class="mne-card-body">
-                    <div class="mne-fg">
-                        <label class="mne-lbl">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                            Tugaskan Kendaraan <span class="mne-opt">(Opsional)</span>
-                        </label>
-                        <select name="vehicle_id" class="mne-inp @error('vehicle_id') is-invalid @enderror" style="max-width:400px;">
-                            <option value="">-- Pilih kendaraan --</option>
-                            @foreach($vehicles as $v)
-                                <option value="{{ $v->id }}" {{ old('vehicle_id', $sales->vehicle_id) == $v->id ? 'selected' : '' }}>
-                                    {{ strtoupper($v->license_plate) }}@if($v->type) · {{ $v->type }}@endif
-                                </option>
-                            @endforeach
-                        </select>
-                        <div class="mne-hint" style="font-size:0.6875rem;color:#94a3b8;margin-top:0.375rem;">
-                            Data kendaraan diambil dari menu Operasional &rarr; Data Kendaraan.
-                            <a href="{{ route('operasional.kendaraan.index') }}" target="_blank" style="color:#0891b2;font-weight:600;">Tambah kendaraan baru</a>
+                    @php
+                        $activeAssignment = $sales->currentAssignment;
+                    @endphp
+                    @if($activeAssignment)
+                        <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;">
+                            <div style="width:40px;height:40px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                                <svg width="20" height="20" fill="none" stroke="#16a34a" viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            </div>
+                            <div>
+                                <div style="font-weight:700;font-size:0.9375rem;color:#15803d;">
+                                    {{ strtoupper($activeAssignment->vehicle->license_plate ?? '-') }}
+                                    @if($activeAssignment->vehicle->type)
+                                        <span style="font-weight:400;color:#4b5563;">· {{ $activeAssignment->vehicle->type }}</span>
+                                    @endif
+                                </div>
+                                <div style="font-size:0.75rem;color:#6b7280;margin-top:2px;">
+                                    Role: <span style="font-weight:600;text-transform:uppercase;">{{ $activeAssignment->role }}</span>
+                                    · {{ $activeAssignment->tanggal_mulai->format('d M Y') }}
+                                    @if($activeAssignment->tanggal_selesai)
+                                        — {{ $activeAssignment->tanggal_selesai->format('d M Y') }}
+                                    @else
+                                        — Sekarang
+                                    @endif
+                                </div>
+                            </div>
                         </div>
-                        @error('vehicle_id')<div class="mne-err">{{ $message }}</div>@enderror
-                    </div>
+                    @else
+                        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;">
+                            <svg width="20" height="20" fill="none" stroke="#94a3b8" viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                            <span style="font-size:0.875rem;color:#64748b;">Belum ada kendaraan yang ditugaskan.</span>
+                            <a href="{{ route('mineral.sales.show', $sales) }}" style="margin-left:auto;font-size:0.75rem;font-weight:600;color:#0891b2;">Atur Assignment</a>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -236,14 +250,7 @@
                 </div>
                 <div class="mne-card-body">
                     <div style="display:flex;flex-direction:column;gap:1.125rem;">
-                        <div style="margin-bottom:0.5rem; display:flex; align-items:center; gap:12px;">
-                            <input type="checkbox" name="is_inti" id="cb-is-inti" value="1" {{ old('is_inti', $sales->is_inti) ? 'checked' : '' }} style="width:20px; height:20px; accent-color:#0891b2; cursor:pointer;">
-                            <div>
-                                <label for="cb-is-inti" style="font-size:0.875rem; font-weight:700; color:#0f172a; cursor:pointer;">Jadikan sebagai Mobil Inti</label>
-                                <div class="mne-hint" style="margin-top:0;">Centang jika sales ini bertugas membawa stok utama untuk didistribusikan ke sales sub (Mobil Sub).</div>
-                            </div>
-                        </div>
-
+                        
                         <div class="mne-fg">
                             <label class="mne-lbl" style="margin-bottom:0.5rem;">Status Sales <span class="mne-req">*</span></label>
                             <div class="mne-radios">

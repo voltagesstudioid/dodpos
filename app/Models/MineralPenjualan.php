@@ -59,9 +59,10 @@ class MineralPenjualan extends Model
 
     public static function generateFaktur()
     {
-        $prefix = 'FKM'; // Faktur Mineral
+        $prefix = 'FKM';
         $date = date('Ymd');
         $last = self::where('no_faktur', 'like', "{$prefix}{$date}%")
+            ->lockForUpdate()
             ->orderBy('no_faktur', 'desc')
             ->first();
         

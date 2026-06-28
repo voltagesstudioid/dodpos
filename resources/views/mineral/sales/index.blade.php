@@ -406,9 +406,14 @@
                                             <div class="sl-contact">{{ $s->no_hp ?? '-' }}</div>
                                         </td>
                                         <td>
-                                            <div class="sl-vehicle-plate">{{ $s->no_kendaraan ?? '-' }}</div>
-                                            @if($s->jenis_kendaraan)
-                                                <div class="sl-vehicle-type">{{ $s->jenis_kendaraan }}</div>
+                                            @php $v = $s->currentAssignment?->vehicle; @endphp
+                                            @if($v)
+                                                <div class="sl-vehicle-plate">{{ strtoupper($v->license_plate) }}</div>
+                                                @if($v->type)
+                                                    <div class="sl-vehicle-type">{{ $v->type }}</div>
+                                                @endif
+                                            @else
+                                                <span style="color:#cbd5e1;font-style:italic;font-size:0.8125rem;">—</span>
                                             @endif
                                         </td>
                                         <td style="text-align:center;">

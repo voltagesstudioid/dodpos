@@ -79,7 +79,7 @@
                             <span class="text-sm text-gray-500">Koordinat</span>
                             <a href="https://maps.google.com/?q={{ $kunjungan->latitude_checkin }},{{ $kunjungan->longitude_checkin }}"
                                target="_blank" class="text-sm font-medium text-blue-600 hover:underline">
-                                {{ number_format((float)$kunjungan->latitude_checkin, 6) }}, {{ number_format((float)$kunjungan->longitude_checkin, 6) }}
+                                {{ number_format((float)$kunjungan->latitude_checkin, 6, '.', '') }}, {{ number_format((float)$kunjungan->longitude_checkin, 6, '.', '') }}
                             </a>
                         </div>
                         @endif

@@ -417,7 +417,7 @@
                                 <div class="lp-bar-fill purple" style="width:{{ $percentage }}%"></div>
                             </div>
                             <div class="lp-bar-info">
-                                <div class="lp-bar-val">Rp {{ number_format($d->total/1000, 0) }}k</div>
+                                <div class="lp-bar-val">Rp {{ number_format($d->total/1000, 0, ',', '.') }}k</div>
                                 <div class="lp-bar-sub">{{ $d->jumlah }} trx</div>
                             </div>
                         </div>
@@ -443,7 +443,7 @@
                                 <div class="lp-bar-fill blue" style="width:{{ $percentage }}%"></div>
                             </div>
                             <div class="lp-bar-info">
-                                <div class="lp-bar-val">Rp {{ number_format($sp->omzet/1000, 0) }}k</div>
+                                <div class="lp-bar-val">Rp {{ number_format($sp->omzet/1000, 0, ',', '.') }}k</div>
                                 <div class="lp-bar-sub">{{ $sp->total_penjualan }} trx</div>
                             </div>
                         </div>
@@ -523,7 +523,7 @@
                     <div class="lp-summary-title">Ringkasan Hutang</div>
                     <div class="lp-hutang">
                         <div class="lp-hutang-item red">
-                            <div class="lp-hutang-val red">Rp {{ number_format($hutangSummary['total_hutang']/1000000, 1) }}M</div>
+                            <div class="lp-hutang-val red">Rp {{ number_format($hutangSummary['total_hutang']/1000000, 1, '.', '') }}M</div>
                             <div class="lp-hutang-lbl">Total Piutang</div>
                         </div>
                         <div class="lp-hutang-item amber">
@@ -531,7 +531,7 @@
                             <div class="lp-hutang-lbl">Pelanggan Hutang</div>
                         </div>
                         <div class="lp-hutang-item blue">
-                            <div class="lp-hutang-val blue">Rp {{ number_format($hutangSummary['hutang_baru']/1000000, 1) }}M</div>
+                            <div class="lp-hutang-val blue">Rp {{ number_format($hutangSummary['hutang_baru']/1000000, 1, '.', '') }}M</div>
                             <div class="lp-hutang-lbl">Hutang Baru</div>
                         </div>
                     </div>
@@ -563,7 +563,7 @@
                 </div>
                 <div class="pr-kpi">
                     <div class="pr-kpi-lbl">Jumlah Transaksi</div>
-                    <div class="pr-kpi-val">{{ number_format($summary['jumlah_transaksi']) }}</div>
+                    <div class="pr-kpi-val">{{ number_format($summary['jumlah_transaksi'], 0, ',', '.') }}</div>
                 </div>
                 <div class="pr-kpi">
                     <div class="pr-kpi-lbl">Total Tunai</div>

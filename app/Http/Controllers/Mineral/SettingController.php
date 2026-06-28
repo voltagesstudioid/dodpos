@@ -90,7 +90,15 @@ class SettingController extends Controller
             'status' => 'required|in:aktif,nonaktif',
         ]);
 
+        $oldNama = $satuan->nama;
         $satuan->update($validated);
+
+        // Sync satuan string on all products referencing this satuan_id
+        if ($oldNama !== $validated['nama']) {
+            MineralProduk::where('satuan_id', $satuan->id)
+                ->where('satuan', $oldNama)
+                ->update(['satuan' => $validated['nama']]);
+        }
 
         return redirect()->route('mineral.setting.index')
             ->with('success', 'Satuan berhasil diperbarui.');
@@ -98,7 +106,7 @@ class SettingController extends Controller
 
     public function destroySatuan(MineralSatuan $satuan)
     {
-        $usedCount = MineralProduk::where('satuan', $satuan->nama)->count();
+        $usedCount = MineralProduk::where('satuan_id', $satuan->id)->count();
         if ($usedCount > 0) {
             return redirect()->route('mineral.setting.index')
                 ->with('error', 'Satuan "' . $satuan->nama . '" tidak bisa dihapus karena masih digunakan oleh ' . $usedCount . ' produk.');

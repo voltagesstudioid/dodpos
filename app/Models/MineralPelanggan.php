@@ -46,9 +46,10 @@ class MineralPelanggan extends Model
 
     public static function generateKode()
     {
-        $prefix = 'PLM'; // Pelanggan Mineral
+        $prefix = 'PLM';
         $date = date('Ymd');
         $last = self::where('kode_pelanggan', 'like', "{$prefix}{$date}%")
+            ->lockForUpdate()
             ->orderBy('kode_pelanggan', 'desc')
             ->first();
         

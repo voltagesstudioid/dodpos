@@ -136,7 +136,7 @@
                     <div class="pj-grid">
                         <div class="pj-fld">
                             <label class="pj-lbl">Jumlah <span class="pj-req">*</span></label>
-                            <input type="number" name="jumlah" id="inp-jumlah" value="{{ old('jumlah', 1) }}" min="1" class="pj-inp" required>
+                            <input type="number" name="jumlah" id="inp-jumlah" value="{{ old('jumlah', 1) }}" min="0.01" step="any" class="pj-inp" required>
                         </div>
                         <div class="pj-fld">
                             <label class="pj-lbl">Harga Satuan <span class="pj-req">*</span></label>

@@ -164,7 +164,13 @@ class SetoranController extends Controller
         $buktiSetorPath = null;
         if ($request->hasFile('foto_bukti_setor')) {
             try {
-                $buktiSetorPath = FileUploadService::upload($request->file('foto_bukti_setor'), 'bukti-setor');
+                $upload = FileUploadService::uploadImage(
+                    $request->file('foto_bukti_setor'),
+                    'bukti-setor/mineral',
+                    'public',
+                    ['max_width' => 1200, 'max_height' => 1200]
+                );
+                $buktiSetorPath = $upload['path'];
             } catch (\Exception $e) {
                 return back()->withInput()
                     ->with('error', 'Gagal upload bukti setoran: ' . $e->getMessage());

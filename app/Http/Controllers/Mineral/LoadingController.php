@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\MineralLoading;
 use App\Models\MineralSales;
 use App\Models\MineralProduk;
+use App\Models\Vehicle;
 use App\Models\VehicleStock;
+use App\Models\VehicleAssignment;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,12 +28,16 @@ class LoadingController extends Controller
         $sales_id = $request->input('sales_id');
         $tanggal = $request->input('tanggal');
 
-        $loadings = MineralLoading::with(['sales', 'produk', 'mobilInti'])
+        $loadings = MineralLoading::with(['sales', 'produk', 'vehicleInti', 'vehicleSub'])
             ->when($search, function ($query) use ($search) {
                 $query->whereHas('sales', function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%");
                 })->orWhereHas('produk', function ($q) use ($search) {
                     $q->where('nama', 'like', "%{$search}%");
+                })->orWhereHas('vehicleInti', function ($q) use ($search) {
+                    $q->where('license_plate', 'like', "%{$search}%");
+                })->orWhereHas('vehicleSub', function ($q) use ($search) {
+                    $q->where('license_plate', 'like', "%{$search}%");
                 });
             })
             ->when($sales_id, function ($query) use ($sales_id) {
@@ -67,11 +73,35 @@ class LoadingController extends Controller
 
     public function create()
     {
-        $salesSub = MineralSales::with('vehicle')->aktif()->where('is_inti', false)->get();
+        $tanggal = request()->input('tanggal', now()->toDateString());
+
+        $salesSub = MineralSales::aktif()->get();
+
+        $vehiclesInti = Vehicle::aktif()
+            ->whereHas('assignments', function ($q) use ($tanggal) {
+                $q->where('role', 'inti')
+                    ->where('status', 'aktif')
+                    ->forDate($tanggal);
+            })
+            ->with(['currentAssignment' => function ($q) use ($tanggal) {
+                $q->where('role', 'inti')->forDate($tanggal);
+            }, 'currentAssignment.sales'])
+            ->get();
+
+        $vehiclesSub = Vehicle::aktif()
+            ->whereHas('assignments', function ($q) use ($tanggal) {
+                $q->where('role', 'sub')
+                    ->where('status', 'aktif')
+                    ->forDate($tanggal);
+            })
+            ->with(['currentAssignment' => function ($q) use ($tanggal) {
+                $q->where('role', 'sub')->forDate($tanggal);
+            }, 'currentAssignment.sales'])
+            ->get();
+
         $produks = MineralProduk::where('status', 'aktif')->get();
-        $mobilInti = MineralSales::with('vehicle')->aktif()->where('is_inti', true)->get();
-        
-        return view('mineral.loading.create', compact('salesSub', 'produks', 'mobilInti'));
+
+        return view('mineral.loading.create', compact('salesSub', 'vehiclesInti', 'vehiclesSub', 'produks', 'tanggal'));
     }
 
     public function vehicleStock(Request $request, $vehicleId, $produkId)
@@ -92,51 +122,63 @@ class LoadingController extends Controller
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'produk_id' => 'required|exists:mineral_produk,id',
-            'mobil_inti_id' => 'required|exists:mineral_sales,id',
+            'vehicle_inti_id' => 'required|exists:vehicles,id',
             'items' => 'required|array|min:1',
             'items.*.sales_id' => 'required|exists:mineral_sales,id',
+            'items.*.vehicle_sub_id' => 'required|exists:vehicles,id',
             'items.*.jumlah' => 'required|numeric|min:0.01',
             'keterangan' => 'nullable|string',
         ]);
 
-        $mobilInti = MineralSales::find($validated['mobil_inti_id']);
-        if (!$mobilInti || !$mobilInti->is_inti) {
+        $vehicleInti = Vehicle::find($validated['vehicle_inti_id']);
+        if (!$vehicleInti) {
             return redirect()->back()->withInput()
-                ->with('error', 'Sales yang dipilih sebagai Mobil Inti tidak valid.');
+                ->with('error', 'Kendaraan inti tidak ditemukan.');
         }
 
-        if (!$mobilInti->vehicle_id) {
+        $assignmentInti = VehicleAssignment::getActiveAssignment($vehicleInti->id, 'inti');
+        if (!$assignmentInti) {
             return redirect()->back()->withInput()
-                ->with('error', 'Mobil Inti belum memiliki kendaraan yang terhubung.');
+                ->with('error', 'Kendaraan inti tidak memiliki assignment aktif untuk hari ini.');
         }
 
         DB::beginTransaction();
         try {
             $salesIds = collect($validated['items'])->pluck('sales_id')->unique();
+            $vehicleSubIds = collect($validated['items'])->pluck('vehicle_sub_id')->unique();
 
-            foreach ($salesIds as $sid) {
-                if ((int) $sid === (int) $validated['mobil_inti_id']) {
+            foreach ($validated['items'] as $item) {
+                $salesCheck = MineralSales::find($item['sales_id']);
+                if (!$salesCheck) {
                     DB::rollBack();
                     return redirect()->back()->withInput()
-                        ->with('error', 'Sales pemohon tidak boleh sama dengan Mobil Inti.');
-                }
-                $salesCheck = MineralSales::find($sid);
-                if ($salesCheck && $salesCheck->is_inti) {
-                    DB::rollBack();
-                    return redirect()->back()->withInput()
-                        ->with('error', "Sales {$salesCheck->nama} adalah Mobil Inti dan tidak bisa meminta stok ke dirinya sendiri.");
+                        ->with('error', "Sales tidak ditemukan.");
                 }
 
-                if (!$salesCheck->vehicle_id) {
+                $vehicleSub = Vehicle::find($item['vehicle_sub_id']);
+                if (!$vehicleSub) {
                     DB::rollBack();
                     return redirect()->back()->withInput()
-                        ->with('error', "Sales {$salesCheck->nama} belum dihubungkan dengan kendaraan.");
+                        ->with('error', "Kendaraan sub tidak ditemukan.");
+                }
+
+                $assignmentSub = VehicleAssignment::getActiveAssignment($vehicleSub->id, 'sub');
+                if (!$assignmentSub || $assignmentSub->sales_id != $item['sales_id']) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', "Kendaraan sub {$vehicleSub->license_plate} tidak di-assign ke sales {$salesCheck->nama} untuk hari ini.");
+                }
+
+                if ($vehicleSub->id == $vehicleInti->id) {
+                    DB::rollBack();
+                    return redirect()->back()->withInput()
+                        ->with('error', 'Kendaraan sub tidak boleh sama dengan kendaraan inti.');
                 }
             }
 
             $existingLoadings = MineralLoading::where('produk_id', $validated['produk_id'])
                 ->whereDate('tanggal', $validated['tanggal'])
-                ->where('mobil_inti_id', $validated['mobil_inti_id'])
+                ->where('vehicle_inti_id', $validated['vehicle_inti_id'])
                 ->where('status_approval', '!=', 'rejected')
                 ->whereIn('sales_id', $salesIds)
                 ->pluck('sales_id')
@@ -146,14 +188,15 @@ class LoadingController extends Controller
                 $dupNames = MineralSales::whereIn('id', $existingLoadings)->pluck('nama')->implode(', ');
                 DB::rollBack();
                 return redirect()->back()->withInput()
-                    ->with('error', 'Sales berikut sudah memiliki permintaan aktif untuk produk, tanggal & mobil inti ini: ' . $dupNames);
+                    ->with('error', 'Sales berikut sudah memiliki permintaan aktif untuk produk & kendaraan inti ini: ' . $dupNames);
             }
 
             foreach ($validated['items'] as $item) {
                 MineralLoading::create([
                     'tanggal' => $validated['tanggal'],
                     'sales_id' => $item['sales_id'],
-                    'mobil_inti_id' => $validated['mobil_inti_id'],
+                    'vehicle_inti_id' => $validated['vehicle_inti_id'],
+                    'vehicle_sub_id' => $item['vehicle_sub_id'],
                     'produk_id' => $validated['produk_id'],
                     'jumlah_loading' => (float) $item['jumlah'],
                     'sisa_stok' => 0,
@@ -168,7 +211,7 @@ class LoadingController extends Controller
             AuditService::logInventory('loading.create', 'MineralLoading', 0, [
                 'tanggal' => $validated['tanggal'],
                 'produk_id' => $validated['produk_id'],
-                'mobil_inti_id' => $validated['mobil_inti_id'],
+                'vehicle_inti_id' => $validated['vehicle_inti_id'],
                 'jumlah_sales' => count($validated['items']),
                 'total_loading' => collect($validated['items'])->sum('jumlah'),
             ]);
@@ -191,9 +234,10 @@ class LoadingController extends Controller
 
     public function show(MineralLoading $loading)
     {
-        $loading->load(['sales', 'produk', 'creator', 'mobilInti', 'approver']);
-        
-        return view('mineral.loading.show', compact('loading'));
+        $loading->load(['sales', 'produk', 'creator', 'vehicleInti', 'vehicleSub', 'approver']);
+        $canApprove = $this->userCanApprove();
+
+        return view('mineral.loading.show', compact('loading', 'canApprove'));
     }
 
     public function edit(MineralLoading $loading)
@@ -205,8 +249,9 @@ class LoadingController extends Controller
 
         $sales = MineralSales::aktif()->get();
         $produks = MineralProduk::where('status', 'aktif')->get();
-        
-        return view('mineral.loading.edit', compact('loading', 'sales', 'produks'));
+        $vehiclesSub = Vehicle::aktif()->get();
+
+        return view('mineral.loading.edit', compact('loading', 'sales', 'produks', 'vehiclesSub'));
     }
 
     public function update(Request $request, MineralLoading $loading)
@@ -219,6 +264,7 @@ class LoadingController extends Controller
         $validated = $request->validate([
             'tanggal' => 'required|date',
             'sales_id' => 'required|exists:mineral_sales,id',
+            'vehicle_sub_id' => 'required|exists:vehicles,id',
             'produk_id' => 'required|exists:mineral_produk,id',
             'jumlah_loading' => 'required|numeric|min:0.01',
             'status' => 'required|in:loading,proses,selesai',
@@ -251,20 +297,24 @@ class LoadingController extends Controller
         DB::beginTransaction();
         try {
             if ($loading->status_approval === 'approved') {
-                $mobilInti = MineralSales::find($loading->mobil_inti_id);
-                $subSales = MineralSales::find($loading->sales_id);
+                $vehicleInti = Vehicle::find($loading->vehicle_inti_id);
+                $vehicleSub = Vehicle::find($loading->vehicle_sub_id);
 
-                if ($mobilInti && $subSales && $mobilInti->vehicle_id && $subSales->vehicle_id) {
-                    VehicleStock::where('vehicle_id', $subSales->vehicle_id)
-                        ->where('produk_id', $loading->produk_id)
-                        ->decrement('jumlah', (float) $loading->jumlah_loading);
+                if ($vehicleInti && $vehicleSub) {
+                    $sisaStok = (float) $loading->sisa_stok;
 
-                    $returnStock = VehicleStock::firstOrNew([
-                        'vehicle_id' => $mobilInti->vehicle_id,
-                        'produk_id' => $loading->produk_id,
-                    ]);
-                    $returnStock->jumlah = ((float) $returnStock->jumlah) + (float) $loading->jumlah_loading;
-                    $returnStock->save();
+                    if ($sisaStok > 0) {
+                        VehicleStock::where('vehicle_id', $vehicleSub->id)
+                            ->where('produk_id', $loading->produk_id)
+                            ->decrement('jumlah', $sisaStok);
+
+                        $returnStock = VehicleStock::firstOrNew([
+                            'vehicle_id' => $vehicleInti->id,
+                            'produk_id' => $loading->produk_id,
+                        ]);
+                        $returnStock->jumlah = ((float) $returnStock->jumlah) + $sisaStok;
+                        $returnStock->save();
+                    }
 
                     MineralProduk::find($loading->produk_id)?->recalculateStokGudang();
                 }
@@ -278,7 +328,7 @@ class LoadingController extends Controller
                 ->with('success', 'Penugasan kendaraan berhasil dihapus.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()
+            return redirect()->back()->withInput()
                 ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
@@ -297,20 +347,11 @@ class LoadingController extends Controller
 
         DB::beginTransaction();
         try {
-            $mobilInti = MineralSales::findOrFail($loading->mobil_inti_id);
-            $subSales = MineralSales::findOrFail($loading->sales_id);
-
-            $mainVehicleId = $mobilInti->vehicle_id;
-            $subVehicleId = $subSales->vehicle_id;
-
-            if (!$mainVehicleId || !$subVehicleId) {
-                DB::rollBack();
-                return redirect()->route('mineral.loading.index')
-                    ->with('error', 'Mobil inti atau sales sub belum memiliki data kendaraan.');
-            }
+            $vehicleInti = Vehicle::findOrFail($loading->vehicle_inti_id);
+            $vehicleSub = Vehicle::findOrFail($loading->vehicle_sub_id);
 
             $mainStock = VehicleStock::firstOrNew([
-                'vehicle_id' => $mainVehicleId,
+                'vehicle_id' => $vehicleInti->id,
                 'produk_id' => $loading->produk_id,
             ]);
 
@@ -319,15 +360,15 @@ class LoadingController extends Controller
             if ((float) $mainStock->jumlah < $jumlah) {
                 DB::rollBack();
                 return redirect()->route('mineral.loading.index')
-                    ->with('error', 'Stok di mobil inti tidak mencukupi. Tersedia: ' . ((float) $mainStock->jumlah) . ', diminta: ' . $jumlah);
+                    ->with('error', 'Stok di kendaraan inti tidak mencukupi. Tersedia: ' . ((float) $mainStock->jumlah) . ', diminta: ' . $jumlah);
             }
 
-            VehicleStock::where('vehicle_id', $mainVehicleId)
+            VehicleStock::where('vehicle_id', $vehicleInti->id)
                 ->where('produk_id', $loading->produk_id)
                 ->decrement('jumlah', $jumlah);
 
             $subStock = VehicleStock::firstOrNew([
-                'vehicle_id' => $subVehicleId,
+                'vehicle_id' => $vehicleSub->id,
                 'produk_id' => $loading->produk_id,
             ]);
             $subStock->jumlah = ((float) $subStock->jumlah) + $jumlah;
@@ -344,7 +385,8 @@ class LoadingController extends Controller
 
             AuditService::logInventory('loading.approve', 'MineralLoading', $loading->id, [
                 'sales_id' => $loading->sales_id,
-                'mobil_inti_id' => $loading->mobil_inti_id,
+                'vehicle_inti_id' => $loading->vehicle_inti_id,
+                'vehicle_sub_id' => $loading->vehicle_sub_id,
                 'produk_id' => $loading->produk_id,
                 'jumlah' => $jumlah,
             ]);
@@ -352,7 +394,7 @@ class LoadingController extends Controller
             DB::commit();
 
             return redirect()->route('mineral.loading.index')
-                ->with('success', 'Permintaan penugasan disetujui. Stok telah dipindahkan ke mobil sub.');
+                ->with('success', 'Permintaan penugasan disetujui. Stok telah dipindahkan ke kendaraan sub.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->route('mineral.loading.index')

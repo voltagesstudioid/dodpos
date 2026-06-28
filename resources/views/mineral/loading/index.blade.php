@@ -196,7 +196,7 @@
                             @else
                                 @foreach($stats['total_per_unit'] as $satuan => $total)
                                     <div>
-                                        <span class="ld-kpi-val blue">{{ number_format($total) }}</span>
+                                        <span class="ld-kpi-val blue">{{ number_format($total, 0, ',', '.') }}</span>
                                         <span class="ld-kpi-unit">{{ $satuan }}</span>
                                     </div>
                                 @endforeach
@@ -296,8 +296,8 @@
                                     </td>
                                     <td>
                                         <div class="ld-sales">
-                                            <div class="ld-sales-av" style="background:linear-gradient(135deg,#f59e0b,#d97706);">{{ substr($l->mobilInti->nama ?? '?', 0, 1) }}</div>
-                                            <div class="ld-sales-name">{{ $l->mobilInti->nama ?? '-' }}</div>
+                                            <div class="ld-sales-av" style="background:linear-gradient(135deg,#f59e0b,#d97706);">{{ substr($l->vehicleInti?->license_plate ?? '?', 0, 1) }}</div>
+                                            <div class="ld-sales-name">{{ $l->vehicleInti?->license_plate ?? '-' }}</div>
                                         </div>
                                     </td>
                                     <td>
@@ -305,7 +305,7 @@
                                     </td>
                                     <td style="text-align:right;">
                                         <div class="ld-vol ld-vol-blue">
-                                            <span class="ld-vol-main">{{ number_format($l->jumlah_loading) }}</span>
+                                            <span class="ld-vol-main">{{ number_format($l->jumlah_loading, 0, ',', '.') }}</span>
                                             <span class="ld-vol-unit">{{ $l->produk->satuan }}</span>
                                         </div>
                                     </td>

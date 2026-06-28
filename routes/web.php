@@ -912,6 +912,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::resource('loading', \App\Http\Controllers\Mineral\LoadingController::class);
         Route::post('/loading/{loading}/approve', [\App\Http\Controllers\Mineral\LoadingController::class, 'approve'])->name('loading.approve');
         Route::post('/loading/{loading}/reject', [\App\Http\Controllers\Mineral\LoadingController::class, 'reject'])->name('loading.reject');
+
+        // API Internal for AJAX
+        Route::get('/api/vehicle-stock/{vehicle}/{produk}', [\App\Http\Controllers\Mineral\LoadingController::class, 'vehicleStock'])->name('api.vehicle-stock');
     });
 
     // --- Supervisor & Admin only (full access features) ---
@@ -922,6 +925,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Master Data - Sales
         Route::resource('sales', \App\Http\Controllers\Mineral\SalesController::class)->parameters(['sales' => 'sales']);
+        Route::post('/sales/{sales}/assign-vehicle', [\App\Http\Controllers\Mineral\SalesController::class, 'assignVehicle'])->name('sales.assign_vehicle');
+        Route::post('/sales/assignment/{assignment}/end', [\App\Http\Controllers\Mineral\SalesController::class, 'endAssignment'])->name('sales.end_assignment');
 
         // Master Data - Pelanggan (edit/update/delete only)
         Route::resource('pelanggan', \App\Http\Controllers\Mineral\PelangganController::class)->except(['index', 'create', 'store', 'show']);

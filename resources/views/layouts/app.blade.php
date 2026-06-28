@@ -1098,12 +1098,17 @@
                         <a href="{{ route('mineral.setting.index') }}" class="nav-item {{ request()->routeIs('mineral.setting.*') ? 'active' : '' }}"><span class="nav-item-icon">⚙️</span><span>Jenis & Satuan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-                    {{-- Operasional (supervisor) --}}
+                    {{-- Persediaan & Distribusi --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
-                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Penugasan Kendaraan</span></a>
-                        <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Persediaan &amp; Distribusi</div>
                         <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
+                        <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
+                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Distribusi Stok</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
+                    {{-- Transaksi --}}
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📝</span> Transaksi</div>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
@@ -1111,9 +1116,8 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
                         <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Rekap Piutang</span></a>
                         <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                     </div>
@@ -1137,24 +1141,27 @@
                 @else
                     {{-- Sales Mineral navigation (limited) --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi</div>
                         <a href="{{ route('mineral.pelanggan.index') }}" class="nav-item {{ request()->routeIs('mineral.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
                         <a href="{{ route('mineral.produk.index') }}" class="nav-item {{ request()->routeIs('mineral.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">💧</span><span>Data Produk</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
-                        <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Persediaan</div>
                         <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
+                        <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📝</span> Transaksi</div>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
                         <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
+                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Rekap Piutang</span></a>
                         <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                     </div>

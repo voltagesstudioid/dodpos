@@ -10,6 +10,7 @@ use App\Models\MineralLoading;
 use App\Models\MineralPelanggan;
 use App\Models\MineralPenjualan;
 use App\Models\MineralProduk;
+use App\Models\MineralRegionalHarga;
 use App\Models\MineralSales;
 use App\Models\MineralSetoran;
 use Illuminate\Http\Request;
@@ -256,18 +257,27 @@ class MineralApiController extends Controller
     {
         $user = $request->user();
         $sales = MineralSales::where('user_id', $user->id)->first();
-        $today = now()->toDateString();
 
         $produks = MineralProduk::where('status', 'aktif')->get();
 
-        $data = $produks->map(function ($p) use ($sales, $today) {
+        $data = $produks->map(function ($p) use ($sales) {
             $sisaStok = 0;
             if ($sales) {
-                $loading = MineralLoading::where('sales_id', $sales->id)
+                $sisaStok = (float) MineralLoading::where('sales_id', $sales->id)
                     ->where('produk_id', $p->id)
-                    ->whereDate('tanggal', $today)
+                    ->where('sisa_stok', '>', 0)
+                    ->where('status_approval', 'approved')
+                    ->sum('sisa_stok');
+            }
+
+            $hargaJual = (float) $p->harga_jual;
+            if ($sales && $sales->regional_id) {
+                $regionalHarga = MineralRegionalHarga::where('regional_id', $sales->regional_id)
+                    ->where('produk_id', $p->id)
                     ->first();
-                $sisaStok = $loading?->sisa_stok ?? 0;
+                if ($regionalHarga && $regionalHarga->harga_jual > 0) {
+                    $hargaJual = (float) $regionalHarga->harga_jual;
+                }
             }
 
             return [
@@ -276,7 +286,7 @@ class MineralApiController extends Controller
                 'nama' => $p->nama,
                 'jenis' => $p->jenis,
                 'satuan' => $p->satuan,
-                'harga_jual' => (float) $p->harga_jual,
+                'harga_jual' => $hargaJual,
                 'harga_modal' => (float) $p->harga_modal,
                 'sisa_stok_sales' => $sisaStok,
             ];
@@ -332,6 +342,28 @@ class MineralApiController extends Controller
     }
 
     /**
+     * Find the active loading record for a sales+product combination.
+     * Prioritize loading with sisa_stok > 0, fallback to most recent.
+     */
+    private function findLoadingRecord(int $salesId, int $produkId): ?MineralLoading
+    {
+        $loading = MineralLoading::where('sales_id', $salesId)
+            ->where('produk_id', $produkId)
+            ->where('sisa_stok', '>', 0)
+            ->where('status_approval', 'approved')
+            ->orderBy('tanggal', 'desc')
+            ->first();
+
+        if ($loading) return $loading;
+
+        return MineralLoading::where('sales_id', $salesId)
+            ->where('produk_id', $produkId)
+            ->where('status_approval', 'approved')
+            ->orderBy('tanggal', 'desc')
+            ->first();
+    }
+
+    /**
      * Create new penjualan
      */
     public function storePenjualan(Request $request)
@@ -343,11 +375,13 @@ class MineralApiController extends Controller
             'jumlah' => 'required|integer|min:1',
             'harga_satuan' => 'required|numeric|min:0',
             'tipe_bayar' => 'required|in:tunai,hutang,transfer',
+            'no_bukti_transfer' => 'required_if:tipe_bayar,transfer|nullable|string|max:100',
             'bayar' => 'nullable|numeric|min:0',
             'keterangan' => 'nullable|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'foto_nota' => 'nullable|string',
+            'bukti_transfer' => 'nullable|string',
         ]);
 
         $user = $request->user();
@@ -363,17 +397,33 @@ class MineralApiController extends Controller
         $pelanggan = MineralPelanggan::findOrFail($request->pelanggan_id);
         $produk = MineralProduk::findOrFail($request->produk_id);
 
-        $total = $request->jumlah * $request->harga_satuan;
-        $bayar = $request->bayar ?? 0;
-        $kembali = $request->tipe_bayar === 'tunai' ? max(0, $bayar - $total) : 0;
-        $hutang = $request->tipe_bayar === 'hutang' ? $total : 0;
+        $hargaSatuan = (float) $request->harga_satuan;
+        if ($sales->regional_id && $hargaSatuan === (float) $produk->harga_jual) {
+            $regionalHarga = MineralRegionalHarga::where('regional_id', $sales->regional_id)
+                ->where('produk_id', $produk->id)
+                ->first();
+            if ($regionalHarga && $regionalHarga->harga_jual > 0) {
+                $hargaSatuan = (float) $regionalHarga->harga_jual;
+            }
+        }
 
-        // Validate stock
-        $today = now()->toDateString();
-        $loading = MineralLoading::where('sales_id', $sales->id)
-            ->where('produk_id', $request->produk_id)
-            ->whereDate('tanggal', $today)
-            ->first();
+        $total = $request->jumlah * $hargaSatuan;
+        $bayar = $request->bayar ?? 0;
+
+        if ($request->tipe_bayar === 'tunai') {
+            $bayar = $total;
+            $kembali = 0;
+            $hutang = 0;
+        } elseif ($request->tipe_bayar === 'hutang') {
+            $kembali = 0;
+            $hutang = $total - $bayar;
+        } else {
+            $bayar = $total;
+            $kembali = 0;
+            $hutang = 0;
+        }
+
+        $loading = $this->findLoadingRecord($sales->id, $request->produk_id);
 
         if (! $loading || $loading->sisa_stok < $request->jumlah) {
             return response()->json([
@@ -383,7 +433,6 @@ class MineralApiController extends Controller
             ], 422);
         }
 
-        // Validate hutang limit
         if ($request->tipe_bayar === 'hutang') {
             if ($pelanggan->limit_hutang <= 0) {
                 return response()->json([
@@ -393,40 +442,68 @@ class MineralApiController extends Controller
                     'total_hutang_saat_ini' => $pelanggan->total_hutang,
                 ], 422);
             }
-            
-            $totalHutangBaru = $pelanggan->total_hutang + $total;
-            if ($totalHutangBaru > $pelanggan->limit_hutang) {
+
+            $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
+            if ($hutang > $sisaLimit) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Limit hutang melebihi batas',
                     'limit_hutang' => $pelanggan->limit_hutang,
                     'total_hutang_saat_ini' => $pelanggan->total_hutang,
+                    'sisa_limit' => max(0, $sisaLimit),
                 ], 422);
             }
         }
 
         DB::beginTransaction();
         try {
-            // Handle foto_nota
             $fotoNotaPath = null;
             if ($request->foto_nota) {
                 $imageData = base64_decode($request->foto_nota);
-                $filename = 'nota/' . uniqid() . '.jpg';
-                Storage::disk('public')->put($filename, $imageData);
-                $fotoNotaPath = $filename;
+                if ($imageData !== false) {
+                    $dir = 'nota-photos/' . now()->format('Y-m-d');
+                    $filename = 'webcam_' . uniqid() . '.jpg';
+                    Storage::disk('public')->put($dir . '/' . $filename, $imageData);
+                    $fotoNotaPath = $dir . '/' . $filename;
+                }
             }
 
-            // Create penjualan
+            $buktiTransferPath = null;
+            if ($request->tipe_bayar === 'transfer' && $request->bukti_transfer) {
+                $imageData = base64_decode($request->bukti_transfer);
+                if ($imageData !== false) {
+                    $dir = 'transfer-photos/' . now()->format('Y-m-d');
+                    $filename = 'transfer_' . uniqid() . '.jpg';
+                    Storage::disk('public')->put($dir . '/' . $filename, $imageData);
+                    $buktiTransferPath = $dir . '/' . $filename;
+                }
+            }
+
+            $kunjungan = MineralKunjungan::create([
+                'sales_id'         => $sales->id,
+                'pelanggan_id'     => $request->pelanggan_id,
+                'waktu_checkin'    => now(),
+                'latitude_checkin' => $request->latitude,
+                'longitude_checkin'=> $request->longitude,
+                'foto_checkin'     => $fotoNotaPath,
+                'catatan'          => 'Auto dari penjualan API',
+                'status'           => 'checkin',
+                'ada_penjualan'    => true,
+            ]);
+
             $penjualan = MineralPenjualan::create([
+                'kunjungan_id' => $kunjungan->id,
                 'no_faktur' => MineralPenjualan::generateFaktur(),
                 'tanggal_jual' => $request->tanggal_jual,
                 'sales_id' => $sales->id,
                 'pelanggan_id' => $request->pelanggan_id,
                 'produk_id' => $request->produk_id,
                 'jumlah' => $request->jumlah,
-                'harga_satuan' => $request->harga_satuan,
+                'harga_satuan' => $hargaSatuan,
                 'total' => $total,
                 'tipe_bayar' => $request->tipe_bayar,
+                'no_bukti_transfer' => $request->no_bukti_transfer ?? null,
+                'bukti_transfer' => $buktiTransferPath,
                 'bayar' => $bayar,
                 'kembali' => $kembali,
                 'hutang' => $hutang,
@@ -437,12 +514,13 @@ class MineralApiController extends Controller
                 'status' => 'pending',
             ]);
 
-            // Update loading stock
             $loading->terjual += $request->jumlah;
             $loading->sisa_stok -= $request->jumlah;
+            if ($loading->sisa_stok <= 0 && $loading->status !== 'selesai') {
+                $loading->status = 'selesai';
+            }
             $loading->save();
 
-            // Create hutang record if needed
             if ($hutang > 0) {
                 MineralHutang::create([
                     'pelanggan_id' => $request->pelanggan_id,
@@ -454,8 +532,8 @@ class MineralApiController extends Controller
                     'status' => 'belum_lunas',
                 ]);
 
-                // Update pelanggan total hutang
-                $pelanggan->total_hutang += $hutang;
+                $pelanggan = MineralPelanggan::find($request->pelanggan_id);
+                $pelanggan->total_hutang = (float) $pelanggan->total_hutang + (float) $hutang;
                 $pelanggan->save();
             }
 
@@ -511,13 +589,61 @@ class MineralApiController extends Controller
         $failed = [];
 
         foreach ($request->penjualan as $item) {
+            DB::beginTransaction();
             try {
                 $total = $item['jumlah'] * $item['harga_satuan'];
                 $bayar = $item['bayar'] ?? 0;
-                $kembali = $item['tipe_bayar'] === 'tunai' ? max(0, $bayar - $total) : 0;
-                $hutang = $item['tipe_bayar'] === 'hutang' ? $total : 0;
+
+                if ($item['tipe_bayar'] === 'tunai') {
+                    $bayar = $total;
+                    $kembali = 0;
+                    $hutang = 0;
+                } elseif ($item['tipe_bayar'] === 'hutang') {
+                    $kembali = 0;
+                    $hutang = $total - $bayar;
+                } else {
+                    $bayar = $total;
+                    $kembali = 0;
+                    $hutang = 0;
+                }
+
+                $loading = $this->findLoadingRecord($sales->id, $item['produk_id']);
+
+                if (! $loading || $loading->sisa_stok < $item['jumlah']) {
+                    DB::rollBack();
+                    $failed[] = [
+                        'local_id' => $item['local_id'],
+                        'error' => 'Stok tidak mencukupi. Tersedia: ' . ($loading?->sisa_stok ?? 0),
+                    ];
+                    continue;
+                }
+
+                $pelanggan = MineralPelanggan::find($item['pelanggan_id']);
+                if ($hutang > 0 && $pelanggan) {
+                    $sisaLimit = (float) $pelanggan->limit_hutang - (float) $pelanggan->total_hutang;
+                    if ($sisaLimit < $hutang) {
+                        DB::rollBack();
+                        $failed[] = [
+                            'local_id' => $item['local_id'],
+                            'error' => 'Limit hutang pelanggan tidak mencukupi',
+                        ];
+                        continue;
+                    }
+                }
+
+                $kunjungan = MineralKunjungan::create([
+                    'sales_id'         => $sales->id,
+                    'pelanggan_id'     => $item['pelanggan_id'],
+                    'waktu_checkin'    => now(),
+                    'latitude_checkin' => $item['latitude'] ?? null,
+                    'longitude_checkin'=> $item['longitude'] ?? null,
+                    'catatan'          => 'Auto dari sync ' . $item['local_id'],
+                    'status'           => 'checkin',
+                    'ada_penjualan'    => true,
+                ]);
 
                 $penjualan = MineralPenjualan::create([
+                    'kunjungan_id' => $kunjungan->id,
                     'no_faktur' => MineralPenjualan::generateFaktur(),
                     'tanggal_jual' => $item['tanggal_jual'],
                     'sales_id' => $sales->id,
@@ -527,6 +653,7 @@ class MineralApiController extends Controller
                     'harga_satuan' => $item['harga_satuan'],
                     'total' => $total,
                     'tipe_bayar' => $item['tipe_bayar'],
+                    'no_bukti_transfer' => $item['no_bukti_transfer'] ?? null,
                     'bayar' => $bayar,
                     'kembali' => $kembali,
                     'hutang' => $hutang,
@@ -536,21 +663,14 @@ class MineralApiController extends Controller
                     'status' => 'pending',
                 ]);
 
-                // Update loading stock
-                $today = now()->toDateString();
-                $loading = MineralLoading::where('sales_id', $sales->id)
-                    ->where('produk_id', $item['produk_id'])
-                    ->whereDate('tanggal', $today)
-                    ->first();
-
-                if ($loading) {
-                    $loading->terjual += $item['jumlah'];
-                    $loading->sisa_stok -= $item['jumlah'];
-                    $loading->save();
+                $loading->terjual += $item['jumlah'];
+                $loading->sisa_stok -= $item['jumlah'];
+                if ($loading->sisa_stok <= 0 && $loading->status !== 'selesai') {
+                    $loading->status = 'selesai';
                 }
+                $loading->save();
 
-                // Create hutang if needed
-                if ($hutang > 0) {
+                if ($hutang > 0 && $pelanggan) {
                     MineralHutang::create([
                         'pelanggan_id' => $item['pelanggan_id'],
                         'penjualan_id' => $penjualan->id,
@@ -561,10 +681,11 @@ class MineralApiController extends Controller
                         'status' => 'belum_lunas',
                     ]);
 
-                    $pelanggan = MineralPelanggan::find($item['pelanggan_id']);
-                    $pelanggan->total_hutang += $hutang;
+                    $pelanggan->total_hutang = (float) $pelanggan->total_hutang + (float) $hutang;
                     $pelanggan->save();
                 }
+
+                DB::commit();
 
                 $synced[] = [
                     'local_id' => $item['local_id'],
@@ -573,6 +694,7 @@ class MineralApiController extends Controller
                     'status' => 'success',
                 ];
             } catch (\Exception $e) {
+                DB::rollBack();
                 $failed[] = [
                     'local_id' => $item['local_id'],
                     'error' => $e->getMessage(),
@@ -642,41 +764,88 @@ class MineralApiController extends Controller
     {
         $hutang = MineralHutang::findOrFail($id);
 
+        if ($hutang->status === 'lunas' || $hutang->sisa <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hutang ini sudah lunas',
+            ], 422);
+        }
+
         $request->validate([
-            'jumlah' => 'required|numeric|min:1|max:' . $hutang->sisa,
+            'jumlah' => 'required|numeric|min:1',
             'cara_bayar' => 'required|in:tunai,transfer',
+            'id_transaksi' => 'required_if:cara_bayar,transfer|nullable|string|min:3|max:100',
             'keterangan' => 'nullable|string',
         ]);
 
+        $pendingTotal = $hutang->pembayarans()->where('status', 'pending')->sum('jumlah');
+        $effectiveSisa = max(0, (float) $hutang->sisa - (float) $pendingTotal);
+
+        if ($effectiveSisa <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sisa hutang sudah tercover oleh pembayaran pending',
+            ], 422);
+        }
+
+        if ($request->jumlah > $effectiveSisa) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Jumlah pembayaran melebihi sisa hutang',
+                'sisa_efektif' => (float) $effectiveSisa,
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
-            MineralHutangBayar::create([
-                'hutang_id' => $hutang->id,
+            $hutang = MineralHutang::where('id', $hutang->id)->lockForUpdate()->first();
+
+            $needsConfirmation = $request->cara_bayar === 'transfer' || $request->jumlah >= 500000;
+            $paymentStatus = $needsConfirmation ? 'pending' : 'confirmed';
+
+            $payment = MineralHutangBayar::create([
+                'hutang_id'     => $hutang->id,
                 'tanggal_bayar' => now(),
-                'jumlah' => $request->jumlah,
-                'cara_bayar' => $request->cara_bayar,
-                'keterangan' => $request->keterangan,
-                'created_by' => Auth::id(),
+                'jumlah'        => $request->jumlah,
+                'cara_bayar'    => $request->cara_bayar,
+                'id_transaksi'  => $request->id_transaksi ?? null,
+                'keterangan'    => $request->keterangan,
+                'created_by'    => Auth::id(),
+                'status'        => $paymentStatus,
             ]);
 
-            $hutang->dibayar += $request->jumlah;
-            $hutang->sisa -= $request->jumlah;
+            if ($paymentStatus === 'confirmed') {
+                $payment->confirmed_by = Auth::id();
+                $payment->confirmed_at = now();
+                $payment->save();
 
-            if ($hutang->sisa <= 0) {
-                $hutang->status = 'lunas';
+                $totalDibayar = $hutang->pembayarans()->confirmed()->sum('jumlah');
+                $hutang->dibayar = $totalDibayar;
+                $hutang->sisa = max(0, (float) $hutang->total_hutang - (float) $totalDibayar);
+                $hutang->status = $hutang->sisa <= 0 ? 'lunas' : 'belum_lunas';
+                $hutang->save();
+
+                $pelanggan = MineralPelanggan::find($hutang->pelanggan_id);
+                if ($pelanggan) {
+                    $pelanggan->total_hutang = max(0, (float) $pelanggan->total_hutang - (float) $request->jumlah);
+                    $pelanggan->save();
+                }
             }
-
-            $hutang->save();
-
-            $pelanggan = MineralPelanggan::find($hutang->pelanggan_id);
-            $pelanggan->total_hutang -= $request->jumlah;
-            $pelanggan->save();
 
             DB::commit();
 
+            $message = $paymentStatus === 'pending'
+                ? 'Pembayaran berhasil diajukan. Menunggu konfirmasi supervisor.'
+                : 'Pembayaran hutang berhasil dicatat';
+
             return response()->json([
                 'success' => true,
-                'message' => 'Pembayaran hutang berhasil dicatat',
+                'message' => $message,
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'status' => $paymentStatus,
+                    'jumlah' => (float) $request->jumlah,
+                ],
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -771,7 +940,6 @@ class MineralApiController extends Controller
             'bukti_setor' => 'nullable|string',
         ]);
 
-        // Check if already exists
         $existing = MineralSetoran::where('sales_id', $sales->id)
             ->whereDate('tanggal', $request->tanggal)
             ->first();
@@ -783,36 +951,41 @@ class MineralApiController extends Controller
             ], 422);
         }
 
-        // Calculate totals based on all non-cancelled sales of today
+        $tanggal = $request->tanggal;
+
         $penjualanQuery = MineralPenjualan::where('sales_id', $sales->id)
-            ->whereDate('tanggal_jual', $request->tanggal)
+            ->whereDate('tanggal_jual', $tanggal)
             ->where('status', '!=', 'batal');
 
-        $totalPenjualan = $penjualanQuery->sum('total');
-        $jumlahTransaksi = $penjualanQuery->count();
-        $totalHutangBaru = MineralPenjualan::where('sales_id', $sales->id)
-            ->whereDate('tanggal_jual', $request->tanggal)
-            ->where('status', '!=', 'batal')
-            ->where('tipe_bayar', 'hutang')
-            ->sum('hutang');
-        $jumlahHutangBaru = MineralPenjualan::where('sales_id', $sales->id)
-            ->whereDate('tanggal_jual', $request->tanggal)
-            ->where('status', '!=', 'batal')
-            ->where('tipe_bayar', 'hutang')
-            ->count();
+        $totalPenjualan = (clone $penjualanQuery)->sum('total');
+        $jumlahTransaksi = (clone $penjualanQuery)->count();
+        $totalTunai = (clone $penjualanQuery)->where('tipe_bayar', 'tunai')->sum('total');
+        $totalTransfer = (clone $penjualanQuery)->where('tipe_bayar', 'transfer')->sum('total');
+        $totalHutangBaru = (clone $penjualanQuery)->where('tipe_bayar', 'hutang')->sum('hutang');
+        $jumlahHutangBaru = (clone $penjualanQuery)->where('tipe_bayar', 'hutang')->count();
 
-        $selisih = $request->total_setor - $totalPenjualan;
+        $hutangIds = MineralHutang::whereHas('penjualan', function ($q) use ($sales) {
+            $q->where('sales_id', $sales->id);
+        })->pluck('id');
 
-        // Handle bukti setor
+        $debtPaymentTunai = MineralHutangBayar::whereIn('hutang_id', $hutangIds)
+            ->whereDate('tanggal_bayar', $tanggal)
+            ->where('status', 'confirmed')
+            ->where('cara_bayar', 'tunai')
+            ->sum('jumlah');
+
+        $selisih = (float) $request->total_setor - ((float) $totalTunai + (float) $debtPaymentTunai);
+
         $buktiSetorPath = null;
         if ($request->bukti_setor) {
             $imageData = base64_decode($request->bukti_setor);
-            $filename = 'setoran/' . uniqid() . '.jpg';
-            Storage::disk('public')->put($filename, $imageData);
-            $buktiSetorPath = $filename;
+            if ($imageData !== false) {
+                $dir = 'bukti-setor/mineral/' . now()->format('Y-m-d');
+                $filename = 'setoran_' . uniqid() . '.jpg';
+                Storage::disk('public')->put($dir . '/' . $filename, $imageData);
+                $buktiSetorPath = $dir . '/' . $filename;
+            }
         }
-
-        $isAutoApproved = ((float) $selisih === 0.0);
 
         DB::beginTransaction();
         try {
@@ -820,27 +993,17 @@ class MineralApiController extends Controller
                 'tanggal' => $request->tanggal,
                 'sales_id' => $sales->id,
                 'total_penjualan' => $totalPenjualan,
+                'total_tunai' => $totalTunai,
+                'total_transfer' => $totalTransfer,
                 'total_setor' => $request->total_setor,
                 'selisih' => $selisih,
                 'jumlah_transaksi' => $jumlahTransaksi,
                 'jumlah_hutang_baru' => $jumlahHutangBaru,
                 'total_hutang_baru' => $totalHutangBaru,
-                'status' => $isAutoApproved ? 'terverifikasi' : 'pending',
+                'status' => 'pending',
                 'catatan_sales' => $request->catatan_sales,
                 'bukti_setor' => $buktiSetorPath,
-                'catatan_verifikasi' => $isAutoApproved ? 'Auto-verified by system (selisih pas)' : null,
-                'verified_at' => $isAutoApproved ? now() : null,
             ]);
-
-            if ($isAutoApproved) {
-                // Auto-verify all associated pending sales for today
-                MineralPenjualan::where('sales_id', $sales->id)
-                    ->whereDate('tanggal_jual', $request->tanggal)
-                    ->where('status', 'pending')
-                    ->update([
-                        'status' => 'terverifikasi'
-                    ]);
-            }
 
             DB::commit();
         } catch (\Exception $e) {
@@ -857,8 +1020,10 @@ class MineralApiController extends Controller
                 'id' => $setoran->id,
                 'status' => $setoran->status,
                 'selisih' => (float) $selisih,
+                'total_tunai' => (float) $totalTunai,
+                'total_transfer' => (float) $totalTransfer,
             ],
-            'message' => $isAutoApproved ? 'Setoran berhasil dicatat dan diverifikasi otomatis' : 'Setoran berhasil dicatat, menunggu verifikasi',
+            'message' => 'Setoran berhasil dicatat, menunggu verifikasi',
         ], 201);
     }
 

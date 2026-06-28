@@ -252,7 +252,7 @@
                     <div class="db-kpi-top">
                         <div>
                             <div class="db-kpi-lbl">Loading Hari Ini</div>
-                            <div class="db-kpi-val amber">{{ number_format($stats['loading_hari_ini']) }}<span class="unit">Liter</span></div>
+                            <div class="db-kpi-val amber">{{ number_format($stats['loading_hari_ini'], 0, ',', '.') }}<span class="unit">Liter</span></div>
                             <div class="db-kpi-foot">Volume BBM dimuat</div>
                         </div>
                         <div class="db-kpi-ico amber">🚛</div>

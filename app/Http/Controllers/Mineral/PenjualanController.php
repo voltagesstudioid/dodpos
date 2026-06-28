@@ -33,6 +33,21 @@ class PenjualanController extends Controller
      * Find the active loading record for a sales+product combination.
      * Prioritize loading with sisa_stok > 0, fallback to most recent.
      */
+    private function updateVehicleStock(int $vehicleId, int $produkId, float $jumlah, string $operation): void
+    {
+        $stock = VehicleStock::firstOrNew([
+            'vehicle_id' => $vehicleId,
+            'produk_id' => $produkId,
+        ]);
+
+        if ($operation === 'decrement') {
+            $stock->jumlah = max(0, (float) $stock->jumlah - $jumlah);
+        } else {
+            $stock->jumlah = ((float) $stock->jumlah) + $jumlah;
+        }
+        $stock->save();
+    }
+
     private function findLoadingRecord(int $salesId, int $produkId): ?MineralLoading
     {
         // First try: loading with remaining stock
@@ -199,15 +214,13 @@ class PenjualanController extends Controller
             'sales_id' => $this->isSales() ? 'nullable' : 'required|exists:mineral_sales,id',
             'pelanggan_id' => 'required|exists:mineral_pelanggan,id',
             'produk_id' => 'required|exists:mineral_produk,id',
-            'jumlah' => 'required|integer|min:1',
+            'jumlah' => 'required|numeric|min:0.01',
             'harga_satuan' => 'required|numeric|min:0',
             'tipe_bayar' => 'required|in:tunai,hutang,transfer',
             'no_bukti_transfer' => 'required_if:tipe_bayar,transfer|nullable|string|max:100',
             'bayar' => 'nullable|numeric|min:0',
             'keterangan' => 'nullable|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'foto_nota' => 'nullable|image|max:5120',
+            'foto_nota' => 'nullable|image|mimes:jpg,jpeg,png|max:4096',
             'foto_nota_base64' => 'nullable|string',
             'bukti_transfer' => 'nullable|image|mimes:jpg,jpeg,png|max:4096',
             'bukti_transfer_base64' => 'nullable|string',
@@ -296,6 +309,12 @@ class PenjualanController extends Controller
             $loading->terjual += $validated['jumlah'];
             $loading->sisa_stok -= $validated['jumlah'];
             $loading->save();
+
+            // Deduct from sub vehicle's physical stock
+            if ($loading->vehicle_sub_id) {
+                $this->updateVehicleStock($loading->vehicle_sub_id, $penjualan->produk_id, (float) $validated['jumlah'], 'decrement');
+                MineralProduk::find($penjualan->produk_id)?->recalculateStokGudang();
+            }
 
             // Auto-update loading status when fully sold
             $this->updateLoadingStatus($loading);
@@ -420,7 +439,7 @@ class PenjualanController extends Controller
             'sales_id' => $this->isSales() ? 'nullable' : 'required|exists:mineral_sales,id',
             'pelanggan_id' => 'required|exists:mineral_pelanggan,id',
             'produk_id' => 'required|exists:mineral_produk,id',
-            'jumlah' => 'required|integer|min:1',
+            'jumlah' => 'required|numeric|min:0.01',
             'harga_satuan' => 'required|numeric|min:0',
             'tipe_bayar' => 'required|in:tunai,hutang,transfer',
             'no_bukti_transfer' => 'required_if:tipe_bayar,transfer|nullable|string|max:100',
@@ -439,7 +458,7 @@ class PenjualanController extends Controller
 
         DB::beginTransaction();
         try {
-            $oldJumlah = (int) $penjualan->jumlah;
+            $oldJumlah = (float) $penjualan->jumlah;
             $oldProdukId = $penjualan->produk_id;
             $oldSalesId = $penjualan->sales_id;
             $oldHutang = (float) $penjualan->hutang;
@@ -450,6 +469,11 @@ class PenjualanController extends Controller
                 $oldLoading->terjual = max(0, $oldLoading->terjual - $oldJumlah);
                 $oldLoading->sisa_stok += $oldJumlah;
                 $oldLoading->save();
+
+                // Return stock to old sub vehicle's physical stock
+                if ($oldLoading->vehicle_sub_id) {
+                    $this->updateVehicleStock($oldLoading->vehicle_sub_id, $oldProdukId, (float) $oldJumlah, 'increment');
+                }
             }
 
             // Validate new loading stock
@@ -473,7 +497,14 @@ class PenjualanController extends Controller
             $newLoading->terjual += $newJumlah;
             $newLoading->sisa_stok -= $newJumlah;
             $newLoading->save();
+
+            // Deduct from new sub vehicle's physical stock
+            if ($newLoading->vehicle_sub_id) {
+                $this->updateVehicleStock($newLoading->vehicle_sub_id, $newProdukId, (float) $newJumlah, 'decrement');
+            }
+
             $this->updateLoadingStatus($newLoading);
+            MineralProduk::find($newProdukId)?->recalculateStokGudang();
 
             // Recalculate totals
             $validated['total'] = $newJumlah * $validated['harga_satuan'];
@@ -668,6 +699,12 @@ class PenjualanController extends Controller
                     $loading->status = 'proses';
                 }
                 $loading->save();
+
+                // Return stock to sub vehicle's physical stock
+                if ($loading->vehicle_sub_id) {
+                    $this->updateVehicleStock($loading->vehicle_sub_id, $penjualan->produk_id, (float) $penjualan->jumlah, 'increment');
+                    MineralProduk::find($penjualan->produk_id)?->recalculateStokGudang();
+                }
             }
 
             // Delete hutang if exists

@@ -61,7 +61,7 @@ class MineralHutang extends Model
      */
     public function recalculate(): void
     {
-        $totalDibayar = $this->pembayarans()->sum('jumlah');
+        $totalDibayar = $this->pembayarans()->confirmed()->sum('jumlah');
         $this->dibayar = $totalDibayar;
         $this->sisa    = max(0, (float) $this->total_hutang - (float) $totalDibayar);
 

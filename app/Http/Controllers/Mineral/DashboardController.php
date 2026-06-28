@@ -118,21 +118,6 @@ class DashboardController extends Controller
         ));
     }
 
-    public function kunjungan()
-    {
-        return view('mineral.kunjungan.index');
-    }
-
-    public function laporan()
-    {
-        return view('mineral.laporan.index');
-    }
-
-    public function rekonsiliasi()
-    {
-        return view('mineral.rekonsiliasi.index');
-    }
-
     /**
      * Sales-specific dashboard — shows only the logged-in sales person's data.
      */
@@ -162,6 +147,7 @@ class DashboardController extends Controller
             'kunjungan_hari_ini' => MineralKunjungan::where('sales_id', $sales->id)
                 ->whereDate('waktu_checkin', $today)->count(),
             'kunjungan_aktif' => MineralKunjungan::where('sales_id', $sales->id)
+                ->whereDate('waktu_checkin', $today)
                 ->where('status', 'checkin')->count(),
         ];
 

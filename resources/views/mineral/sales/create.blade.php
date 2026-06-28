@@ -180,36 +180,6 @@
                 </div>
             </div>
 
-            {{-- Section 2: Informasi Kendaraan --}}
-            <div class="msc-card green">
-                <div class="msc-card-hdr">
-                    <div class="msc-card-ico">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                    </div>
-                    <div>
-                        <div class="msc-card-title">Informasi Kendaraan</div>
-                        <div class="msc-card-desc">Tugaskan kendaraan operasional sales</div>
-                    </div>
-                </div>
-                <div class="msc-card-body">
-                    <div>
-                        <label class="msc-lbl">
-                            <svg class="msc-lbl-ico" width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
-                            Tugaskan Kendaraan <span class="msc-opt">(Opsional)</span>
-                        </label>
-                        <select name="vehicle_id" class="msc-inp @error('vehicle_id') is-invalid @enderror" style="max-width:400px;">
-                            <option value="">-- Pilih dari Data Kendaraan --</option>
-                            @foreach($vehicles as $v)
-                                <option value="{{ $v->id }}" {{ old('vehicle_id') == $v->id ? 'selected' : '' }}>
-                                    {{ strtoupper($v->license_plate) }}@if($v->type) · {{ $v->type }}@endif
-                                </option>
-                            @endforeach
-                        </select>
-                        <div class="msc-hint">Data kendaraan diambil dari menu Operasional &rarr; Data Kendaraan</div>
-                        @error('vehicle_id')<div class="msc-err">{{ $message }}</div>@enderror
-                    </div>
-                </div>
-            </div>
 
             {{-- Section 3: Status & Regional --}}
             <div class="msc-card purple">
@@ -237,15 +207,6 @@
                         <div class="msc-hint">Pilih regional untuk menentukan area kerja sales</div>
                         @error('regional_id')<div class="msc-err">{{ $message }}</div>@enderror
                     </div>
-
-                    <div style="margin-bottom:1.5rem; display:flex; align-items:center; gap:12px;">
-                        <input type="checkbox" name="is_inti" id="cb-is-inti" value="1" {{ old('is_inti') ? 'checked' : '' }} style="width:20px; height:20px; accent-color:#06b6d4; cursor:pointer;">
-                        <div>
-                            <label for="cb-is-inti" style="font-size:0.875rem; font-weight:700; color:#0f172a; cursor:pointer;">Jadikan sebagai Mobil Inti</label>
-                            <div class="msc-hint" style="margin-top:0;">Centang jika sales ini bertugas membawa stok utama untuk didistribusikan ke sales sub (Mobil Sub).</div>
-                        </div>
-                    </div>
-
                     <label class="msc-lbl" style="margin-bottom:0.75rem;">Status Sales <span class="msc-req">*</span></label>
                     <div class="msc-radios">
                         <label class="msc-radio">

@@ -188,7 +188,7 @@
                 <div class="sd-row">
                     <span class="sd-key">Koordinat</span>
                     <a href="https://maps.google.com/?q={{ $penjualan->latitude }},{{ $penjualan->longitude }}" target="_blank" class="sd-val" style="color:#2563eb;">
-                        {{ number_format($penjualan->latitude, 6) }}, {{ number_format($penjualan->longitude, 6) }}
+                        {{ number_format($penjualan->latitude, 6, '.', '') }}, {{ number_format($penjualan->longitude, 6, '.', '') }}
                     </a>
                 </div>
             </div>

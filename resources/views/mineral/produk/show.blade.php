@@ -141,7 +141,7 @@
                         <span class="ps-val" style="color:{{ $margin > 0 ? '#059669' : ($margin < 0 ? '#ef4444' : '#94a3b8') }}">
                             Rp {{ number_format($margin, 0, ',', '.') }}
                             @if($produk->harga_modal > 0)
-                                ({{ number_format(($margin / $produk->harga_modal) * 100, 1) }}%)
+                                ({{ number_format(($margin / $produk->harga_modal) * 100, 1, '.', '') }}%)
                             @endif
                         </span>
                     </div>

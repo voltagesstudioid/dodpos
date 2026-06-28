@@ -70,6 +70,7 @@ class MineralRegional extends Model
         $prefix = 'RGM';
         $date = date('Ymd');
         $last = self::where('kode_regional', 'like', "{$prefix}{$date}%")
+            ->lockForUpdate()
             ->orderBy('kode_regional', 'desc')
             ->first();
 

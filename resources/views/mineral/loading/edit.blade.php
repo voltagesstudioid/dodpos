@@ -214,7 +214,7 @@
                                 <option value="">Pilih Sales</option>
                                 @foreach($sales as $s)
                                     <option value="{{ $s->id }}" {{ old('sales_id', $loading->sales_id) == $s->id ? 'selected' : '' }}>
-                                        {{ $s->nama }}{{ $s->no_kendaraan ? ' (' . $s->no_kendaraan . ')' : '' }}
+                                        {{ $s->nama }}{{ $s->no_kendaraan ? ' (' . $s->no_kendaraan . ')' : ($s->currentAssignment?->vehicle?->license_plate ? ' ('.$s->currentAssignment->vehicle->license_plate.')' : '') }}
                                     </option>
                                 @endforeach
                             </select>
@@ -231,7 +231,7 @@
                                 <option value="" data-stok="0" data-satuan="">Pilih Produk</option>
                                 @foreach($produks as $p)
                                     <option value="{{ $p->id }}" data-stok="{{ $p->stok_gudang }}" data-satuan="{{ $p->satuan }}" {{ old('produk_id', $loading->produk_id) == $p->id ? 'selected' : '' }}>
-                                        {{ $p->nama }} — Stok: {{ number_format($p->stok_gudang) }} {{ $p->satuan }}
+                                        {{ $p->nama }} — Stok: {{ number_format($p->stok_gudang, 0, ',', '.') }} {{ $p->satuan }}
                                     </option>
                                 @endforeach
                             </select>

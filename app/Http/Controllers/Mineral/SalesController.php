@@ -7,6 +7,7 @@ use App\Models\MineralSales;
 use App\Models\MineralRegional;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -18,7 +19,7 @@ class SalesController extends Controller
         $status = $request->input('status');
         $regionalId = $request->input('regional_id');
 
-        $query = MineralSales::with(['user', 'regional'])
+        $query = MineralSales::with(['user', 'regional', 'currentAssignment.vehicle'])
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('kode_sales', 'like', "%{$search}%")
@@ -32,12 +33,10 @@ class SalesController extends Controller
 
         $allSales = $query->get();
 
-        // Group by regional
         $grouped = $allSales->groupBy(function ($s) {
             return $s->regional_id ? $s->regional->nama : 'Tanpa Regional';
         });
 
-        // Sort groups: named regionals alphabetically, "Tanpa Regional" last
         $sortedKeys = $grouped->keys()->sort(function ($a, $b) {
             if ($a === 'Tanpa Regional') return 1;
             if ($b === 'Tanpa Regional') return -1;
@@ -54,7 +53,6 @@ class SalesController extends Controller
             'cuti' => MineralSales::where('status', 'cuti')->count(),
         ];
 
-        // Per-regional stats
         $regionalStats = MineralRegional::where('status', 'aktif')
             ->withCount(['sales as sales_count' => fn ($q) => $q->where('status', 'aktif')])
             ->withCount(['sales as sales_total'])
@@ -74,18 +72,13 @@ class SalesController extends Controller
 
         $regionals = MineralRegional::where('status', 'aktif')->orderBy('nama')->get();
 
-        $vehicles = Vehicle::whereNull('sales_id')
-            ->orderBy('license_plate')
-            ->get();
-
-        return view('mineral.sales.create', compact('users', 'regionals', 'vehicles'));
+        return view('mineral.sales.create', compact('users', 'regionals'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
-            'vehicle_id' => 'nullable|exists:vehicles,id',
             'nama' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
@@ -97,16 +90,8 @@ class SalesController extends Controller
         ]);
 
         $validated['kode_sales'] = MineralSales::generateKode();
-        $validated['is_inti'] = $request->has('is_inti');
 
         $sales = MineralSales::create($validated);
-
-        if (!empty($validated['vehicle_id'])) {
-            Vehicle::where('id', $validated['vehicle_id'])->update([
-                'sales_type' => MineralSales::class,
-                'sales_id' => $sales->id,
-            ]);
-        }
 
         return redirect()->route('mineral.sales.index')
             ->with('success', 'Data Sales berhasil ditambahkan.');
@@ -114,30 +99,25 @@ class SalesController extends Controller
 
     public function show(MineralSales $sales)
     {
-        $sales->load(['user', 'loadings.produk', 'penjualans.pelanggan', 'setorans']);
-        
-        return view('mineral.sales.show', compact('sales'));
+        $sales->load(['user', 'loadings.produk', 'penjualans.pelanggan', 'setorans', 'currentAssignment.vehicle', 'assignments.vehicle']);
+
+        $vehicles = Vehicle::where('status', 'aktif')->orderBy('license_plate')->get();
+
+        return view('mineral.sales.show', compact('sales', 'vehicles'));
     }
 
     public function edit(MineralSales $sales)
     {
         $users = User::all();
         $regionals = MineralRegional::where('status', 'aktif')->orderBy('nama')->get();
-        $vehicles = Vehicle::whereNull('sales_id')
-            ->orWhere(function ($q) use ($sales) {
-                $q->where('sales_type', MineralSales::class)
-                  ->where('sales_id', $sales->id);
-            })
-            ->orderBy('license_plate')
-            ->get();
-        return view('mineral.sales.edit', compact('sales', 'users', 'regionals', 'vehicles'));
+
+        return view('mineral.sales.edit', compact('sales', 'users', 'regionals'));
     }
 
     public function update(Request $request, MineralSales $sales)
     {
         $validated = $request->validate([
             'user_id' => 'nullable|exists:users,id',
-            'vehicle_id' => 'nullable|exists:vehicles,id',
             'nama' => 'required|string|max:100',
             'no_hp' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:100',
@@ -147,19 +127,6 @@ class SalesController extends Controller
             'keterangan' => 'nullable|string',
             'regional_id' => 'nullable|exists:mineral_regional,id',
         ]);
-
-        $validated['is_inti'] = $request->has('is_inti');
-
-        Vehicle::where('sales_type', MineralSales::class)
-            ->where('sales_id', $sales->id)
-            ->update(['sales_type' => null, 'sales_id' => null]);
-
-        if (!empty($validated['vehicle_id'])) {
-            Vehicle::where('id', $validated['vehicle_id'])->update([
-                'sales_type' => MineralSales::class,
-                'sales_id' => $sales->id,
-            ]);
-        }
 
         $sales->update($validated);
 
@@ -173,5 +140,48 @@ class SalesController extends Controller
 
         return redirect()->route('mineral.sales.index')
             ->with('success', 'Data Sales berhasil dihapus.');
+    }
+
+    public function assignVehicle(Request $request, MineralSales $sales)
+    {
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,id',
+            'role' => 'required|in:inti,sub',
+            'tanggal_mulai' => 'required|date',
+            'tanggal_selesai' => 'nullable|date|after_or_equal:tanggal_mulai',
+            'keterangan' => 'nullable|string',
+        ]);
+
+        if (!VehicleAssignment::isVehicleAvailable($validated['vehicle_id'], $validated['tanggal_mulai'])) {
+            return redirect()->back()->with('error', 'Kendaraan sudah di-assign pada tanggal tersebut.');
+        }
+
+        if (!VehicleAssignment::isSalesAvailable($sales->id, $validated['role'], $validated['tanggal_mulai'])) {
+            return redirect()->back()->with('error', 'Sales sudah memiliki assignment dengan role yang sama pada tanggal tersebut.');
+        }
+
+        VehicleAssignment::create([
+            'vehicle_id' => $validated['vehicle_id'],
+            'sales_id' => $sales->id,
+            'role' => $validated['role'],
+            'tanggal_mulai' => $validated['tanggal_mulai'],
+            'tanggal_selesai' => $validated['tanggal_selesai'] ?? null,
+            'status' => 'aktif',
+            'keterangan' => $validated['keterangan'] ?? null,
+            'created_by' => Auth::id(),
+        ]);
+
+        return redirect()->route('mineral.sales.show', $sales)
+            ->with('success', 'Assignment kendaraan berhasil dibuat.');
+    }
+
+    public function endAssignment(VehicleAssignment $assignment)
+    {
+        $assignment->update([
+            'tanggal_selesai' => now(),
+            'status' => 'selesai',
+        ]);
+
+        return redirect()->back()->with('success', 'Assignment berhasil diakhiri.');
     }
 }

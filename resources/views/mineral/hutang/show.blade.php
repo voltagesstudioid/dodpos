@@ -197,7 +197,7 @@
                         <div class="hs-progress-wrap">
                             <div class="hs-progress-labels">
                                 <span>Progress Pembayaran</span>
-                                <span style="font-weight:700;">{{ number_format($pct, 1) }}%</span>
+                                <span style="font-weight:700;">{{ number_format($pct, 1, '.', '') }}%</span>
                             </div>
                             <div class="hs-progress-bar">
                                 <div class="hs-progress-fill" id="progressFill" style="width:0%; background:{{ $barColor }};" data-pct="{{ (int) $pct }}"></div>

@@ -89,9 +89,15 @@ Artisan::command('dodpos:purge-data {--force} {--dry-run}', function () {
     $this->info('Selesai. Semua data (kecuali data user/role) sudah dikosongkan.');
 })->purpose('Kosongkan semua data aplikasi kecuali data user/role');
 
-Artisan::command('user:reset-supervisor-password {--email=admin@dodpos.com} {--password=password}', function () {
+Artisan::command('user:reset-supervisor-password {--email=} {--password=}', function () {
     $email = (string) $this->option('email');
     $newPassword = (string) $this->option('password');
+    if (! $email) {
+        $email = $this->ask('Email supervisor');
+    }
+    if (! $newPassword) {
+        $newPassword = $this->secret('Password baru');
+    }
 
     $user = \App\Models\User::query()
         ->where('role', 'supervisor')

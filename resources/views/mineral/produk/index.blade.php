@@ -328,7 +328,7 @@
                                     <td style="text-align:center;">
                                         <div class="pr-stock">
                                             <span class="pr-stock-dot {{ $isStokRendah ? 'low' : 'ok' }}"></span>
-                                            <span class="pr-stock-val {{ $isStokRendah ? 'low' : 'ok' }}">{{ number_format($p->stok_gudang) }}</span>
+                                            <span class="pr-stock-val {{ $isStokRendah ? 'low' : 'ok' }}">{{ number_format($p->stok_gudang, 0, ',', '.') }}</span>
                                         </div>
                                         @if($isStokRendah)
                                             <div class="pr-stock-warn">
@@ -336,7 +336,7 @@
                                                 Stok kritikal
                                             </div>
                                         @else
-                                            <div class="pr-stock-sub">Min: {{ number_format($p->stok_minimum) }}</div>
+                                            <div class="pr-stock-sub">Min: {{ number_format($p->stok_minimum, 0, ',', '.') }}</div>
                                         @endif
                                     </td>
                                     <td style="text-align:center;">
