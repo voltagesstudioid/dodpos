@@ -186,10 +186,7 @@ class SupplierDebtController extends Controller
             ]);
 
             // Recalculate from actual payments (prevents rounding drift)
-            $totalPaid = $hutang->payments()->sum('amount');
-            $hutang->paid_amount = $totalPaid;
-            $hutang->status = $totalPaid >= $hutang->total_amount ? 'paid' : 'partial';
-            $hutang->save();
+            $hutang->recalculate();
 
             AuditService::log(
                 'supplier_debt.pay',

@@ -59,7 +59,10 @@ class SupplierController extends Controller
             'term_days'         => 'nullable|integer|min:0',
             'notes'             => 'nullable|string',
         ]);
-        Supplier::create($request->merge(['active' => $request->has('active')])->all());
+        Supplier::create(
+            $request->only(['name', 'code', 'contact_person', 'phone', 'email', 'city', 'address', 'npwp', 'bank_name', 'bank_account', 'bank_account_name', 'term_days', 'notes']) +
+            ['active' => $request->has('active')]
+        );
         return redirect()->route('master.supplier')->with('success', 'Supplier berhasil ditambahkan.');
     }
 
@@ -85,7 +88,10 @@ class SupplierController extends Controller
             'term_days'         => 'nullable|integer|min:0',
             'notes'             => 'nullable|string',
         ]);
-        $supplier->update($request->merge(['active' => $request->has('active')])->all());
+        $supplier->update(
+            $request->only(['name', 'code', 'contact_person', 'phone', 'email', 'city', 'address', 'npwp', 'bank_name', 'bank_account', 'bank_account_name', 'term_days', 'notes']) +
+            ['active' => $request->has('active')]
+        );
         return redirect()->route('master.supplier')->with('success', 'Supplier berhasil diperbarui.');
     }
 

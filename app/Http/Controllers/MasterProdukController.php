@@ -486,34 +486,78 @@ class MasterProdukController extends Controller
             $product = Product::findOrFail($request->product_id);
             $warehouse = Warehouse::findOrFail($request->warehouse_id);
 
-            $conversionFactor = 1;
-            $unitName = $product->unit?->abbreviation ?? 'pcs';
-            $inputQty = (float) $request->jumlah;
+            $baseUnitName = $product->unit?->abbreviation ?? 'pcs';
+            $totalBaseQty = 0;
+            $unitNotes = [];
 
-            if ($request->filled('unit_id')) {
-                $conversion = ProductUnitConversion::where('product_id', $product->id)
-                    ->where('unit_id', $request->unit_id)->first();
-                if ($conversion) {
-                    $conversionFactor = $conversion->conversion_factor ?: 1;
-                    $unitName = $conversion->unit?->name ?? $unitName;
+            // Process multiple items (per satuan)
+            $items = $request->input('items', []);
+            if (empty($items) || !is_array($items)) {
+                // Fallback: single input (old format)
+                $conversionFactor = 1;
+                $unitName = $baseUnitName;
+                $inputQty = (float) $request->jumlah;
+
+                if ($request->filled('unit_id')) {
+                    $conversion = ProductUnitConversion::where('product_id', $product->id)
+                        ->where('unit_id', $request->unit_id)->first();
+                    if ($conversion) {
+                        $conversionFactor = $conversion->conversion_factor ?: 1;
+                        $unitName = $conversion->unit?->name ?? $unitName;
+                    }
+                }
+
+                $baseQty = $inputQty * $conversionFactor;
+                $totalBaseQty = $baseQty;
+                if ($conversionFactor > 1) {
+                    $unitNotes[] = "{$inputQty} {$unitName}";
+                }
+            } else {
+                foreach ($items as $item) {
+                    $qty = (float) ($item['jumlah'] ?? 0);
+                    if ($qty <= 0) continue;
+                    $factor = (float) ($item['factor'] ?? 1);
+                    $unitId = $item['unit_id'] ?? null;
+                    $unitName = $baseUnitName;
+
+                    if ($unitId) {
+                        $unit = Unit::find((int) $unitId);
+                        if ($unit) $unitName = $unit->name;
+                    }
+
+                    $baseQty = $qty * $factor;
+                    $totalBaseQty += $baseQty;
+                    if ($factor > 1) {
+                        $unitNotes[] = "{$qty} {$unitName}";
+                    } else {
+                        $unitNotes[] = "{$qty} {$unitName}";
+                    }
                 }
             }
 
-            $baseQty = $inputQty * $conversionFactor;
+            if ($totalBaseQty <= 0) {
+                throw new \Exception('Jumlah minimal harus lebih dari 0.');
+            }
 
             $productStock = ProductStock::firstOrCreate(
-                ['product_id' => $product->id, 'warehouse_id' => $warehouse->id],
+                [
+                    'product_id' => $product->id,
+                    'warehouse_id' => $warehouse->id,
+                    'location_id' => null,
+                    'batch_number' => null,
+                    'expired_date' => null,
+                ],
                 ['stock' => 0]
             );
 
             $stokSebelum = (float) $productStock->stock;
 
             if ($request->tipe === 'masuk') {
-                $stokSesudah = $stokSebelum + $baseQty;
-                $qty = $baseQty;
+                $stokSesudah = $stokSebelum + $totalBaseQty;
+                $qty = $totalBaseQty;
                 $type = 'in';
             } else {
-                $stokSesudah = $baseQty;
+                $stokSesudah = $totalBaseQty;
                 $qty = $stokSesudah - $stokSebelum;
                 $type = $qty >= 0 ? 'in' : 'out';
             }
@@ -530,9 +574,8 @@ class MasterProdukController extends Controller
                 : ($qty >= 0 ? '[Koreksi Stok +] ' : '[Koreksi Stok -] ');
 
             $unitNote = '';
-            $baseUnitName = $product->unit?->abbreviation ?? 'pcs';
-            if ($conversionFactor > 1) {
-                $unitNote = " ({$inputQty} {$unitName} = {$baseQty} {$baseUnitName})";
+            if (!empty($unitNotes)) {
+                $unitNote = ' | Per-satuan: ' . implode(' + ', $unitNotes) . ' = ' . $totalBaseQty . ' ' . $baseUnitName;
             }
 
             StockMovement::create([
@@ -551,9 +594,9 @@ class MasterProdukController extends Controller
 
             DB::commit();
 
-            $unitConvNote = ($conversionFactor > 1) ? " = {$baseQty} {$baseUnitName}" : '';
+            $totalDisplay = $totalBaseQty . ' ' . $baseUnitName;
             $label = $request->tipe === 'masuk'
-                ? "Stok berhasil ditambahkan (+{$inputQty} {$unitName}{$unitConvNote})"
+                ? "Stok berhasil ditambahkan (+{$totalDisplay})"
                 : "Koreksi stok berhasil (dari {$stokSebelum} → {$stokSesudah} {$baseUnitName})";
 
             return response()->json(['success' => true, 'message' => $label]);
@@ -576,7 +619,7 @@ class MasterProdukController extends Controller
         }
 
         $baseSet = false;
-        $minFactor = PHP_INT_MAX;
+        $minFactor = PHP_FLOAT_MAX;
         $minIdx = 0;
 
         foreach ($units as $idx => $u) {

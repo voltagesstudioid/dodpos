@@ -226,7 +226,7 @@
     @php
         $user = Auth::user();
         $role = strtolower($user->role ?? '');
-        $isSupervisor = in_array($role, ['supervisor', 'admin4', 'pasgar']);
+        $isSupervisor = in_array($role, ['supervisor', 'admin1', 'admin2']);
     @endphp
     @if($isSupervisor)
     <div class="os-verify">

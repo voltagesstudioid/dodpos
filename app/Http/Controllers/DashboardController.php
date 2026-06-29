@@ -144,8 +144,6 @@ class DashboardController extends Controller
                 });
 
                 return view('dashboard', compact('weeklySales', 'alerts', 'stats'));
-            case 'admin_sales':
-                return redirect()->route('admin-sales.dashboard');
             case 'sales_minyak':
                 return redirect()->route('minyak.dashboard');
             case 'sales_mineral':
@@ -338,8 +336,6 @@ class DashboardController extends Controller
                     'warehouseId',
                     'opnameToday',
                 ));
-            case 'kasir':
-                return redirect()->route('kasir.index');
             case 'gudang':
                 return redirect()->route('gudang.dashboard');
             case 'pasgar':

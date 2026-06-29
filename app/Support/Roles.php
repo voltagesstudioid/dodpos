@@ -9,14 +9,13 @@ namespace App\Support;
 class Roles
 {
     public const SUPERVISOR = 'supervisor';
-    public const ADMIN_SALES = 'admin_sales';
     public const ADMIN1 = 'admin1';     // Kasir Utama
     public const ADMIN2 = 'admin2';     // Kasir Biasa
     public const ADMIN3 = 'admin3';     // Gudang Masuk
     public const ADMIN4 = 'admin4';     // Gudang Keluar
-    public const KASIR = 'kasir';
     public const GUDANG = 'gudang';
     public const SALES = 'sales';
+    public const PASGAR = 'pasgar';
     public const SALES_PASGAR = 'sales_pasgar';
     public const PENDING = 'pending';
 
@@ -27,14 +26,6 @@ class Roles
     public static function transferApprovers(): array
     {
         return [self::ADMIN3, self::ADMIN4, self::SUPERVISOR];
-    }
-
-    /**
-     * Roles that can access Kasir/POS features.
-     */
-    public static function kasirRoles(): array
-    {
-        return [self::ADMIN1, self::ADMIN2, self::KASIR];
     }
 
     /**
@@ -52,12 +43,10 @@ class Roles
     {
         return [
             self::SUPERVISOR,
-            self::ADMIN_SALES,
             self::ADMIN1,
             self::ADMIN2,
             self::ADMIN3,
             self::ADMIN4,
-            self::KASIR,
             self::GUDANG,
             self::SALES,
             self::PASGAR,

@@ -22,9 +22,27 @@ class StockReportController extends Controller
     {
         $user = Auth::user();
         $role = strtolower((string) ($user?->role ?? ''));
-        
-        // Admin3 dan admin4 selalu di-mask untuk mencegah manipulasi saat opname
-        return in_array($role, ['admin3', 'admin4'], true);
+        if (! in_array($role, ['admin3', 'admin4'], true)) {
+            return false;
+        }
+        if (! Schema::hasTable('stock_opname_sessions')) {
+            return false;
+        }
+        if (! class_exists(StockOpnameSession::class)) {
+            return false;
+        }
+
+        $start = now()->startOfDay();
+        $end = now()->endOfDay();
+
+        return ! StockOpnameSession::query()
+            ->whereIn('status', ['submitted', 'approved'])
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('submitted_at', [$start, $end])
+                    ->orWhereBetween('approved_at', [$start, $end])
+                    ->orWhereBetween('created_at', [$start, $end]);
+            })
+            ->exists();
     }
 
     // Rekap Stok Per Gudang & Rak
@@ -39,104 +57,62 @@ class StockReportController extends Controller
         $warehouses = Warehouse::orderBy('name')->get();
         $categories = Category::orderBy('name')->get();
 
-        // Query dasar dengan eager loading
-        $query = ProductStock::with([
-            'product.category',
-            'product.unit',
-            'product.unitConversions.unit',
-            'warehouse',
-            'location'
-        ])->where('product_stocks.stock', '>', 0);
+        /* ── Shared filter closure (avoids duplication) ── */
+        $applyFilters = function ($q) use ($warehouseId, $categoryId, $search) {
+            $q->where('product_stocks.stock', '>', 0);
+            if ($warehouseId) $q->where('product_stocks.warehouse_id', $warehouseId);
+            if ($categoryId) {
+                $q->whereExists(function ($sub) use ($categoryId) {
+                    $sub->select(DB::raw(1))
+                        ->from('products')
+                        ->whereColumn('products.id', 'product_stocks.product_id')
+                        ->where('products.category_id', $categoryId);
+                });
+            }
+            if ($search) {
+                $q->whereExists(function ($sub) use ($search) {
+                    $sub->select(DB::raw(1))
+                        ->from('products')
+                        ->whereColumn('products.id', 'product_stocks.product_id')
+                        ->where(function ($p) use ($search) {
+                            $p->where('products.name', 'like', "%{$search}%")
+                              ->orWhere('products.sku', 'like', "%{$search}%");
+                        });
+                });
+            }
+        };
 
-        // Terapkan filter warehouse
-        if ($warehouseId) {
-            $query->where('product_stocks.warehouse_id', $warehouseId);
-        }
+        /* ── Stats: computed from FULL filtered dataset (stock > 0 only) ── */
+        $statsQuery = ProductStock::query()->tap($applyFilters);
 
-        // Terapkan filter kategori dengan join yang lebih efisien
-        if ($categoryId) {
-            $query->whereHas('product', function ($q) use ($categoryId) {
-                $q->where('category_id', $categoryId);
-            });
-        }
-
-        // Terapkan pencarian dengan whereHas untuk performa lebih baik
-        if ($search) {
-            $query->whereHas('product', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
-            });
-        }
-
-        // Hitung statistik dengan query terpisah untuk akurasi
-        $statsQuery = ProductStock::with(['product'])
-            ->where('product_stocks.stock', '>', 0);
-
-        // Terapkan filter yang sama untuk statistik
-        if ($warehouseId) {
-            $statsQuery->where('product_stocks.warehouse_id', $warehouseId);
-        }
-        if ($categoryId) {
-            $statsQuery->whereHas('product', function ($q) use ($categoryId) {
-                $q->where('category_id', $categoryId);
-            });
-        }
-        if ($search) {
-            $statsQuery->whereHas('product', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
-            });
-        }
-
-        // Hitung total records dan active warehouses
         $totalRecords = (clone $statsQuery)->count();
-        $activeWarehouses = (clone $statsQuery)->distinct('warehouse_id')->count('warehouse_id');
+        $activeWarehouses = (clone $statsQuery)->distinct()->count('warehouse_id');
 
-        // Hitung stok rendah — gunakan DB::table terpisah agar tidak ada double JOIN
-        // (tidak bisa reuse $statsQuery karena sudah ada join yang mungkin ditambahkan sebelumnya)
-        $lowStockCountQuery = DB::table('product_stocks')
+        // Low stock = stock <= product.min_stock AND min_stock > 0
+        $lowStockCount = (clone $statsQuery)
             ->join('products', 'product_stocks.product_id', '=', 'products.id')
-            ->where('product_stocks.stock', '>', 0)
             ->where('products.min_stock', '>', 0)
-            ->whereColumn('product_stocks.stock', '<=', 'products.min_stock');
+            ->whereRaw('product_stocks.stock <= products.min_stock')
+            ->count();
 
-        if ($warehouseId) {
-            $lowStockCountQuery->where('product_stocks.warehouse_id', $warehouseId);
-        }
-        if ($categoryId) {
-            $lowStockCountQuery->join('categories', 'products.category_id', '=', 'categories.id')
-                               ->where('products.category_id', $categoryId);
-        }
-        $lowStockCount = $lowStockCountQuery->count();
+        // Total stock value (SUM of stock * purchase_price)
+        $totalStockValue = (clone $statsQuery)
+            ->join('products', 'product_stocks.product_id', '=', 'products.id')
+            ->select(DB::raw('COALESCE(SUM(product_stocks.stock * products.purchase_price), 0) as val'))
+            ->value('val') ?? 0;
 
-        // Hitung total nilai stok — gunakan DB::table terpisah dengan alias p2
-        $totalStockValueQuery = DB::table('product_stocks')
-            ->join('products as p2', 'product_stocks.product_id', '=', 'p2.id')
-            ->where('product_stocks.stock', '>', 0);
-
-        if ($warehouseId) {
-            $totalStockValueQuery->where('product_stocks.warehouse_id', $warehouseId);
-        }
-        $totalStockValue = $totalStockValueQuery
-            ->sum(DB::raw('product_stocks.stock * COALESCE(p2.purchase_price, 0)'));
-
-        // Terapkan sorting dengan join yang diperlukan
-        if ($sort === 'stock') {
-            $query->orderBy('product_stocks.stock', $dir);
-        } elseif ($sort === 'category') {
-            $query->join('products as p_sort', 'product_stocks.product_id', '=', 'p_sort.id')
-                  ->join('categories as c_sort', 'p_sort.category_id', '=', 'c_sort.id')
-                  ->orderBy('c_sort.name', $dir);
-        } elseif ($sort === 'warehouse') {
-            $query->join('warehouses as w_sort', 'product_stocks.warehouse_id', '=', 'w_sort.id')
-                  ->orderBy('w_sort.name', $dir);
-        } else { // 'product' (default)
-            $query->join('products as p_sort', 'product_stocks.product_id', '=', 'p_sort.id')
-                  ->orderBy('p_sort.name', $dir);
-        }
-
-        // Paginate hasil
-        $stocks = $query->paginate(20)->withQueryString();
+        /* ── Paginated table data ── */
+        $stocks = ProductStock::with(['product.category', 'product.unit', 'product.unitConversions.unit', 'warehouse', 'location'])
+            ->tap($applyFilters)
+            ->when($sort === 'stock', fn($q) => $q->orderBy('product_stocks.stock', $dir))
+            ->when($sort === 'category', fn($q) => $q->orderBy('p_sort.name', $dir))
+            ->when($sort === 'warehouse', fn($q) => $q->orderBy('w_sort.name', $dir))
+            ->when(!in_array($sort, ['stock', 'category', 'warehouse']), fn($q) => $q->orderBy('p_sort.name', $dir))
+            ->leftJoin('products as p_sort', 'product_stocks.product_id', '=', 'p_sort.id')
+            ->leftJoin('warehouses as w_sort', 'product_stocks.warehouse_id', '=', 'w_sort.id')
+            ->select('product_stocks.*')
+            ->paginate(20)
+            ->withQueryString();
 
         $maskStock = $this->shouldMaskStock();
 
@@ -154,7 +130,7 @@ class StockReportController extends Controller
         $daysThreshold = 30; // Bisa dibuat dinamis jika perlu
         $limitDate = Carbon::now()->addDays($daysThreshold);
 
-        $expiredStocks = ProductStock::with(['product.unitConversions.unit', 'warehouse', 'location'])
+        $expiredStocks = ProductStock::with(['product', 'warehouse', 'location'])
             ->whereNotNull('expired_date')
             ->where('stock', '>', 0)
             ->where('expired_date', '<=', $limitDate)
@@ -268,18 +244,23 @@ class StockReportController extends Controller
         $warehouseId = $request->input('warehouse_id');
         $categoryId = $request->input('category_id');
         $search = $request->input('search');
-        $maskStock = $this->shouldMaskStock();
 
-        $stocks = ProductStock::with(['product.category', 'product.unit', 'product.unitConversions.unit', 'warehouse', 'location'])
+        $stocks = ProductStock::with(['product.category', 'product.unit', 'warehouse', 'location'])
             ->where('product_stocks.stock', '>', 0)
             ->when($warehouseId, fn($q) => $q->where('product_stocks.warehouse_id', $warehouseId))
-            ->when($categoryId, fn($q) => $q->whereHas('product', function ($sub) use ($categoryId) {
-                $sub->where('category_id', $categoryId);
-            }))
-            ->when($search, fn($q) => $q->whereHas('product', function ($sub) use ($search) {
-                $sub->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%");
-            }))
+            ->when($categoryId, fn($q) => $q->whereExists(fn($sub) =>
+                $sub->select(DB::raw(1))->from('products')
+                    ->whereColumn('products.id', 'product_stocks.product_id')
+                    ->where('products.category_id', $categoryId)
+            ))
+            ->when($search, fn($q) => $q->whereExists(fn($sub) =>
+                $sub->select(DB::raw(1))->from('products')
+                    ->whereColumn('products.id', 'product_stocks.product_id')
+                    ->where(function ($p) use ($search) {
+                        $p->where('products.name', 'like', "%{$search}%")
+                          ->orWhere('products.sku', 'like', "%{$search}%");
+                    })
+            ))
             ->orderBy('warehouse_id')
             ->orderBy('product_id')
             ->get();
@@ -291,19 +272,13 @@ class StockReportController extends Controller
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function() use ($stocks, $maskStock) {
+        $callback = function() use ($stocks) {
             $file = fopen('php://output', 'w');
             // BOM for Excel UTF-8 compatibility
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($file, ['SKU', 'Nama Produk', 'Kategori', 'Gudang', 'Lokasi/Rak', 'Batch', 'Expired', 'Stok', 'Satuan', 'Status']);
+            fputcsv($file, ['SKU', 'Nama Produk', 'Kategori', 'Gudang', 'Lokasi/Rak', 'Batch', 'Expired', 'Stok', 'Satuan']);
             
             foreach ($stocks as $stock) {
-                $minStk = $stock->product->min_stock ?? 0;
-                $isLow = $stock->stock > 0 && $stock->stock <= $minStk;
-                $isEmpty = $stock->stock == 0;
-                $displayStock = $maskStock ? '***' : number_format($stock->stock);
-                $status = $isEmpty ? 'Kosong' : ($isLow ? 'Hampir Habis' : 'Aman');
-                
                 fputcsv($file, [
                     $stock->product->sku ?? '-',
                     $stock->product->name ?? '-',
@@ -312,9 +287,8 @@ class StockReportController extends Controller
                     $stock->location->name ?? 'Area Umum',
                     $stock->batch_number ?? '-',
                     $stock->expired_date ? \Carbon\Carbon::parse($stock->expired_date)->format('d/m/Y') : '-',
-                    $displayStock,
-                    $stock->product->base_unit_name,
-                    $status,
+                    $stock->stock,
+                    $stock->product->unit->abbreviation ?? '',
                 ]);
             }
             fclose($file);

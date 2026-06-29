@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RegistrationApprovedMail;
+use App\Mail\RegistrationRejectedMail;
 use App\Models\AppRole;
 use App\Models\User;
 use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -215,13 +219,16 @@ class UserController extends Controller
         }
 
         $requested = $pengguna->requested_role ?: null;
-        $defaultRole = 'kasir';
+        $defaultRole = 'admin1';
         if (! User::isValidRole($defaultRole)) {
-            $defaultRole = AppRole::query()->active()->orderBy('label')->value('key') ?: 'kasir';
+            $defaultRole = AppRole::query()->active()->orderBy('label')->value('key') ?: 'admin1';
         }
 
         $role = User::isValidRole($requested) ? $requested : $defaultRole;
         $role = User::isValidRole($role) ? $role : $defaultRole;
+
+        $roleLabel = AppRole::where('key', $role)->value('label')
+            ?? strtoupper(str_replace('_', ' ', (string) $role));
 
         $pengguna->update([
             'role' => $role,
@@ -234,7 +241,18 @@ class UserController extends Controller
 
         $this->syncProfiles($pengguna);
 
-        return back()->with('success', 'Akun berhasil di-ACC dan diaktifkan.');
+        try {
+            Mail::to($pengguna->email)->send(new RegistrationApprovedMail(
+                name: (string) $pengguna->name,
+                email: (string) $pengguna->email,
+                role: $roleLabel,
+            ));
+        } catch (\Throwable) {
+            Log::warning('Failed to send approval email to ' . $pengguna->email);
+        }
+
+        $msg = 'Akun berhasil di-ACC dan diaktifkan.';
+        return back()->with('success', $msg);
     }
 
     public function reject(User $pengguna)
@@ -254,6 +272,15 @@ class UserController extends Controller
             'rejected_at' => now(),
             'rejected_by' => Auth::id(),
         ]);
+
+        try {
+            Mail::to($pengguna->email)->send(new RegistrationRejectedMail(
+                name: (string) $pengguna->name,
+                email: (string) $pengguna->email,
+            ));
+        } catch (\Throwable) {
+            Log::warning('Failed to send rejection email to ' . $pengguna->email);
+        }
 
         return back()->with('success', 'Akun berhasil ditolak.');
     }

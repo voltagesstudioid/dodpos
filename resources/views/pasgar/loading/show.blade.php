@@ -181,11 +181,11 @@
                             <div class="ds-wh-badge">{{ $item->warehouse->name }}</div>
                         @endif
                     </td>
-                    <td class="mono">{{ $item->qty_diminta }} <span class="ds-unit">{{ $unitName }}</span></td>
-                    <td class="mono">{{ $item->qty_disetujui }} <span class="ds-unit">{{ $unitName }}</span></td>
-                    <td class="mono">{{ $item->qty_dikirim }} <span class="ds-unit">{{ $unitName }}</span></td>
-                    <td class="mono">{{ $item->qty_terjual }} <span class="ds-unit">{{ $unitName }}</span></td>
-                    <td class="mono" style="color:{{ $item->qty_sisa > 0 ? '#d97706' : '#64748b' }}">{{ $item->qty_sisa }} <span class="ds-unit">{{ $unitName }}</span></td>
+                    <td class="mono">{{ number_format((int)$item->qty_diminta, 0, ',', '.') }} <span class="ds-unit">{{ $unitName }}</span></td>
+                    <td class="mono">{{ number_format((int)$item->qty_disetujui, 0, ',', '.') }} <span class="ds-unit">{{ $unitName }}</span></td>
+                    <td class="mono">{{ number_format((int)$item->qty_dikirim, 0, ',', '.') }} <span class="ds-unit">{{ $unitName }}</span></td>
+                    <td class="mono">{{ number_format((int)$item->qty_terjual, 0, ',', '.') }} <span class="ds-unit">{{ $unitName }}</span></td>
+                    <td class="mono" style="color:{{ $item->qty_sisa > 0 ? '#d97706' : '#64748b' }}">{{ number_format((int)$item->qty_sisa, 0, ',', '.') }} <span class="ds-unit">{{ $unitName }}</span></td>
                 </tr>
                 @endforeach
             </tbody>
@@ -296,7 +296,7 @@
     {{-- Action Panels --}}
     @php
         $user = auth()->user();
-        $isSupervisor = in_array($user->role, ['admin4', 'supervisor']);
+        $isSupervisor = in_array($user->role, ['admin1', 'admin2', 'supervisor']);
         $isSalesOwner = $loading->sales && $loading->sales->user_id === $user->id;
     @endphp
 
@@ -307,7 +307,6 @@
         <p style="font-size:0.78rem;color:#64748b;margin-bottom:0.75rem;">Setujui permintaan dan tentukan jumlah barang yang disetujui, atau tolak.</p>
         <form action="{{ route('pasgar.loading.approve', $loading->id) }}" method="POST">
             @csrf
-            <input type="hidden" name="action" value="approve" id="approveAction">
             @foreach($loading->items as $item)
             @php $unitName = $item->unitConversion?->unit?->name ?? 'pcs'; @endphp
             <div class="ds-approve-item">
@@ -317,8 +316,8 @@
             </div>
             @endforeach
             <div class="ds-btn-group">
-                <button type="submit" class="ds-btn ds-btn-success" onclick="document.getElementById('approveAction').value='approve'">✓ Setujui & Siapkan</button>
-                <button type="submit" class="ds-btn ds-btn-danger" onclick="document.getElementById('approveAction').value='reject'">✗ Tolak</button>
+                <button type="submit" name="action" value="approve" class="ds-btn ds-btn-success">✓ Setujui & Siapkan</button>
+                <button type="submit" name="action" value="reject" class="ds-btn ds-btn-danger" onclick="return confirm('Yakin tolak permintaan ini?')">✗ Tolak</button>
             </div>
         </form>
     </div>

@@ -526,7 +526,10 @@ class HutangController extends Controller
     {
         if ($this->isSales()) {
             $profile = $this->getSalesProfile();
-            if ($profile && $profile->regional_id && $pelanggan->regional_id !== $profile->regional_id) {
+            if (!$profile) {
+                abort(403, 'Profil sales tidak ditemukan.');
+            }
+            if ($profile->regional_id && $pelanggan->regional_id !== $profile->regional_id) {
                 abort(403, 'Anda hanya bisa mencatat pembayaran pelanggan di regional Anda.');
             }
         }

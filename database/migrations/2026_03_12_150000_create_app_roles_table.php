@@ -20,12 +20,10 @@ return new class extends Migration
 
         $defaults = [
             'supervisor' => 'Supervisor',
-            'admin_sales' => 'Admin Sales',
             'admin1' => 'Admin 1',
             'admin2' => 'Admin 2',
             'admin3' => 'Admin 3',
             'admin4' => 'Admin 4',
-            'kasir' => 'Kasir',
             'gudang' => 'Gudang',
             'pasgar' => 'Pasgar',
             'sales' => 'Sales',

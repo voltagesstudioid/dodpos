@@ -19,8 +19,6 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        return redirect()->route('master.produk', ['tab' => 'produk']);
-
         $query = Product::with(['category', 'unit', 'unitConversions.unit']);
 
         if ($request->search) {
@@ -872,15 +870,16 @@ class ProductController extends Controller
     {
         // Determine which row is the base unit (from checkbox, or fallback to row with factor=1 or min factor)
         $baseSet = false;
-        $minFactor = PHP_INT_MAX;
+        $minFactor = PHP_FLOAT_MAX;
         $minIdx = 0;
 
         foreach ($units as $idx => $u) {
             if (isset($u['is_base_unit']) && $u['is_base_unit']) {
                 $baseSet = true;
             }
-            if ((int) $u['conversion_factor'] < $minFactor) {
-                $minFactor = (int) $u['conversion_factor'];
+            $factor = (float) $u['conversion_factor'];
+            if ($factor > 0 && $factor < $minFactor) {
+                $minFactor = $factor;
                 $minIdx = $idx;
             }
         }

@@ -200,7 +200,7 @@ class PurchaseReturnController extends Controller
 
             foreach ($retur->items as $item) {
                 $product = $item->product;
-                $factor = 1;
+                $factor = 1.0;
                 if ($product && $product->unit_id && $item->unit_id && (int) $item->unit_id !== (int) $product->unit_id) {
                     $uc = ProductUnitConversion::where('product_id', $item->product_id)
                         ->where('unit_id', $item->unit_id)
@@ -208,10 +208,10 @@ class PurchaseReturnController extends Controller
                     if (! $uc) {
                         throw new \RuntimeException("Konversi satuan tidak ditemukan untuk produk {$product->name}.");
                     }
-                    $factor = (int) $uc->conversion_factor;
+                    $factor = max(0.0001, (float) $uc->conversion_factor);
                 }
 
-                $baseQty = (int) $item->quantity * $factor;
+                $baseQty = (int) round((float) $item->quantity * $factor);
                 if ($baseQty <= 0) {
                     continue;
                 }

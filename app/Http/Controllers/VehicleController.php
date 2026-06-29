@@ -40,7 +40,7 @@ class VehicleController extends Controller
         // Stats
         $totalVehicles = Vehicle::count();
         $activeVehicles = Vehicle::where('status', 'aktif')->count();
-        $assignedVehicles = VehicleAssignment::where('status', 'aktif')->distinct('vehicle_id')->count();
+        $assignedVehicles = VehicleAssignment::where('status', 'aktif')->distinct()->count('vehicle_id');
         $totalCapacity = Vehicle::where('status', 'aktif')->sum('capacity');
         $totalExpensesCount = Vehicle::withCount('expenses')->get()->sum('expenses_count');
 

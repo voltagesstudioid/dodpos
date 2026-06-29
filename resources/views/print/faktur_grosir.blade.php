@@ -5,90 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faktur Grosir #{{ str_pad($transaction->id, 5, '0', STR_PAD_LEFT) }}</title>
     <style>
-        /* 
-           Desain ini dioptimalkan khusus untuk Printer Dot Matrix (Continuous Form 3 Layer).
-           Menggunakan 100% hitam putih tanpa gradasi/warna abu-abu, dan garis tepi tegas
-           agar tembus dengan baik ke layer 2 dan 3.
-        */
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; line-height: 1.4; }
+        body { font-family: Arial, sans-serif; font-size: 9px; color: #000; background: #fff; line-height: 1.2; }
 
-        /* ── PAGE ── */
-        .page { width: 100%; max-width: 215mm; margin: 0 auto; padding: 5mm 10mm; }
+        .page { width: 241mm; margin: 0 auto; padding: 3mm 5mm; }
 
-        /* ── HEADER ── */
-        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 5mm; margin-bottom: 5mm; }
-        .brand { flex: 1; padding-right: 10mm; }
-        .brand-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 1mm; letter-spacing: 1px; }
-        .brand-contact { font-size: 11px; color: #000; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1.5px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; }
+        .brand { flex: 1; padding-right: 8mm; }
+        .brand-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5mm; letter-spacing: 0.5px; }
+        .brand-contact { font-size: 9px; color: #000; }
         
         .invoice-meta { text-align: right; }
-        .invoice-label { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .invoice-no { font-size: 32px; font-weight: bold; line-height: 1.2; letter-spacing: 1px; margin-bottom: 4px; }
+        .invoice-label { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .invoice-no { font-size: 18px; font-weight: bold; line-height: 1.1; letter-spacing: 0.5px; margin-bottom: 2px; }
         
-        /* ── GIANT PAYMENT BADGE (B&W for Dot Matrix) ── */
         .pay-badge { 
-            display: inline-block; padding: 4px 12px; font-size: 20px; font-weight: bold; 
-            text-transform: uppercase; letter-spacing: 2px; border: 3px solid #000; 
-            border-radius: 0; /* Hindari lengkungan pada dot matrix */
-            color: #000; 
+            display: inline-block; padding: 2px 8px; font-size: 11px; font-weight: bold; 
+            text-transform: uppercase; letter-spacing: 1px; border: 2px solid #000; 
+            border-radius: 0; color: #000; 
         }
 
-        /* ── INFO SECTION ── */
-        .info-section { display: flex; gap: 10mm; margin-bottom: 5mm; }
+        .info-section { display: flex; gap: 8mm; margin-bottom: 2mm; }
         .info-col { flex: 1; }
-        .info-table { width: 100%; font-size: 12px; }
-        .info-table td { padding: 2px 0; vertical-align: top; }
-        .info-table .il { width: 85px; font-weight: normal; color: #000; }
+        .info-table { width: 100%; font-size: 9px; }
+        .info-table td { padding: 1px 0; vertical-align: top; }
+        .info-table .il { width: 75px; font-weight: normal; color: #000; }
         .info-table .iv { font-weight: bold; color: #000; }
 
-        /* ── ITEMS TABLE ── */
-        .items-wrap { margin-bottom: 5mm; }
-        .items { width: 100%; border-collapse: collapse; border: 2px solid #000; }
+        .items-wrap { margin-bottom: 2mm; }
+        .items { width: 100%; border-collapse: collapse; border: 1.5px solid #000; }
         .items th {
-            background: #fff; color: #000; font-size: 11px; font-weight: bold; text-transform: uppercase; 
-            padding: 5px 4px; text-align: left; border-bottom: 2px solid #000; border-right: 1px solid #000;
+            background: #fff; color: #000; font-size: 8px; font-weight: bold; text-transform: uppercase; 
+            padding: 2px 3px; text-align: left; border-bottom: 1.5px solid #000; border-right: 1px solid #000;
         }
         .items th.center { text-align: center; }
         .items th.right { text-align: right; }
         
-        .items td { padding: 5px 4px; font-size: 12px; border-bottom: 1px solid #000; border-right: 1px solid #000; vertical-align: top; }
+        .items td { padding: 2px 3px; font-size: 9px; border-bottom: 1px solid #000; border-right: 1px solid #000; vertical-align: top; color: #000; }
         .items td.center { text-align: center; }
         .items td.right { text-align: right; font-variant-numeric: tabular-nums; }
         .items td.bold { font-weight: bold; }
         
-        .item-name { font-weight: bold; display: block; }
-        .item-sku { font-size: 10px; font-weight: normal; }
+        .item-name { font-weight: bold; display: block; font-size: 9px; color: #000; }
+        .item-sku { font-size: 7px; font-weight: normal; color: #000; }
         
-        .items tfoot td { padding: 6px 4px; font-size: 12px; font-weight: bold; border-top: 2px solid #000; border-right: none; }
-        .items tfoot td.large { font-size: 14px; font-weight: bold; border-left: 2px solid #000; }
+        .items tfoot td { padding: 3px 3px; font-size: 9px; font-weight: bold; border-top: 1.5px solid #000; border-right: none; }
+        .items tfoot td.large { font-size: 10px; font-weight: bold; border-left: 1.5px solid #000; }
 
-        /* ── BOTTOM SECTION ── */
-        .bottom-section { display: flex; gap: 10mm; margin-top: 2mm; }
+        .bottom-section { display: flex; gap: 8mm; margin-top: 1mm; }
         .bottom-left { flex: 1; }
-        .bottom-right { width: 75mm; border: 2px solid #000; padding: 4px; }
+        .bottom-right { width: 65mm; border: 1.5px solid #000; padding: 3px; }
 
-        /* ── SUMMARY GRID ── */
-        .summary-grid { width: 100%; font-size: 12px; }
-        .summary-grid td { padding: 3px 2px; }
+        .summary-grid { width: 100%; font-size: 9px; }
+        .summary-grid td { padding: 1.5px 2px; }
         .summary-grid td.sl { font-weight: normal; }
         .summary-grid td.sv { text-align: right; font-weight: bold; }
         
-        .summary-total td { font-size: 15px; border-top: 2px solid #000; padding-top: 4px; font-weight: bold; }
-        .summary-debt td { border-top: 1px dashed #000; padding-top: 4px; margin-top: 4px; }
+        .summary-total td { font-size: 11px; border-top: 1.5px solid #000; padding-top: 2px; font-weight: bold; }
+        .summary-debt td { border-top: 1px dashed #000; padding-top: 2px; margin-top: 2px; }
 
-        /* ── SIGNATURES ── */
-        .sig-area { display: flex; justify-content: space-around; margin-top: 10mm; }
+        .sig-area { display: flex; justify-content: space-around; margin-top: 5mm; }
         .sig-block { text-align: center; width: 40%; }
-        .sig-label { font-size: 11px; font-weight: normal; margin-bottom: 20mm; }
-        .sig-line { border-bottom: 1px solid #000; margin-bottom: 2px; }
-        .sig-name { font-size: 11px; font-weight: bold; }
+        .sig-label { font-size: 8px; font-weight: normal; margin-bottom: 12mm; }
+        .sig-line { border-bottom: 1px solid #000; margin-bottom: 1px; }
+        .sig-name { font-size: 9px; font-weight: bold; }
 
-        /* ── EXTRAS ── */
-        .extra-box { border: 1px solid #000; padding: 4px 6px; margin-bottom: 4mm; font-size: 11px; }
-        .footer { margin-top: 10mm; text-align: left; font-size: 10px; font-style: italic; border-top: 1px dashed #000; padding-top: 4mm; }
+        .extra-box { border: 1px solid #000; padding: 2px 4px; margin-bottom: 2mm; font-size: 8px; }
+        .footer { margin-top: 3mm; text-align: left; font-size: 7px; font-style: italic; border-top: 1px dashed #000; padding-top: 2mm; }
 
-        /* ── PRINT ── */
         @media screen {
             body { background: #e2e8f0; }
             .page { box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 20px auto; background: #fff; }
@@ -96,10 +80,8 @@
         @media print {
             html, body { margin: 0; padding: 0; background: #fff; }
             .no-print { display: none !important; }
-            .page { margin: 0; padding: 0; box-shadow: none; width: 100%; }
-            
-            /* Hapus margin halaman default browser agar pas untuk dot matrix continuous form */
-            @page { size: auto; margin: 5mm; }
+            .page { margin: 0; padding: 0; box-shadow: none; width: 241mm; }
+            @page { size: 241mm 279mm; margin: 3mm 5mm; }
         }
     </style>
 </head>
@@ -168,7 +150,6 @@
 
 <div class="page">
     
-    {{-- ═══════════════ HEADER ═══════════════ --}}
     <div class="header">
         <div class="brand">
             <div class="brand-name">{{ $storeName }}</div>
@@ -184,7 +165,6 @@
         </div>
     </div>
 
-    {{-- ═══════════════ INFO SECTION ═══════════════ --}}
     <div class="info-section">
         <div class="info-col">
             <table class="info-table">
@@ -195,28 +175,28 @@
         </div>
         <div class="info-col">
             <table class="info-table">
-                <tr><td class="il">Tanggal</td><td class="iv">: {{ $tglFaktur }} &nbsp; {{ $jamFaktur }} WIB</td></tr>
+                <tr><td class="il">Tanggal</td><td class="iv">: {{ $tglFaktur }} {{ $jamFaktur }} WIB</td></tr>
                 <tr><td class="il">Kasir</td><td class="iv">: {{ $kasir }}</td></tr>
                 @if($transaction->vehicle_id || $transaction->driver_name)
                 <tr><td class="il">Pengiriman</td><td class="iv">: 
                     @if($transaction->vehicle){{ $transaction->vehicle->license_plate }}@endif
-                    @if($transaction->driver_name) &mdash; {{ $transaction->driver_name }}@endif
+                    @if($transaction->driver_name) - {{ $transaction->driver_name }}@endif
                 </td></tr>
                 @endif
             </table>
         </div>
     </div>
 
-    {{-- ═══════════════ ITEMS TABLE ═══════════════ --}}
     <div class="items-wrap">
         <table class="items">
             <thead>
                 <tr>
-                    <th class="center" style="width:5%">No</th>
-                    <th style="width:45%">Deskripsi Barang</th>
+                    <th class="center" style="width:4%">No</th>
+                    <th style="width:38%">Deskripsi Barang</th>
+                    <th style="width:15%">Asal</th>
                     <th class="center" style="width:10%">Qty</th>
-                    <th class="right" style="width:15%">Harga Satuan</th>
-                    <th class="right" style="width:25%; border-right:none;">Subtotal</th>
+                    <th class="right" style="width:13%">Harga</th>
+                    <th class="right" style="width:20%; border-right:none;">Subtotal</th>
                 </tr>
             </thead>
             <tbody>
@@ -230,10 +210,10 @@
                 <tr>
                     <td class="center">{{ $i + 1 }}</td>
                     <td>
-                        <span class="item-name">{{ $detail->product?->name ?? 'Barang tidak tersedia' }}</span>
-                        @if($detail->product?->sku)<span class="item-sku">SKU: {{ $detail->product->sku }}</span>@endif
-                        @if($isAdditional)<span style="font-size:10px;">(Tambahan)</span>@endif
+                        <span class="item-name">{{ $detail->product?->name ?? 'Barang tidak tersedia' }}@if($isAdditional) <span style="font-size:7px;">(Tmbh)</span>@endif</span>
+                        @if($detail->product?->sku)<span class="item-sku">{{ $detail->product->sku }}</span>@endif
                     </td>
+                    <td style="font-size:8px;">{{ $detail->warehouse?->name ?? '-' }}</td>
                     <td class="center">{{ $displayQty }} {{ $displayUnit }}</td>
                     <td class="right">{{ number_format($displayPrice, 0, ',', '.') }}</td>
                     <td class="right bold" style="border-right:none;">{{ number_format($detail->subtotal, 0, ',', '.') }}</td>
@@ -242,34 +222,32 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="right">Total Barang:</td>
+                    <td colspan="3" class="right">Total:</td>
                     <td class="center">{{ $totalQty }}</td>
-                    <td class="right">Total Tagihan:</td>
+                    <td class="right">Tagihan:</td>
                     <td class="right large">Rp {{ number_format($total, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>
         </table>
     </div>
 
-    {{-- ═══════════════ BOTTOM SECTION ═══════════════ --}}
     <div class="bottom-section">
         <div class="bottom-left">
             @if($isTransfer && ($bankName || $bankAccNo))
             <div class="extra-box">
-                Transfer ke:<br>
-                <b>{{ $bankName }} - {{ $bankAccNo }}</b> @if($bankHolder) a.n. {{ $bankHolder }}@endif
+                Transfer: <b>{{ $bankName }} - {{ $bankAccNo }}</b> @if($bankHolder) a.n. {{ $bankHolder }}@endif
             </div>
             @endif
 
             @if($transaction->additional_notes)
-            <div class="extra-box" style="margin-top: 2mm;">
-                <b>Catatan:</b><br>{{ $transaction->additional_notes }}
+            <div class="extra-box">
+                <b>Catatan:</b> {{ $transaction->additional_notes }}
             </div>
             @endif
             
             <div class="sig-area">
                 <div class="sig-block">
-                    <div class="sig-label">Penerima / Pelanggan</div>
+                    <div class="sig-label">Penerima</div>
                     <div class="sig-line"></div>
                     <div class="sig-name">( {{ $pelanggan }} )</div>
                 </div>
@@ -290,7 +268,7 @@
                 
                 @if($isKredit)
                     <tr>
-                        <td class="sl">DP / Dibayar</td>
+                        <td class="sl">DP Dibayar</td>
                         <td class="sv">Rp {{ number_format($bayar, 0, ',', '.') }}</td>
                     </tr>
                     <tr class="summary-debt">
@@ -309,12 +287,12 @@
                     @endif
                 @else
                     <tr>
-                        <td class="sl">Dibayar ({{ $metodeBayar }})</td>
+                        <td class="sl">Dibayar</td>
                         <td class="sv">Rp {{ number_format($bayar, 0, ',', '.') }}</td>
                     </tr>
                     @if($kembali > 0)
                     <tr>
-                        <td class="sl">Kembalian</td>
+                        <td class="sl">Kembali</td>
                         <td class="sv">Rp {{ number_format($kembali, 0, ',', '.') }}</td>
                     </tr>
                     @endif
@@ -322,22 +300,20 @@
                 
                 @if($transaction->payment_reference)
                 <tr>
-                    <td class="sl" style="font-size:10px; padding-top:2mm;">Ref:</td>
-                    <td class="sv" style="font-size:10px; padding-top:2mm;">{{ $transaction->payment_reference }}</td>
+                    <td class="sl" style="font-size:7px; padding-top:1mm;">Ref:</td>
+                    <td class="sv" style="font-size:7px; padding-top:1mm;">{{ $transaction->payment_reference }}</td>
                 </tr>
                 @endif
             </table>
         </div>
     </div>
 
-    {{-- ═══════════════ FOOTER ═══════════════ --}}
     <div class="footer">
-        Barang yang sudah dibeli dan diterima dengan baik tidak dapat ditukar/dikembalikan. Dicetak pada {{ $transaction->created_at->format('d/m/Y H:i') }}.
+        Barang yang sudah dibeli tidak dapat ditukar/dikembalikan. Dicetak {{ $transaction->created_at->format('d/m/Y H:i') }}.
     </div>
 
 </div>
 
-{{-- ── SCREEN CONTROLS ── --}}
 <div class="no-print" style="position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:10px;padding:15px;background:#f1f5f9;border-top:1px solid #d1d5db;box-shadow:0 -4px 10px rgba(0,0,0,0.05)">
     <button onclick="window.print()" style="padding:10px 32px;font-size:14px;font-weight:bold;cursor:pointer;background:#000;color:#fff;border:none;border-radius:6px;">&#128424;&nbsp; CETAK FAKTUR</button>
     <button onclick="window.close()" style="padding:10px 32px;font-size:14px;font-weight:bold;cursor:pointer;background:#fff;color:#000;border:2px solid #000;border-radius:6px;">&#10005;&nbsp; TUTUP</button>

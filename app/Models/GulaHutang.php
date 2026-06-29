@@ -44,7 +44,7 @@ class GulaHutang extends Model
      */
     public function recalculate(): void
     {
-        $totalDibayar = $this->pembayarans()->sum('jumlah');
+        $totalDibayar = $this->pembayarans()->where('status', 'confirmed')->sum('jumlah');
         $this->dibayar = $totalDibayar;
         $this->sisa    = max(0, (float) $this->total_hutang - (float) $totalDibayar);
 
@@ -52,6 +52,8 @@ class GulaHutang extends Model
             $this->status = 'lunas';
         } elseif ($this->jatuh_tempo && $this->jatuh_tempo->isPast()) {
             $this->status = 'overdue';
+        } else {
+            $this->status = 'belum_lunas';
         }
 
         $this->save();

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Warehouse;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -12,8 +13,9 @@ class WarehouseController extends Controller
     {
         $query = Warehouse::query();
         if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('code', 'like', '%' . $request->search . '%');
+            $s = SearchSanitizer::sanitize($request->search);
+            $query->where('name', 'like', "%{$s}%")
+                  ->orWhere('code', 'like', "%{$s}%");
         }
         $warehouses = $query->latest()->paginate(15)->withQueryString();
         return view('master.gudang.index', compact('warehouses'));
@@ -47,7 +49,10 @@ class WarehouseController extends Controller
             'pic'         => 'nullable|string|max:255',
             'description' => 'nullable|string',
         ]);
-        Warehouse::create($request->merge(['active' => $request->has('active')])->all());
+        Warehouse::create(
+            $request->only(['name', 'code', 'address', 'phone', 'pic', 'description']) +
+            ['active' => $request->has('active')]
+        );
         return redirect()->route('master.gudang')->with('success', 'Gudang berhasil ditambahkan.');
     }
 
@@ -66,7 +71,10 @@ class WarehouseController extends Controller
             'pic'         => 'nullable|string|max:255',
             'description' => 'nullable|string',
         ]);
-        $gudang->update($request->merge(['active' => $request->has('active')])->all());
+        $gudang->update(
+            $request->only(['name', 'code', 'address', 'phone', 'pic', 'description']) +
+            ['active' => $request->has('active')]
+        );
         return redirect()->route('master.gudang')->with('success', 'Gudang berhasil diperbarui.');
     }
 

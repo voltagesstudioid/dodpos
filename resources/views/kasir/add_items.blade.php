@@ -260,12 +260,6 @@
                             <div class="ti-method-lbl">Transfer</div>
                             <div class="ti-method-desc">Bank</div>
                         </label>
-                        <label class="ti-method {{ $transaction->payment_method === 'qris' ? 'sel' : '' }}" onclick="selMethod(this,'qris')">
-                            <input type="radio" name="payMethod" value="qris" {{ $transaction->payment_method === 'qris' ? 'checked' : '' }}>
-                            <div class="ti-method-ico">📱</div>
-                            <div class="ti-method-lbl">QRIS</div>
-                            <div class="ti-method-desc">Scan QR</div>
-                        </label>
                         @if($transaction->customer_id)
                         <label class="ti-method {{ $transaction->payment_method === 'kredit' ? 'sel' : '' }}" onclick="selMethod(this,'kredit')">
                             <input type="radio" name="payMethod" value="kredit" {{ $transaction->payment_method === 'kredit' ? 'checked' : '' }}>
@@ -277,7 +271,7 @@
                     </div>
                 </div>
 
-                <div id="tiRefField" style="display:{{ in_array($transaction->payment_method, ['transfer','qris']) ? 'block' : 'none' }};">
+                <div id="tiRefField" style="display:{{ $transaction->payment_method === 'transfer' ? 'block' : 'none' }};">
                     <div class="ti-pay-label">No. Referensi</div>
                     <input type="text" id="tiPayRef" class="ti-ref-input" placeholder="Contoh: TRX-123456">
                 </div>
@@ -569,7 +563,7 @@
         document.querySelectorAll('.ti-method').forEach(x => x.classList.remove('sel'));
         el.classList.add('sel');
         el.querySelector('input').checked = true;
-        document.getElementById('tiRefField').style.display = (m === 'transfer' || m === 'qris') ? 'block' : 'none';
+        document.getElementById('tiRefField').style.display = (m === 'transfer') ? 'block' : 'none';
         if (m === 'cash') document.getElementById('tiPayRef').value = '';
     }
 
@@ -619,8 +613,8 @@
         }
 
         const ref = document.getElementById('tiPayRef').value;
-        if ((method === 'transfer' || method === 'qris') && !ref.trim()) {
-            alert('No. Referensi wajib diisi untuk Transfer/QRIS.');
+        if (method === 'transfer' && !ref.trim()) {
+            alert('No. Referensi wajib diisi untuk Transfer.');
             document.getElementById('tiPayRef').focus();
             return;
         }

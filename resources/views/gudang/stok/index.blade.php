@@ -1,551 +1,398 @@
 <x-app-layout>
     <x-slot name="header">Rekap Stok Barang</x-slot>
-
     @push('styles')
     <style>
-        .v3-page { max-width: 1360px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap');
+        .sk-page{max-width:82rem;margin:0 auto;padding:0 1rem;font-family:'Plus Jakarta Sans',sans-serif;}
 
-        .v3-hero {
-            background: linear-gradient(135deg, #0c1222 0%, #162032 40%, #0f172a 100%);
-            border-radius: 0 0 28px 28px;
-            padding: 2.5rem 2.5rem 5rem;
-            margin: -1.5rem -1.5rem 0;
-            position: relative; overflow: hidden;
-        }
-        .v3-hero::before {
-            content: ''; position: absolute; inset: 0;
-            background:
-                radial-gradient(ellipse 600px 400px at 80% 10%, rgba(16,185,129,0.18) 0%, transparent 70%),
-                radial-gradient(ellipse 500px 350px at 20% 90%, rgba(99,102,241,0.12) 0%, transparent 70%),
-                radial-gradient(ellipse 300px 300px at 50% 50%, rgba(14,165,233,0.08) 0%, transparent 70%);
-        }
-        .v3-hero::after {
-            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent 5%, rgba(16,185,129,0.4) 30%, rgba(99,102,241,0.3) 70%, transparent 95%);
-        }
-        .v3-hero-inner { position: relative; z-index: 1; }
+        /* ── Header ── */
+        .sk-hdr{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1.75rem;}
+        .sk-hdr-l{display:flex;align-items:center;gap:1rem;}
+        .sk-hdr-ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 8px 24px rgba(79,70,229,.3);}
+        .sk-hdr-title{font-size:1.5rem;font-weight:800;color:#0f172a;letter-spacing:-.03em;line-height:1.2;}
+        .sk-hdr-sub{font-size:.8125rem;color:#64748b;margin-top:2px;}
+        .sk-hdr-actions{display:flex;gap:.5rem;}
+        .sk-btn{display:inline-flex;align-items:center;gap:.375rem;padding:.625rem 1.125rem;border-radius:10px;font-size:.8125rem;font-weight:600;cursor:pointer;transition:all .2s;border:1.5px solid transparent;text-decoration:none;white-space:nowrap;font-family:inherit;}
+        .sk-btn-outline{border-color:#e2e8f0;background:#fff;color:#475569;} .sk-btn-outline:hover{background:#f8fafc;border-color:#cbd5e1;}
+        .sk-btn-primary{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;box-shadow:0 4px 14px rgba(79,70,229,.35);}
+        .sk-btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(79,70,229,.45);}
 
-        .v3-hero-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-        .v3-hero-chip {
-            display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25);
-            padding: 5px 14px; border-radius: 99px;
-            font-size: 0.65rem; font-weight: 700; color: rgba(110,231,183,0.9);
-            text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 1rem;
-        }
-        .v3-hero-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: v3-glow 2s ease-in-out infinite; }
-        @keyframes v3-glow { 0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(52,211,153,0.4); } 50% { opacity:0.7; box-shadow: 0 0 0 6px rgba(52,211,153,0); } }
+        /* ── KPI Cards ── */
+        .sk-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+        .sk-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:1.25rem 1.375rem;transition:all .3s;position:relative;overflow:hidden;}
+        .sk-kpi::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;}
+        .sk-kpi:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.07);border-color:transparent;}
+        .sk-kpi.blue::before{background:linear-gradient(180deg,#3b82f6,#2563eb);}
+        .sk-kpi.purple::before{background:linear-gradient(180deg,#8b5cf6,#7c3aed);}
+        .sk-kpi.green::before{background:linear-gradient(180deg,#10b981,#059669);}
+        .sk-kpi.red::before{background:linear-gradient(180deg,#ef4444,#dc2626);}
+        .sk-kpi-lbl{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;}
+        .sk-kpi-val{font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1;margin-top:.25rem;}
+        .sk-kpi-val.blue{color:#2563eb;} .sk-kpi-val.purple{color:#7c3aed;} .sk-kpi-val.green{color:#059669;} .sk-kpi-val.red{color:#dc2626;}
+        .sk-kpi-foot{font-size:.72rem;color:#94a3b8;margin-top:.375rem;}
 
-        .v3-hero-title {
-            font-size: 2.25rem; font-weight: 900; color: #fff;
-            letter-spacing: -0.04em; line-height: 1.05; margin: 0 0 0.5rem;
-        }
-        .v3-hero-sub { font-size: 0.875rem; color: rgba(255,255,255,0.4); margin: 0; line-height: 1.6; }
+        /* ── Filter Card ── */
+        .sk-filter{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:1.125rem 1.375rem;margin-bottom:1.5rem;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+        .sk-ff{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.75rem;}
+        .sk-fgrp{display:flex;flex-direction:column;}
+        .sk-flbl{display:block;font-size:.675rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;margin-bottom:.375rem;}
+        .sk-fsel{padding:.625rem 2.25rem .625rem .875rem;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-size:.8125rem;color:#1e293b;outline:none;transition:all .2s;font-family:inherit;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;background-size:16px;min-width:170px;}
+        .sk-fsel:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+        .sk-fsearch{position:relative;flex:1;min-width:200px;}
+        .sk-fsearch input{width:100%;padding:.625rem .875rem .625rem 2.25rem;border-radius:10px;border:1.5px solid #e2e8f0;background:#fff;font-size:.8125rem;color:#1e293b;outline:none;transition:all .2s;font-family:inherit;box-sizing:border-box;}
+        .sk-fsearch input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+        .sk-fsearch svg{position:absolute;left:.75rem;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;}
+        .sk-btn-f{padding:.625rem 1.25rem;border-radius:10px;font-size:.8125rem;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-family:inherit;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.25);}
+        .sk-btn-f:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(79,70,229,.35);}
+        .sk-btn-r{padding:.625rem 1.25rem;border-radius:10px;font-size:.8125rem;font-weight:600;border:1.5px solid #e2e8f0;cursor:pointer;transition:all .2s;font-family:inherit;background:#f8fafc;color:#64748b;text-decoration:none;display:inline-flex;align-items:center;gap:.375rem;}
+        .sk-btn-r:hover{background:#f1f5f9;border-color:#cbd5e1;color:#475569;}
+        .sk-active-filters{display:flex;gap:.375rem;flex-wrap:wrap;align-items:center;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f1f5f9;}
+        .sk-filter-tag{display:inline-flex;align-items:center;gap:.25rem;background:#eef2ff;color:#4f46e5;font-size:.6875rem;font-weight:700;padding:.25rem .625rem;border-radius:6px;}
+        .sk-filter-tag a{color:#4f46e5;text-decoration:none;font-weight:800;margin-left:.25rem;} .sk-filter-tag a:hover{color:#e11d48;}
 
-        .v3-hero-actions { display: flex; gap: 0.625rem; flex-wrap: wrap; align-items: flex-start; padding-top: 0.5rem; }
-        .v3-btn-export {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
-            color: #fff; padding: 0.7rem 1.375rem; border-radius: 12px;
-            font-weight: 700; font-size: 0.8125rem; text-decoration: none;
-            transition: all 0.25s; backdrop-filter: blur(12px);
-        }
-        .v3-btn-export:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
-        .v3-btn-export svg { opacity: 0.7; }
+        /* ── Table Card ── */
+        .sk-tbl-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+        .sk-tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+        .sk-tbl{width:100%;border-collapse:separate;border-spacing:0;min-width:800px;}
+        .sk-tbl thead{background:linear-gradient(180deg,#eef2ff,#e0e7ff);border-bottom:2px solid #a5b4fc;}
+        .sk-tbl thead th{padding:.9rem 1.25rem;font-size:.675rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#3730a3;white-space:nowrap;text-align:left;user-select:none;}
+        .sk-tbl thead th.sortable{cursor:pointer;transition:color .2s;} .sk-tbl thead th.sortable:hover{color:#4f46e5;}
+        .sk-tbl thead th .arr{display:inline-block;margin-left:4px;font-size:.6rem;opacity:.4;} .sk-tbl thead th.active .arr{opacity:1;color:#4f46e5;}
+        .sk-tbl thead th.r{text-align:right;}
+        .sk-tbl tbody td{padding:.9375rem 1.25rem;border-bottom:1px solid #f1f5f9;font-size:.8125rem;color:#374151;vertical-align:middle;}
+        .sk-tbl tbody tr{transition:background .15s;} .sk-tbl tbody tr:hover{background:linear-gradient(90deg,#eef2ff,#faf5ff);}
+        .sk-tbl tbody tr:last-child td{border-bottom:none;}
 
-        .v3-stats-float {
-            position: relative; z-index: 10; margin-top: -2.75rem;
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;
-            margin-bottom: 1.75rem;
-        }
-        .v3-stat {
-            background: rgba(255,255,255,0.92); backdrop-filter: blur(20px) saturate(1.8);
-            border: 1px solid rgba(255,255,255,0.6);
-            border-radius: 16px; padding: 1.375rem 1.5rem;
-            transition: all 0.3s; position: relative; overflow: hidden;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-        }
-        .v3-stat:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.04); }
-        .v3-stat::after {
-            content: ''; position: absolute; bottom: 0; left: 1.5rem; right: 1.5rem; height: 3px;
-            border-radius: 3px 3px 0 0; background: var(--c);
-        }
-        .v3-stat-top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.875rem; }
-        .v3-stat-ico {
-            width: 42px; height: 42px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
-        .v3-stat-ico svg { width: 20px; height: 20px; }
-        .v3-stat-ico.c-blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #2563eb; }
-        .v3-stat-ico.c-purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #7c3aed; }
-        .v3-stat-ico.c-green { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #059669; }
-        .v3-stat-ico.c-amber { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
-        .v3-stat-label { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; }
-        .v3-stat-value {
-            font-size: 1.75rem; font-weight: 900; color: #0f172a;
-            font-family: ui-monospace, 'SF Mono', monospace; letter-spacing: -0.03em; line-height: 1;
-        }
-        .v3-stat-value.sm { font-size: 1.25rem; }
-        .v3-stat-foot { font-size: 0.7rem; color: #94a3b8; margin-top: 0.375rem; font-weight: 500; }
+        /* ── Cell Styles ── */
+        .sk-pname{font-weight:700;font-size:.8125rem;color:#0f172a;}
+        .sk-psku{font-size:.6875rem;color:#94a3b8;font-family:'JetBrains Mono',monospace;margin-top:2px;}
+        .sk-cat{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .625rem;border-radius:6px;font-size:.72rem;font-weight:600;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
+        .sk-wh-tag{display:inline-block;background:#eff6ff;color:#3b82f6;font-size:.6875rem;font-weight:700;padding:.125rem .5rem;border-radius:5px;}
+        .sk-loc{font-size:.6875rem;color:#94a3b8;margin-top:3px;display:flex;align-items:center;gap:3px;}
+        .sk-batch{font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600;color:#1e293b;}
+        .sk-exp{font-size:.6875rem;font-weight:600;display:flex;align-items:center;gap:3px;margin-top:2px;}
+        .sk-exp.expired{color:#ef4444;} .sk-exp.warning{color:#d97706;} .sk-exp.ok{color:#10b981;}
+        .sk-muted{color:#cbd5e1;}
 
-        .v3-alert {
-            display: flex; align-items: center; gap: 0.75rem;
-            padding: 0.875rem 1.25rem; border-radius: 14px;
-            margin-bottom: 1.25rem; font-size: 0.8125rem; font-weight: 600;
-            background: linear-gradient(135deg, #fffbeb, #fef3c7);
-            border: 1px solid #fde68a; color: #92400e;
-            box-shadow: 0 2px 8px rgba(245,158,11,0.08);
-        }
-        .v3-alert svg { width: 20px; height: 20px; flex-shrink: 0; }
+        /* ── Stock Badge ── */
+        .sk-stk-box{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+        .sk-stk-num{font-size:1.25rem;font-weight:900;font-family:'JetBrains Mono',monospace;letter-spacing:-.02em;line-height:1;}
+        .sk-stk-num.ok{color:#059669;} .sk-stk-num.low{color:#d97706;} .sk-stk-num.empty{color:#94a3b8;} .sk-stk-num.masked{color:#94a3b8;}
+        .sk-stk-pcs{font-size:.625rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+        .sk-stk-break{display:flex;flex-wrap:wrap;gap:3px;justify-content:flex-end;}
+        .sk-stk-chip{font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;}
+        .sk-stk-chip.big{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;}
+        .sk-stk-chip.small{background:#f8fafc;color:#64748b;border:1px solid #e2e8f0;}
+        .sk-stk-pcs-tag{font-size:.625rem;background:#f1f5f9;color:#94a3b8;padding:1px 6px;border-radius:4px;font-weight:600;margin-left:2px;}
+        .sk-stk-bar{width:110px;height:5px;background:#f1f5f9;border-radius:99px;overflow:hidden;}
+        .sk-stk-bar-f{height:100%;border-radius:99px;transition:width .4s;}
+        .sk-stk-bar-f.ok{background:#10b981;} .sk-stk-bar-f.low{background:#f59e0b;} .sk-stk-bar-f.crit{background:#ef4444;}
+        .sk-stk-mini{font-size:.6rem;color:#94a3b8;text-align:right;}
+        .sk-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex-shrink:0;}
+        .sk-dot.green{background:#10b981;} .sk-dot.yellow{background:#f59e0b;} .sk-dot.red{background:#ef4444;} .sk-dot.gray{background:#cbd5e1;}
+        .sk-row-status{display:flex;align-items:center;font-size:.72rem;font-weight:700;gap:4px;}
 
-        .v3-panel {
-            background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
-            overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-        }
-        .v3-panel-head {
-            padding: 1.375rem 1.75rem; border-bottom: 1px solid #f1f5f9;
-            display: flex; align-items: center; justify-content: space-between;
-            flex-wrap: wrap; gap: 0.75rem;
-        }
-        .v3-panel-title {
-            font-size: 1.0625rem; font-weight: 800; color: #0f172a; margin: 0;
-            display: flex; align-items: center; gap: 0.625rem;
-        }
-        .v3-panel-title-dot {
-            width: 10px; height: 10px; border-radius: 50%;
-            background: linear-gradient(135deg, #10b981, #34d399);
-            box-shadow: 0 0 0 3px rgba(16,185,129,0.15);
-        }
-        .v3-panel-count {
-            font-size: 0.75rem; font-weight: 700; color: #64748b;
-            background: #f1f5f9; padding: 4px 12px; border-radius: 99px;
-        }
+        /* ── Empty State ── */
+        .sk-empty{text-align:center;padding:3.5rem 1.5rem;}
+        .sk-empty-ico{width:72px;height:72px;margin:0 auto 1rem;border-radius:50%;background:linear-gradient(135deg,#eef2ff,#e0e7ff);display:flex;align-items:center;justify-content:center;}
+        .sk-empty-title{font-size:1rem;font-weight:700;color:#475569;margin-bottom:.25rem;}
+        .sk-empty-sub{font-size:.8125rem;color:#94a3b8;margin-bottom:1.25rem;}
 
-        .v3-filter {
-            padding: 1.125rem 1.75rem; border-bottom: 1px solid #f1f5f9;
-            background: linear-gradient(180deg, #f8fafc, #fff);
-        }
-        .v3-filter-form { display: flex; gap: 0.625rem; align-items: center; flex-wrap: wrap; }
-        .v3-search {
-            flex: 1; min-width: 220px; position: relative;
-        }
-        .v3-search-ico {
-            position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%);
-            color: #94a3b8; pointer-events: none;
-        }
-        .v3-search-ico svg { width: 16px; height: 16px; }
-        .v3-search input {
-            width: 100%; padding: 0.6875rem 1rem 0.6875rem 2.625rem;
-            border: 1.5px solid #e2e8f0; border-radius: 10px;
-            font-size: 0.8125rem; background: #fff; color: #0f172a;
-            font-family: inherit; outline: none; transition: all 0.2s;
-        }
-        .v3-search input:focus { border-color: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,0.08); }
-        .v3-search input::placeholder { color: #94a3b8; }
+        /* ── Pagination ── */
+        .sk-pag{padding:.875rem 1.25rem;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;background:#fff;}
+        .sk-pag-info{font-size:.75rem;color:#94a3b8;font-weight:500;}
 
-        .v3-sel {
-            padding: 0.6875rem 2.25rem 0.6875rem 0.875rem;
-            border: 1.5px solid #e2e8f0; border-radius: 10px;
-            font-size: 0.8125rem; background: #fff; color: #0f172a;
-            font-family: inherit; outline: none; cursor: pointer;
-            transition: all 0.2s; appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 0.625rem center;
-        }
-        .v3-sel:focus { border-color: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,0.08); }
-
-        .v3-btn-go {
-            padding: 0.6875rem 1.25rem; border-radius: 10px;
-            background: #0f172a; color: #fff; font-size: 0.8125rem;
-            font-weight: 700; border: none; cursor: pointer;
-            transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
-            font-family: inherit;
-        }
-        .v3-btn-go:hover { background: #1e293b; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15,23,42,0.2); }
-        .v3-btn-go svg { width: 14px; height: 14px; }
-
-        .v3-btn-x {
-            padding: 0.6875rem 0.875rem; border-radius: 10px;
-            background: #fff; color: #ef4444; font-size: 0.8125rem;
-            font-weight: 600; border: 1.5px solid #fecaca; cursor: pointer;
-            transition: all 0.2s; text-decoration: none;
-            display: inline-flex; align-items: center; gap: 5px;
-        }
-        .v3-btn-x:hover { background: #fef2f2; border-color: #f87171; }
-        .v3-btn-x svg { width: 14px; height: 14px; }
-
-        .v3-tbl-wrap { overflow-x: auto; }
-        .v3-tbl { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .v3-tbl thead th {
-            padding: 0.8125rem 1.5rem; text-align: left;
-            font-size: 0.625rem; font-weight: 800; color: #64748b;
-            text-transform: uppercase; letter-spacing: 0.08em;
-            background: #f8fafc; border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap; position: sticky; top: 0; z-index: 2;
-        }
-        .v3-tbl thead th.sort { cursor: pointer; user-select: none; }
-        .v3-tbl thead th.sort:hover { color: #10b981; }
-        .v3-tbl thead th.tc { text-align: center; }
-
-        .v3-tbl tbody td {
-            padding: 1rem 1.5rem; border-bottom: 1px solid #f1f5f9;
-            font-size: 0.8125rem; color: #334155; vertical-align: middle;
-        }
-        .v3-tbl tbody tr { transition: all 0.15s ease; }
-        .v3-tbl tbody tr:hover td { background: #f0fdf4; }
-        .v3-tbl tbody tr:last-child td { border-bottom: none; }
-        .v3-tbl .tc { text-align: center; }
-
-        .v3-row-low td { background: linear-gradient(90deg, #fffbeb, #fef9c3) !important; }
-        .v3-row-low:hover td { background: linear-gradient(90deg, #fef9c3, #fef08a) !important; }
-        .v3-row-empty td { background: linear-gradient(90deg, #fef2f2, #fee2e2) !important; }
-        .v3-row-empty:hover td { background: linear-gradient(90deg, #fee2e2, #fecaca) !important; }
-
-        .v3-prod-name { font-weight: 700; color: #0f172a; font-size: 0.875rem; line-height: 1.3; }
-        .v3-prod-sku { font-size: 0.6875rem; color: #94a3b8; font-family: ui-monospace, monospace; margin-top: 2px; font-weight: 500; }
-
-        .v3-cat {
-            display: inline-flex; align-items: center; padding: 3px 10px;
-            border-radius: 6px; font-size: 0.6875rem; font-weight: 700;
-            background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
-        }
-
-        .v3-wh-name { font-weight: 600; color: #0f172a; font-size: 0.8125rem; }
-        .v3-wh-loc {
-            font-size: 0.6875rem; color: #64748b; margin-top: 2px;
-            display: flex; align-items: center; gap: 3px;
-        }
-        .v3-wh-loc svg { width: 11px; height: 11px; color: #94a3b8; }
-
-        .v3-batch {
-            display: inline-block; padding: 2px 8px;
-            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-            color: #4338ca; font-family: ui-monospace, monospace;
-            font-size: 0.6875rem; font-weight: 700; border-radius: 5px;
-            margin-bottom: 3px; letter-spacing: 0.02em;
-        }
-        .v3-exp { font-size: 0.8125rem; font-weight: 600; }
-        .v3-exp.safe { color: #059669; }
-        .v3-exp.warn { color: #d97706; }
-        .v3-exp.danger { color: #dc2626; }
-        .v3-exp-days { font-size: 0.625rem; font-weight: 700; margin-top: 2px; }
-        .v3-exp-days.safe { color: #10b981; }
-        .v3-exp-days.warn { color: #f59e0b; }
-        .v3-exp-days.danger { color: #ef4444; }
-
-        .v3-stock-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .v3-stock-num {
-            font-size: 1.25rem; font-weight: 900;
-            font-family: ui-monospace, 'SF Mono', monospace;
-            line-height: 1;
-        }
-        .v3-stock-num.ok { color: #059669; }
-        .v3-stock-num.low { color: #d97706; }
-        .v3-stock-num.out { color: #dc2626; }
-        .v3-stock-num.mask { color: #94a3b8; }
-        .v3-stock-brk { font-size: 0.625rem; color: #6366f1; font-weight: 700; letter-spacing: 0.01em; }
-        .v3-stock-unit { font-size: 0.6875rem; color: #94a3b8; font-weight: 500; }
-        .v3-stock-min {
-            font-size: 0.5625rem; color: #b45309; font-weight: 800;
-            background: #fef3c7; padding: 1px 7px; border-radius: 4px;
-            text-transform: uppercase; letter-spacing: 0.04em;
-        }
-
-        .v3-empty {
-            text-align: center; padding: 4rem 2rem;
-        }
-        .v3-empty-ico {
-            width: 72px; height: 72px; border-radius: 20px;
-            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 1.25rem; border: 1px solid #bbf7d0;
-        }
-        .v3-empty-ico svg { width: 32px; height: 32px; color: #10b981; }
-        .v3-empty h6 { font-size: 1rem; font-weight: 800; color: #374151; margin: 0 0 0.375rem; }
-        .v3-empty p { font-size: 0.8125rem; color: #94a3b8; margin: 0; }
-
-        .v3-pag { padding: 1rem 1.75rem; border-top: 1px solid #f1f5f9; background: #fafbfc; }
-
-        @media (max-width: 1024px) {
-            .v3-stats-float { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 768px) {
-            .v3-hero { padding: 1.75rem 1.25rem 4rem; border-radius: 0 0 20px 20px; }
-            .v3-hero-title { font-size: 1.625rem; }
-            .v3-stats-float { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-            .v3-filter-form { flex-direction: column; align-items: stretch; }
-            .v3-search { min-width: 0; }
-            .v3-page { padding: 0 1rem 2rem; }
-        }
-        @media (max-width: 480px) {
-            .v3-stats-float { grid-template-columns: 1fr; }
+        @media(max-width:1024px){.sk-kpis{grid-template-columns:repeat(2,1fr);}}
+        @media(max-width:640px){
+            .sk-kpis{grid-template-columns:1fr;}
+            .sk-hdr{flex-direction:column;align-items:flex-start;}
+            .sk-ff{flex-direction:column;align-items:stretch;}
+            .sk-fsel,.sk-fsearch{width:100%;min-width:auto;}
+            .sk-pag{flex-direction:column;gap:.5rem;text-align:center;}
         }
     </style>
     @endpush
 
-    <div class="v3-page">
+    <div class="py-4">
+        <div class="sk-page">
 
-        <div class="v3-hero">
-            <div class="v3-hero-inner">
-                <div class="v3-hero-top">
+            {{-- Header --}}
+            <div class="sk-hdr">
+                <div class="sk-hdr-l">
+                    <div class="sk-hdr-ico">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    </div>
                     <div>
-                        <div class="v3-hero-chip"><span class="v3-hero-chip-dot"></span> Inventory Management</div>
-                        <h1 class="v3-hero-title">Rekap Stok Barang</h1>
-                        <p class="v3-hero-sub">Pantau penyebaran stok produk di seluruh gudang dan lokasi rak secara real-time.</p>
-                    </div>
-                    <div class="v3-hero-actions">
-                        <a href="{{ route('gudang.stok.export', request()->only(['warehouse_id','category_id','search'])) }}" class="v3-btn-export">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Export CSV
-                        </a>
+                        <div class="sk-hdr-title">Rekap Stok Barang</div>
+                        <div class="sk-hdr-sub">Detail penyebaran stok produk di seluruh gudang dan lokasi rak</div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="v3-stats-float">
-            <div class="v3-stat" style="--c: #3b82f6;">
-                <div class="v3-stat-top">
-                    <div class="v3-stat-ico c-blue">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                    </div>
-                    <div class="v3-stat-label">Total Record</div>
+                <div class="sk-hdr-actions">
+                    <a href="{{ route('gudang.stok.export', request()->only(['warehouse_id','category_id','search'])) }}" class="sk-btn sk-btn-outline">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export CSV
+                    </a>
+                    <a href="{{ route('gudang.penerimaan.create') }}" class="sk-btn sk-btn-primary">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Terima Barang
+                    </a>
                 </div>
-                <div class="v3-stat-value">{{ number_format($totalRecords ?? 0) }}</div>
-                <div class="v3-stat-foot">record stok aktif</div>
             </div>
-            <div class="v3-stat" style="--c: #8b5cf6;">
-                <div class="v3-stat-top">
-                    <div class="v3-stat-ico c-purple">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    </div>
-                    <div class="v3-stat-label">Nilai Stok</div>
+
+            {{-- KPI Cards --}}
+            <div class="sk-kpis">
+                <div class="sk-kpi blue">
+                    <span class="sk-kpi-lbl">Total Record Stok</span>
+                    <div class="sk-kpi-val blue">{{ number_format($totalRecords) }}</div>
+                    <div class="sk-kpi-foot">Record aktif di semua gudang</div>
                 </div>
-                <div class="v3-stat-value sm">{{ ($hideFinancial ?? false) ? '***' : 'Rp ' . number_format($totalStockValue ?? 0, 0, ',', '.') }}</div>
-                <div class="v3-stat-foot">estimasi total inventory</div>
-            </div>
-            <div class="v3-stat" style="--c: #10b981;">
-                <div class="v3-stat-top">
-                    <div class="v3-stat-ico c-green">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                    </div>
-                    <div class="v3-stat-label">Gudang Aktif</div>
+                <div class="sk-kpi purple">
+                    <span class="sk-kpi-lbl">Total Nilai Stok</span>
+                    <div class="sk-kpi-val purple">Rp {{ number_format($totalStockValue, 0, ',', '.') }}</div>
+                    <div class="sk-kpi-foot">Estimasi berdasarkan harga beli</div>
                 </div>
-                <div class="v3-stat-value">{{ $activeWarehouses ?? 0 }}</div>
-                <div class="v3-stat-foot">lokasi penyimpanan</div>
-            </div>
-            <div class="v3-stat" style="--c: {{ ($lowStockCount ?? 0) > 0 ? '#f59e0b' : '#10b981' }};">
-                <div class="v3-stat-top">
-                    <div class="v3-stat-ico c-amber">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    </div>
-                    <div class="v3-stat-label">Stok Menipis</div>
+                <div class="sk-kpi green">
+                    <span class="sk-kpi-lbl">Gudang Aktif</span>
+                    <div class="sk-kpi-val green">{{ $activeWarehouses }}</div>
+                    <div class="sk-kpi-foot">Gudang dengan stok tersimpan</div>
                 </div>
-                <div class="v3-stat-value" style="color: {{ ($lowStockCount ?? 0) > 0 ? '#d97706' : '#059669' }}">{{ $lowStockCount ?? 0 }}</div>
-                <div class="v3-stat-foot">perlu restock segera</div>
-            </div>
-        </div>
-
-        @if($maskStock)
-            <div class="v3-alert">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span>Stok disembunyikan karena ada proses opname aktif.</span>
-            </div>
-        @endif
-
-        <div class="v3-panel">
-            <div class="v3-panel-head">
-                <h3 class="v3-panel-title">
-                    <span class="v3-panel-title-dot"></span>
-                    Data Stok Per Gudang
-                </h3>
-                <span class="v3-panel-count">{{ $totalRecords ?? 0 }} record</span>
+                <div class="sk-kpi red">
+                    <span class="sk-kpi-lbl">Stok Hampir Habis</span>
+                    <div class="sk-kpi-val red">{{ $lowStockCount }}</div>
+                    <div class="sk-kpi-foot">Di bawah minimum stok</div>
+                </div>
             </div>
 
-            <div class="v3-filter">
-                <form method="GET" action="{{ route('gudang.stok') }}" class="v3-filter-form" id="filter-form">
-                    <div class="v3-search">
-                        <span class="v3-search-ico">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        </span>
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari barang atau SKU..." id="search-input">
+            {{-- Filter Card --}}
+            <div class="sk-filter">
+                <form method="GET" action="{{ route('gudang.stok') }}" id="sk-filter-form">
+                    <div class="sk-ff">
+                        <div class="sk-fgrp">
+                            <label class="sk-flbl">Gudang</label>
+                            <select name="warehouse_id" class="sk-fsel">
+                                <option value="">Semua Gudang</option>
+                                @foreach($warehouses as $wh)
+                                    <option value="{{ $wh->id }}" {{ $warehouseId == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sk-fgrp">
+                            <label class="sk-flbl">Kategori</label>
+                            <select name="category_id" class="sk-fsel">
+                                <option value="">Semua Kategori</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}" {{ $categoryId == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sk-fgrp" style="flex:1;min-width:200px;">
+                            <label class="sk-flbl">Cari Barang</label>
+                            <div class="sk-fsearch">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama barang / SKU..." id="sk-search-input">
+                            </div>
+                        </div>
+                        <div class="sk-fgrp" style="align-self:flex-end;">
+                            <button type="submit" class="sk-btn-f">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                Filter
+                            </button>
+                        </div>
+                        @if(request('search') || request('warehouse_id') || request('category_id'))
+                        <div class="sk-fgrp" style="align-self:flex-end;">
+                            <a href="{{ route('gudang.stok') }}" class="sk-btn-r">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Reset
+                            </a>
+                        </div>
+                        @endif
                     </div>
 
-                    <select name="warehouse_id" class="v3-sel">
-                        <option value="">Semua Gudang</option>
-                        @foreach($warehouses as $wh)
-                            <option value="{{ $wh->id }}" {{ $warehouseId == $wh->id ? 'selected' : '' }}>{{ $wh->name }}</option>
-                        @endforeach
-                    </select>
-
-                    <select name="category_id" class="v3-sel">
-                        <option value="">Semua Kategori</option>
-                        @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}" {{ $categoryId == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
-                        @endforeach
-                    </select>
-
-                    <button type="submit" class="v3-btn-go">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                        Filter
-                    </button>
-
+                    {{-- Active filter badges --}}
                     @if(request('search') || request('warehouse_id') || request('category_id'))
-                        <a href="{{ route('gudang.stok') }}" class="v3-btn-x">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                            Reset
-                        </a>
+                    <div class="sk-active-filters">
+                        <span style="font-size:.6875rem;color:#94a3b8;font-weight:600;">Filter aktif:</span>
+                        @if(request('search'))
+                            <span class="sk-filter-tag">Search: "{{ request('search') }}" <a href="{{ route('gudang.stok', request()->except('search')) }}">x</a></span>
+                        @endif
+                        @if(request('warehouse_id'))
+                            @php $whName = $warehouses->firstWhere('id', request('warehouse_id'))?->name ?? '--'; @endphp
+                            <span class="sk-filter-tag">Gudang: {{ $whName }} <a href="{{ route('gudang.stok', request()->except('warehouse_id')) }}">x</a></span>
+                        @endif
+                        @if(request('category_id'))
+                            @php $catName = $categories->firstWhere('id', request('category_id'))?->name ?? '--'; @endphp
+                            <span class="sk-filter-tag">Kategori: {{ $catName }} <a href="{{ route('gudang.stok', request()->except('category_id')) }}">x</a></span>
+                        @endif
+                    </div>
                     @endif
                 </form>
             </div>
 
-            <div class="v3-tbl-wrap">
-                <table class="v3-tbl">
-                    <thead>
-                        <tr>
-                            @php
-                                $sortUrl = function($col) use ($sort, $dir) {
-                                    $newDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
-                                    return route('gudang.stok', array_merge(request()->except(['sort','dir','page']), ['sort' => $col, 'dir' => $newDir]));
-                                };
-                                $arrow = function($col) use ($sort, $dir) {
-                                    if ($sort !== $col) return '<span style="opacity:0.25; margin-left:4px; font-size:0.7rem;">&#8693;</span>';
-                                    return $dir === 'asc' ? '<span style="color:#10b981; margin-left:4px; font-size:0.7rem;">&#9650;</span>' : '<span style="color:#10b981; margin-left:4px; font-size:0.7rem;">&#9660;</span>';
-                                };
-                            @endphp
-                            <th class="sort" onclick="location.href='{{ $sortUrl('product') }}'">Barang / SKU {!! $arrow('product') !!}</th>
-                            <th class="sort" onclick="location.href='{{ $sortUrl('category') }}'">Kategori {!! $arrow('category') !!}</th>
-                            <th class="sort" onclick="location.href='{{ $sortUrl('warehouse') }}'">Gudang & Lokasi {!! $arrow('warehouse') !!}</th>
-                            <th>Batch / Expired</th>
-                            <th class="tc sort" onclick="location.href='{{ $sortUrl('stock') }}'">Sisa Stok {!! $arrow('stock') !!}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($stocks as $stock)
-                            @php
-                                $minStk = $stock->product->min_stock ?? 0;
-                                $isLow = $stock->stock > 0 && $stock->stock <= $minStk;
-                                $isEmpty = $stock->stock == 0;
-                                $displayStock = $maskStock ? '***' : number_format($stock->stock);
-                            @endphp
-                            <tr class="{{ $isLow ? 'v3-row-low' : ($isEmpty ? 'v3-row-empty' : '') }}">
-                                <td>
-                                    <div class="v3-prod-name">{{ $stock->product->name ?? '-' }}</div>
-                                    <div class="v3-prod-sku">{{ $stock->product->sku ?? '-' }}</div>
-                                </td>
-                                <td>
-                                    <span class="v3-cat">{{ $stock->product->category->name ?? '-' }}</span>
-                                </td>
-                                <td>
-                                    <div class="v3-wh-name">{{ $stock->warehouse->name ?? '-' }}</div>
-                                    <div class="v3-wh-loc">
-                                        @if($stock->location)
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                                            {{ $stock->location->name }}
-                                        @else
-                                            Area Umum
-                                        @endif
-                                    </div>
-                                </td>
-                                <td>
-                                    @if($stock->batch_number)
-                                        <span class="v3-batch">{{ $stock->batch_number }}</span>
-                                    @endif
-                                    @if($stock->expired_date)
-                                        @php
-                                            $expDate = \Carbon\Carbon::parse($stock->expired_date);
-                                            $daysLeft = now()->diffInDays($expDate, false);
-                                        @endphp
-                                        <div class="v3-exp {{ $expDate->isPast() ? 'danger' : ($daysLeft <= 30 ? 'warn' : 'safe') }}">
-                                            {{ $expDate->format('d M Y') }}
-                                        </div>
-                                        @if(!$expDate->isPast())
-                                            <div class="v3-exp-days {{ $daysLeft <= 30 ? 'warn' : 'safe' }}">{{ $daysLeft }} hari lagi</div>
-                                        @else
-                                            <div class="v3-exp-days danger">{{ abs($daysLeft) }} hari lalu</div>
-                                        @endif
-                                    @else
-                                        <span style="color:#94a3b8; font-size:0.75rem;">-</span>
-                                    @endif
-                                </td>
-                                <td class="tc">
-                                    <div class="v3-stock-cell">
-                                        @if($maskStock)
-                                            <span class="v3-stock-num mask">***</span>
-                                        @elseif($isEmpty)
-                                            <span class="v3-stock-num out">0</span>
-                                        @elseif($isLow)
-                                            <span class="v3-stock-num low">{{ $displayStock }}</span>
-                                        @else
-                                            <span class="v3-stock-num ok">{{ $displayStock }}</span>
-                                        @endif
-
-                                        @if(!$maskStock && !$isEmpty)
-                                            @php $breakdown = $stock->product->breakdownStock($stock->stock); @endphp
-                                            @if($breakdown !== number_format($stock->stock) . ' ' . ($stock->product->base_unit_name ?? ''))
-                                                <span class="v3-stock-brk">{{ $breakdown }}</span>
-                                            @else
-                                                <span class="v3-stock-unit">{{ $stock->product->base_unit_name ?? '' }}</span>
-                                            @endif
-                                        @elseif(!$maskStock && $isEmpty)
-                                            <span class="v3-stock-unit">{{ $stock->product->base_unit_name ?? '' }}</span>
-                                        @endif
-
-                                        @if($isLow && !$maskStock)
-                                            <span class="v3-stock-min">Min: {{ number_format($minStk) }}</span>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
+            {{-- Data Table --}}
+            <div class="sk-tbl-wrap">
+                <div class="sk-tbl-scroll">
+                    <table class="sk-tbl">
+                        <thead>
                             <tr>
-                                <td colspan="5">
-                                    <div class="v3-empty">
-                                        <div class="v3-empty-ico">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                                        </div>
-                                        <h6>Data Stok Kosong</h6>
-                                        <p>Tidak ada stok barang yang sesuai dengan kriteria pencarian.</p>
-                                    </div>
-                                </td>
+                                @php
+                                    $sortUrl = function($col) use ($sort, $dir) {
+                                        $newDir = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+                                        return route('gudang.stok', array_merge(request()->except(['sort','dir','page']), ['sort' => $col, 'dir' => $newDir]));
+                                    };
+                                    $arrow = function($col) use ($sort, $dir) {
+                                        if ($sort !== $col) return '<span class="arr">&#8693;</span>';
+                                        return $dir === 'asc' ? '<span class="arr">&#8593;</span>' : '<span class="arr">&#8595;</span>';
+                                    };
+                                @endphp
+                                <th class="sortable {{ $sort === 'product' ? 'active' : '' }}" onclick="location.href='{{ $sortUrl('product') }}'">Barang / SKU {!! $arrow('product') !!}</th>
+                                <th style="width:90px;">Status</th>
+                                <th>Gudang &amp; Expired</th>
+                                <th class="r sortable {{ $sort === 'stock' ? 'active' : '' }}" onclick="location.href='{{ $sortUrl('stock') }}'" style="width:200px;">Sisa Stok {!! $arrow('stock') !!}</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @forelse($stocks as $stock)
+                                @php
+                                    $minStk = $stock->product->min_stock ?? 0;
+                                    $curStk = (int)$stock->stock;
+                                    $isLow = $curStk > 0 && $curStk <= $minStk;
+                                    $isCrit = $curStk > 0 && $minStk > 0 && $curStk <= ($minStk / 2);
+                                    $isEmpty = $curStk == 0;
+                                    $unitName = $stock->product->unit->abbreviation ?? $stock->product->unit->name ?? 'pcs';
+                                    // Pecahan per satuan
+                                    $pecahan = [];
+                                    $sisa = $curStk;
+                                    if (!$maskStock && $curStk > 0 && $stock->product->unitConversions->isNotEmpty()) {
+                                        $sorted = $stock->product->unitConversions
+                                            ->filter(fn($u) => ($u->conversion_factor ?? 0) > 1)
+                                            ->sortByDesc('conversion_factor');
+                                        foreach ($sorted as $uc) {
+                                            $f = (int)$uc->conversion_factor;
+                                            $cnt = intdiv($sisa, $f);
+                                            if ($cnt > 0) {
+                                                $pecahan[] = [$cnt, $uc->unit->abbreviation ?? $uc->unit->name ?? '?', $f];
+                                                $sisa = $sisa % $f;
+                                            }
+                                        }
+                                    }
+                                    // Stock level for bar
+                                    $barPct = $minStk > 0 ? min(100, ($curStk / $minStk) * 100) : 100;
+                                    $barClass = $isCrit ? 'crit' : ($isLow ? 'low' : 'ok');
+                                    $numClass = $maskStock ? 'masked' : ($isEmpty ? 'empty' : ($isCrit ? 'low' : ($isLow ? 'low' : 'ok')));
+                                @endphp
+                                <tr>
+                                    {{-- Nama + SKU + Kategori --}}
+                                    <td>
+                                        <div class="sk-pname">{{ $stock->product->name }}</div>
+                                        <div class="sk-psku">SKU: {{ $stock->product->sku }}</div>
+                                        <div style="margin-top:4px;">
+                                            <span class="sk-cat">{{ $stock->product->category->name ?? '-' }}</span>
+                                        </div>
+                                    </td>
+                                    {{-- Status Stok --}}
+                                    <td>
+                                        @if($maskStock)
+                                            <div class="sk-row-status"><span class="sk-dot gray"></span>Tersembunyi</div>
+                                        @elseif($isEmpty)
+                                            <div class="sk-row-status"><span class="sk-dot gray"></span>Kosong</div>
+                                        @elseif($isCrit)
+                                            <div class="sk-row-status"><span class="sk-dot red"></span>Kritis</div>
+                                        @elseif($isLow)
+                                            <div class="sk-row-status"><span class="sk-dot yellow"></span>Menipis</div>
+                                        @else
+                                            <div class="sk-row-status"><span class="sk-dot green"></span>Aman</div>
+                                        @endif
+                                    </td>
+                                    {{-- Gudang --}}
+                                    <td>
+                                        <span class="sk-wh-tag">{{ $stock->warehouse->name }}</span>
+                                        @if($stock->expired_date)
+                                            @php
+                                                $expDate = \Carbon\Carbon::parse($stock->expired_date);
+                                                $daysLeft = (int)now()->diffInDays($expDate, false);
+                                            @endphp
+                                            <div style="margin-top:3px;font-size:.65rem;{{ $expDate->isPast() ? 'color:#ef4444;font-weight:700;' : ($daysLeft <= 30 ? 'color:#d97706;' : 'color:#94a3b8;') }}">
+                                                ⏱ {{ $expDate->format('d/m/Y') }} @if(!$expDate->isPast() && $daysLeft <= 30)({{ $daysLeft }}h)@endif
+                                            </div>
+                                        @endif
+                                    </td>
+                                    {{-- Sisa Stok + Pecahan --}}
+                                    <td class="r" style="min-width:200px;">
+                                        <div class="sk-stk-box">
+                                            {{-- Angka besar --}}
+                                            <div class="sk-stk-num {{ $numClass }}">
+                                                {{ $maskStock ? '***' : number_format($curStk) }}
+                                            </div>
+                                            <div class="sk-stk-pcs">{{ $unitName }}</div>
+
+                                            {{-- Pecahan satuan --}}
+                                            @if(!$maskStock && $curStk > 0 && count($pecahan) > 0)
+                                            <div class="sk-stk-break">
+                                                @foreach($pecahan as $p)
+                                                    <span class="sk-stk-chip big">{{ $p[0] }} {{ $p[1] }}</span>
+                                                @endforeach
+                                            </div>
+                                            @endif
+
+                                            {{-- Progress bar --}}
+                                            @if(!$maskStock && $minStk > 0)
+                                            <div style="display:flex;align-items:center;gap:6px;">
+                                                <div class="sk-stk-bar">
+                                                    <div class="sk-stk-bar-f {{ $barClass }}" style="width:{{ $barPct }}%;"></div>
+                                                </div>
+                                                <span class="sk-stk-mini">min {{ number_format($minStk) }}</span>
+                                            </div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5">
+                                        <div class="sk-empty">
+                                            <div class="sk-empty-ico">
+                                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                                            </div>
+                                            <div class="sk-empty-title">Data Stok Kosong</div>
+                                            <div class="sk-empty-sub">Tidak ada stok barang yang sesuai dengan kriteria pencarian.</div>
+                                            <a href="{{ route('gudang.stok') }}" class="sk-btn sk-btn-primary" style="font-size:.8125rem;">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                                Reset Filter
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Pagination --}}
+                @if($stocks->hasPages())
+                <div class="sk-pag">
+                    <div class="sk-pag-info">
+                        Menampilkan {{ $stocks->firstItem() }}-{{ $stocks->lastItem() }} dari {{ $stocks->total() }} record
+                    </div>
+                    <div>{{ $stocks->withQueryString()->links() }}</div>
+                </div>
+                @endif
             </div>
 
-            @if($stocks->hasPages())
-                <div class="v3-pag">
-                    {{ $stocks->withQueryString()->links() }}
-                </div>
-            @endif
         </div>
-
     </div>
 
     @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const searchInput = document.getElementById('search-input');
-            const filterForm = document.getElementById('filter-form');
-            const warehouseSelect = document.querySelector('select[name="warehouse_id"]');
-            const categorySelect = document.querySelector('select[name="category_id"]');
-
-            if (searchInput) {
-                let timer;
-                searchInput.addEventListener('input', () => {
-                    clearTimeout(timer);
-                    timer = setTimeout(() => { filterForm.submit(); }, 400);
-                });
-            }
-            if (warehouseSelect) warehouseSelect.addEventListener('change', () => { filterForm.submit(); });
-            if (categorySelect) categorySelect.addEventListener('change', () => { filterForm.submit(); });
-
-            filterForm.addEventListener('submit', () => {
-                const btn = filterForm.querySelector('button[type="submit"]');
-                if (btn) { btn.innerHTML = 'Memproses...'; btn.disabled = true; }
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('sk-search-input');
+        if (searchInput) {
+            let timer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => document.getElementById('sk-filter-form')?.submit(), 500);
             });
-        });
+        }
+    });
     </script>
     @endpush
 </x-app-layout>

@@ -95,6 +95,10 @@ class SettingsBackupController extends Controller
 
         $data = json_decode($raw, true);
 
+        if (! is_array($data)) {
+            return back()->with('error', 'File backup tidak valid: format JSON rusak atau tidak didukung.');
+        }
+
         // Validate backup structure and content
         $validation = BackupValidationService::validate($data, strlen($raw));
         if (! $validation['valid']) {

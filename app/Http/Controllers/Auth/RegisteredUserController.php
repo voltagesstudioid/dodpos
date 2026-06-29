@@ -46,26 +46,58 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $requestedRole = (string) $request->input('requested_role', '');
+
+        $email = (string) $request->input('email', '');
+
+        $existingRejectedUser = null;
+        if ($email !== '') {
+            $existing = User::where('email', $email)->first();
+            if ($existing && ! $existing->active && $existing->rejected_at && ! $existing->approved_at) {
+                $existingRejectedUser = $existing;
+            }
+        }
+
+        $emailRule = $existingRejectedUser
+            ? ['required', 'string', 'lowercase', 'email', 'max:255']
+            : ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class];
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => $emailRule,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'requested_role' => ['nullable', 'string'],
         ]);
+
+        if ($requestedRole !== '' && ! User::isValidRole($requestedRole)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'requested_role' => 'Role yang dipilih tidak valid.',
+            ]);
+        }
+
+        if (in_array(strtolower($requestedRole), ['supervisor', 'pending'], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'requested_role' => 'Role ini tidak tersedia untuk pendaftaran.',
+            ]);
+        }
+
+        if ($existingRejectedUser) {
+            $existingRejectedUser->delete();
+        }
 
         $user = User::create([
             'name' => (string) $validated['name'],
             'email' => (string) $validated['email'],
             'password' => Hash::make((string) $validated['password']),
             'role' => 'pending',
-            'requested_role' => isset($validated['requested_role']) && $validated['requested_role'] !== '' ? (string) $validated['requested_role'] : null,
+            'requested_role' => $requestedRole !== '' ? $requestedRole : null,
             'active' => false,
             'remember_token' => Str::random(10),
         ]);
 
         $to = collect(explode(',', (string) env('SUPERVISOR_APPROVAL_EMAILS', '')))
             ->map(fn (string $e) => trim($e))
-            ->filter()
+            ->filter(fn (string $e) => filter_var($e, FILTER_VALIDATE_EMAIL) !== false)
             ->unique()
             ->values()
             ->all();

@@ -7,6 +7,7 @@ use App\Mail\PasswordResetOtpMail;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -26,6 +27,11 @@ class PasswordResetOtpRequestController extends Controller
         ]);
 
         $email = (string) $validated['email'];
+
+        DB::table('password_reset_tokens')
+            ->where('created_at', '<', now()->subMinutes(10))
+            ->delete();
+
         $user = User::query()->where('email', $email)->first();
 
         if ($user && ($user->active ?? true)) {
@@ -35,6 +41,8 @@ class PasswordResetOtpRequestController extends Controller
                 ['email' => $email],
                 ['token' => Hash::make($otp), 'created_at' => now()]
             );
+
+            Cache::forget('otp_attempts:' . $email);
 
             Mail::to($email)->send(new PasswordResetOtpMail(
                 name: (string) ($user->name ?? ''),

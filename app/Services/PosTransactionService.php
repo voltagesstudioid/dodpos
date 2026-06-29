@@ -251,9 +251,8 @@ class PosTransactionService
      */
     public function validateTransferReference(string $paymentMethod, ?string $reference): void
     {
-        if (in_array($paymentMethod, ['transfer', 'qris']) && blank($reference)) {
-            $label = $paymentMethod === 'qris' ? 'QRIS' : 'transfer';
-            throw new \Exception('ID transaksi ' . $label . ' wajib diisi.');
+        if ($paymentMethod === 'transfer' && blank($reference)) {
+            throw new \Exception('ID transaksi transfer wajib diisi.');
         }
     }
 

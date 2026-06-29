@@ -13,10 +13,6 @@ class RoleAbilities
             return true;
         }
 
-        if ($ability === 'view_dashboard') {
-            return in_array($role, ['admin_sales'], true);
-        }
-
         if ($ability === 'manage_sesi_operasional') {
             return false;
         }
@@ -98,12 +94,6 @@ class RoleAbilities
             ], true);
         }
 
-        if ($role === 'admin_sales') {
-            return in_array($ability, [
-                'view_laporan_penjualan',
-            ], true);
-        }
-
         if ($role === 'admin3') {
             return in_array($ability, [
                 'view_stok_gudang',
@@ -127,14 +117,6 @@ class RoleAbilities
                 'create_opname_stok',
                 'view_warehouse_orders',
                 'view_absensi',
-            ], true);
-        }
-
-        if ($role === 'kasir') {
-            return in_array($ability, [
-                'view_transaksi',
-                'view_pelanggan',
-                'view_daftar_harga',
             ], true);
         }
 

@@ -499,7 +499,7 @@
                 <div class="rh-mc-val {{ $totalVariance < 0 ? 'v-red' : ($totalVariance > 0 ? 'v-green' : 'v-muted') }}">
                     {{ $totalVariance > 0 ? '+' : '' }}Rp {{ number_format($totalVariance, 0, ',', '.') }}
                 </div>
-                <div class="rh-mc-foot">Berdasarkan sesi yang sudah ditutup</div>
+                <div class="rh-mc-foot">Hanya dari sesi yang sudah ditutup</div>
             </div>
         </div>
 
@@ -659,7 +659,9 @@
                                             </span>
                                         @else
                                             <span class="rh-status-closed">Ditutup</span>
-                                            <div class="rh-tbl-time">{{ \Carbon\Carbon::parse($s->closed_at)->format('H:i') }}</div>
+                                            @if($s->closed_at)
+                                                <div class="rh-tbl-time">{{ \Carbon\Carbon::parse($s->closed_at)->format('H:i') }}</div>
+                                            @endif
                                         @endif
                                     </td>
 

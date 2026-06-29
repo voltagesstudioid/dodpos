@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\DB;
 
 class PosReturnController extends Controller
 {
-    public function create($transaksi)
+    public function create(Transaction $transaksi)
     {
-        $transaksi = Transaction::with(['details.product', 'details.warehouse', 'customer'])->findOrFail($transaksi);
+        $transaksi->load(['details.product', 'details.warehouse', 'customer']);
 
         if ($transaksi->status !== 'completed') {
             return redirect()->route('transaksi.show', ['transaksi' => $transaksi->id])->with('error', 'Hanya transaksi selesai yang bisa diretur.');
@@ -56,9 +56,9 @@ class PosReturnController extends Controller
         return view('transaksi.retur.create', compact('transaksi', 'rows', 'warehouses'));
     }
 
-    public function store(Request $request, $transaksi)
+    public function store(Request $request, Transaction $transaksi)
     {
-        $transaksi = Transaction::with(['details.product', 'details.warehouse', 'customer'])->findOrFail($transaksi);
+        $transaksi->load(['details.product', 'details.warehouse', 'customer']);
 
         if ($transaksi->status !== 'completed') {
             return redirect()->route('transaksi.show', ['transaksi' => $transaksi->id])->with('error', 'Hanya transaksi selesai yang bisa diretur.');

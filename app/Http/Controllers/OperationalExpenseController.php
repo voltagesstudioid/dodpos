@@ -80,6 +80,7 @@ class OperationalExpenseController extends Controller
         } else {
             $startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
             $endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+            $query->whereBetween('date', [$startDate, $endDate]);
         }
 
         $selectedCategoryId = $request->input('category_id');

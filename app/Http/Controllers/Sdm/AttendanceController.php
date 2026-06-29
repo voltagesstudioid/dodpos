@@ -59,20 +59,11 @@ class AttendanceController extends Controller
     {
         try {
             Storage::disk('public')->put($path, $bytes);
-            Log::info('attendance_selfie_saved', $context + ['path' => $path, 'attempt' => 1]);
+            Log::info('attendance_selfie_saved', $context + ['path' => $path]);
 
             return true;
         } catch (\Throwable $e) {
-            Log::warning('attendance_selfie_save_failed', $context + ['path' => $path, 'attempt' => 1, 'error' => $e->getMessage()]);
-        }
-
-        try {
-            Storage::disk('public')->put($path, $bytes);
-            Log::info('attendance_selfie_saved', $context + ['path' => $path, 'attempt' => 2]);
-
-            return true;
-        } catch (\Throwable $e) {
-            Log::error('attendance_selfie_save_failed', $context + ['path' => $path, 'attempt' => 2, 'error' => $e->getMessage()]);
+            Log::error('attendance_selfie_save_failed', $context + ['path' => $path, 'error' => $e->getMessage()]);
 
             return false;
         }
@@ -1278,5 +1269,100 @@ class AttendanceController extends Controller
         }
 
         return $dates;
+    }
+
+    /**
+     * Tarik data absensi dari mesin ZKTeco secara manual (SPV only).
+     */
+    public function sync()
+    {
+        $role = strtolower((string) (Auth::user()?->role ?? ''));
+        if ($role !== 'supervisor') {
+            return back()->with('error', 'Hanya Supervisor yang bisa sinkronisasi mesin fingerprint.');
+        }
+
+        $setting = StoreSetting::current();
+        $ip = $setting->fingerprint_ip;
+        $port = (int) ($setting->fingerprint_port ?: 4370);
+
+        if (!$ip) {
+            return back()->with('error', 'Alamat IP mesin fingerprint belum diatur. Isi di Pengaturan SDM.');
+        }
+
+        try {
+            $zk = new ZKTeco($ip, $port);
+            $connected = $zk->connect();
+
+            if (!$connected) {
+                return back()->with('error', "Gagal terhubung ke mesin fingerprint di {$ip}:{$port}. Pastikan mesin menyala dan terhubung jaringan.");
+            }
+
+            $attendanceLogs = $zk->getAttendance();
+            $zk->disconnect();
+
+            if (empty($attendanceLogs)) {
+                return back()->with('success', "Terhubung ke mesin {$ip}:{$port} — tidak ada data absensi baru.");
+            }
+
+            $workStartTime = $setting->sdm_work_start_time ?? '08:00';
+            $lateGraceMinutes = (int) ($setting->sdm_late_grace_minutes ?? 10);
+            $created = 0;
+            $updated = 0;
+
+            foreach ($attendanceLogs as $log) {
+                $uid = (string) ($log['uid'] ?? $log['id'] ?? '0');
+                if ($uid === '0') continue;
+
+                // Format timestamp dari mesin: "2025-01-15 08:30:00"
+                $timestamp = $log['timestamp'] ?? $log['time'] ?? null;
+                if (!$timestamp) continue;
+
+                try {
+                    $scanTime = Carbon::parse($timestamp);
+                } catch (\Exception $e) {
+                    continue;
+                }
+
+                $date = $scanTime->toDateString();
+                $time = $scanTime->toTimeString();
+
+                $user = User::where('fingerprint_id', $uid)->first();
+                $userId = $user ? $user->id : null;
+
+                $attendance = Attendance::where('fingerprint_id', $uid)
+                    ->where('date', $date)
+                    ->first();
+
+                if (!$attendance) {
+                    $lateMinutes = $this->lateMinutes($date, $time, $workStartTime, $lateGraceMinutes);
+                    Attendance::create([
+                        'user_id' => $userId,
+                        'fingerprint_id' => $uid,
+                        'date' => $date,
+                        'check_in_time' => $time,
+                        'check_out_time' => null,
+                        'status' => $lateMinutes > 0 ? 'late' : 'present',
+                        'late_minutes' => $lateMinutes > 0 ? $lateMinutes : 0,
+                    ]);
+                    $created++;
+                } else {
+                    if ($attendance->user_id === null && $userId !== null) {
+                        $attendance->update(['user_id' => $userId]);
+                    }
+                    if (!$attendance->check_out_time || $time > $attendance->check_out_time) {
+                        if ($time > ($attendance->check_in_time ?? '00:00')) {
+                            $attendance->update(['check_out_time' => $time]);
+                            $updated++;
+                        }
+                    }
+                }
+            }
+
+            $msg = "Sync selesai: {$created} data baru, {$updated} check-out diperbarui dari mesin {$ip}:{$port}.";
+            return back()->with('success', $msg);
+        } catch (\Throwable $e) {
+            Log::error('ZKTeco sync failed', ['error' => $e->getMessage()]);
+            return back()->with('error', 'Gagal sinkronisasi: ' . $e->getMessage());
+        }
     }
 }

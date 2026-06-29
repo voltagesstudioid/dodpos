@@ -36,8 +36,7 @@ class SalesController extends Controller
      */
     public function storePenjualan(Request $request)
     {
-        // Process the sale - API will handle this
-        return redirect()->route('sales.dashboard')->with('success', 'Penjualan tersimpan');
+        return redirect()->route('sales.dashboard')->with('info', 'Penjualan diproses melalui aplikasi mobile.');
     }
 
     /**
@@ -77,7 +76,7 @@ class SalesController extends Controller
      */
     public function bayarHutang(Request $request, $id)
     {
-        return redirect()->route('sales.hutang')->with('success', 'Pembayaran hutang tersimpan');
+        return redirect()->route('sales.hutang')->with('info', 'Pembayaran hutang diproses melalui aplikasi mobile.');
     }
 
     /**
@@ -93,7 +92,7 @@ class SalesController extends Controller
      */
     public function storeSetoran(Request $request)
     {
-        return redirect()->route('sales.dashboard')->with('success', 'Setoran berhasil disimpan');
+        return redirect()->route('sales.dashboard')->with('info', 'Setoran diproses melalui aplikasi mobile.');
     }
 
     /**
@@ -117,7 +116,7 @@ class SalesController extends Controller
      */
     public function storeKunjungan(Request $request)
     {
-        return redirect()->route('sales.dashboard')->with('success', 'Kunjungan tercatat');
+        return redirect()->route('sales.dashboard')->with('info', 'Kunjungan diproses melalui aplikasi mobile.');
     }
 
     /**

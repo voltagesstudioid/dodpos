@@ -258,7 +258,6 @@
         <div class="pay-methods">
             <div class="pay-method active" data-m="cash" onclick="setM('cash')">Tunai</div>
             <div class="pay-method" data-m="transfer" onclick="setM('transfer')">Transfer</div>
-            <div class="pay-method" data-m="qris" onclick="setM('qris')">QRIS</div>
             <div class="pay-method" data-m="kredit" onclick="setM('kredit')">Kredit</div>
         </div>
         <div id="cashSec">
@@ -274,10 +273,6 @@
             </div>
             <label class="form-label">ID Transaksi Transfer <span style="color:var(--red)">*</span></label>
             <input type="text" class="form-input" id="transferRefInput" placeholder="No. referensi bank">
-        </div>
-        <div id="qrisSec" style="display:none">
-            <label class="form-label">ID Transaksi QRIS <span style="color:var(--red)">*</span></label>
-            <input type="text" class="form-input" id="qrisRefInput" placeholder="No. referensi QRIS">
         </div>
         <div class="vehicle-section">
             <label class="form-label" style="margin-bottom:8px;display:block">Pengiriman</label>
@@ -548,7 +543,6 @@ function openPay(){
     document.getElementById('changeBox').style.display = 'none';
     document.getElementById('debtBox').style.display = 'none';
     const tr = document.getElementById('transferRefInput'); if(tr) tr.value = '';
-    const qr = document.getElementById('qrisRefInput'); if(qr) qr.value = '';
     const steps = [...new Set([total, Math.ceil(total/10000)*10000, Math.ceil(total/50000)*50000, Math.ceil(total/100000)*100000, Math.ceil(total/500000)*500000])].filter(v => v >= total).slice(0,4);
     document.getElementById('quickCash').innerHTML = `<button class="quick-btn pas" onclick="setPaid(${total})">Uang Pas</button>` + steps.map(v => `<button class="quick-btn" onclick="setPaid(${v})">Rp ${fmt(v)}</button>`).join('');
     document.getElementById('payModal').classList.add('show');
@@ -573,7 +567,6 @@ function setM(m){
     document.querySelectorAll('.pay-method').forEach(x => x.classList.toggle('active', x.dataset.m === m));
     document.getElementById('cashSec').style.display = (m==='cash' || m==='kredit') ? 'block' : 'none';
     document.getElementById('transferSec').style.display = (m==='transfer') ? 'block' : 'none';
-    document.getElementById('qrisSec').style.display = (m==='qris') ? 'block' : 'none';
     document.getElementById('lblPaid').textContent = m==='kredit' ? 'Uang Muka (DP) — Opsional' : 'Uang Diterima';
     document.getElementById('quickCash').style.display = m==='kredit' ? 'none' : 'flex';
     document.getElementById('changeBox').style.display = 'none';
@@ -624,7 +617,6 @@ function doPayment(){
     if(method === 'cash' && paid < total) { alert('Uang tunai yang diterima kurang!'); return; }
     let paymentRef = null;
     if(method === 'transfer') { paymentRef = (document.getElementById('transferRefInput')?.value || '').trim(); if(!paymentRef) { alert('ID transaksi transfer wajib diisi.'); return; } }
-    if(method === 'qris') { paymentRef = (document.getElementById('qrisRefInput')?.value || '').trim(); if(!paymentRef) { alert('ID transaksi QRIS wajib diisi.'); return; } }
     const custId = document.getElementById('customerId').value;
     if(method === 'kredit') { if(!custId) { alert('Pilih Pelanggan untuk pembayaran Kredit!'); return; } if(paid > total) { alert('DP Kredit tidak boleh melebihi total tagihan!'); return; } }
     const change = method === 'cash' ? Math.max(0, paid - total) : 0;

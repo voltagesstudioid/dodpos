@@ -71,12 +71,26 @@ class PurchaseOrderReceiptFollowupController extends Controller
             return back()->with('error', 'Receipt ini tidak membutuhkan follow-up.');
         }
 
-        $receipt->followup_status = 'resolved';
-        $receipt->followup_action = $request->followup_action;
-        $receipt->followup_notes = $request->followup_notes;
-        $receipt->resolved_by = Auth::id();
-        $receipt->resolved_at = now();
-        $receipt->save();
+        DB::beginTransaction();
+        try {
+            $receipt = PurchaseOrderReceipt::whereKey($receipt->id)->lockForUpdate()->first();
+            if (! $receipt || ! $receipt->needs_followup) {
+                DB::rollBack();
+                return back()->with('error', 'Receipt sudah diproses oleh user lain.');
+            }
+
+            $receipt->followup_status = 'resolved';
+            $receipt->followup_action = $request->followup_action;
+            $receipt->followup_notes = $request->followup_notes;
+            $receipt->resolved_by = Auth::id();
+            $receipt->resolved_at = now();
+            $receipt->save();
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan follow-up: '.$e->getMessage());
+        }
 
         return redirect()->route('pembelian.receipts_followup.show', $receipt)->with('success', 'Follow-up berhasil disimpan.');
     }

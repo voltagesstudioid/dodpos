@@ -15,8 +15,6 @@ class StockAdjustmentController extends Controller
 {
     public function index(Request $request)
     {
-        return redirect()->route('master.produk', ['tab' => 'stok']);
-
         $search     = $request->input('search');
         $tipe       = $request->input('tipe');
         $warehouse_id = $request->input('warehouse_id');
@@ -92,9 +90,15 @@ class StockAdjustmentController extends Controller
             // Convert to base unit quantity
             $baseQty = $inputQty * $conversionFactor;
 
-            // Get or create ProductStock entry
+            // Get or create ProductStock entry (generic — tanpa batch/lokasi)
             $productStock = ProductStock::firstOrCreate(
-                ['product_id' => $product->id, 'warehouse_id' => $warehouse->id],
+                [
+                    'product_id' => $product->id,
+                    'warehouse_id' => $warehouse->id,
+                    'location_id' => null,
+                    'batch_number' => null,
+                    'expired_date' => null,
+                ],
                 ['stock' => 0]
             );
 

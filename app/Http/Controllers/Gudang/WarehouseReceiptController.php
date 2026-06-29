@@ -208,15 +208,28 @@ class WarehouseReceiptController extends Controller
                     //    Use float cast to preserve decimals (e.g. 1.5), minimum 0.0001 to avoid zero
                     $baseQty = (int) round($qtyInt * max(0.0001, (float) $item->conversion_factor));
 
-                    // 3. Add base stock to warehouse specifically
-                    $productStock = ProductStock::firstOrNew([
-                        'product_id' => $item->product_id,
-                        'warehouse_id' => $request->warehouse_id,
-                        'location_id' => null,
-                        'expired_date' => $receive['expired_date'] ?? null,
-                        'batch_number' => $receive['batch_number'] ?? null,
-                    ]);
-                    $productStock->stock = ($productStock->stock ?? 0) + $baseQty;
+                    // 3. Add base stock to warehouse specifically (with lock)
+                    $productStock = ProductStock::query()
+                        ->where('product_id', $item->product_id)
+                        ->where('warehouse_id', (int) $request->warehouse_id)
+                        ->whereNull('location_id')
+                        ->where('batch_number', $receive['batch_number'] ?? null)
+                        ->where('expired_date', $receive['expired_date'] ?? null)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $productStock) {
+                        $productStock = ProductStock::create([
+                            'product_id'   => $item->product_id,
+                            'warehouse_id' => (int) $request->warehouse_id,
+                            'location_id'  => null,
+                            'batch_number' => $receive['batch_number'] ?? null,
+                            'expired_date' => $receive['expired_date'] ?? null,
+                            'stock'        => 0,
+                        ]);
+                    }
+
+                    $productStock->stock += $baseQty;
                     $productStock->save();
 
                     // 4. Update global product stock

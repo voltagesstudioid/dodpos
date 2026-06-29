@@ -33,6 +33,7 @@ Route::middleware('can:view_stok_gudang')->group(function () {
     Route::get('/gudang/request/create', [ProductRequestController::class, 'create'])->name('gudang.request.create');
     Route::post('/gudang/request', [ProductRequestController::class, 'store'])->name('gudang.request.store');
     Route::delete('/gudang/request/{productRequest}', [ProductRequestController::class, 'destroy'])->name('gudang.request.destroy');
+    Route::put('/gudang/request/{productRequest}/status', [ProductRequestController::class, 'updateStatus'])->name('gudang.request.update_status');
 
     // Persiapan Barang (Pick Orders from POS)
     Route::get('/gudang/persiapan', [PosPickOrderController::class, 'index'])->name('gudang.pos_pick.index');
@@ -97,6 +98,7 @@ Route::prefix('/gudang/opname-approval')->middleware('role:supervisor')->group(f
     Route::get('/{session}', [OpnameApprovalController::class, 'show'])->name('gudang.opname_approval.show');
     Route::post('/{session}/approve', [OpnameApprovalController::class, 'approve'])->name('gudang.opname_approval.approve');
     Route::post('/{session}/reject', [OpnameApprovalController::class, 'reject'])->name('gudang.opname_approval.reject');
+    Route::post('/{session}/reverse', [OpnameApprovalController::class, 'reverse'])->name('gudang.opname_approval.reverse');
 });
 
 Route::middleware('can:view_pengeluaran_barang')->group(function () {

@@ -294,14 +294,6 @@ class PasgarPenjualanController extends Controller
 
             // Calculate minimum allowed price
             $minPrice = 0;
-            $convId = $item['unit_conversion_id'] ?? null;
-            $conv = null;
-            if ($convId) {
-                $conv = \App\Models\ProductUnitConversion::find($convId);
-            } else {
-                $conv = \App\Models\ProductUnitConversion::where('product_id', $item['product_id'])
-                    ->where('is_base_unit', true)->first();
-            }
 
             if ($convSold) {
                 $minimal = (float) $convSold->sell_price_minimal;

@@ -9,17 +9,12 @@ class BrandController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Brand::withCount('products');
-        if ($request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%');
-        }
-        $brands = $query->latest()->paginate(15)->withQueryString();
-        return view('master.merek.index', compact('brands'));
+        return redirect()->route('master.produk', ['tab' => 'produk']);
     }
 
     public function create()
     {
-        return view('master.merek.create');
+        return redirect()->route('master.produk', ['tab' => 'produk']);
     }
 
     public function store(Request $request)
@@ -29,12 +24,12 @@ class BrandController extends Controller
             'description' => 'nullable|string',
         ]);
         Brand::create($request->only('name', 'description'));
-        return redirect()->route('master.merek')->with('success', 'Merek berhasil ditambahkan.');
+        return redirect()->route('master.produk', ['tab' => 'produk'])->with('success', 'Merek berhasil ditambahkan.');
     }
 
     public function edit(Brand $merek)
     {
-        return view('master.merek.edit', compact('merek'));
+        return redirect()->route('master.produk', ['tab' => 'produk']);
     }
 
     public function update(Request $request, Brand $merek)
@@ -44,7 +39,7 @@ class BrandController extends Controller
             'description' => 'nullable|string',
         ]);
         $merek->update($request->only('name', 'description'));
-        return redirect()->route('master.merek')->with('success', 'Merek berhasil diperbarui.');
+        return redirect()->route('master.produk', ['tab' => 'produk'])->with('success', 'Merek berhasil diperbarui.');
     }
 
     public function destroy(Brand $merek)

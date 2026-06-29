@@ -290,13 +290,18 @@
                                 @endif
                             </td>
                             <td class="r">
-                                <span class="bt-amt">{{ number_format($item->quantity, 0, ',', '.') }}</span>
-                                @if($item->unit_name)
-                                    <span style="font-size:0.65rem;color:#9ca3af;">{{ $item->unit_name }}</span>
-                                @endif
+                                @php
+                                    $displayQty = ($item->unit_qty !== null && $item->unit_qty > 0) ? $item->unit_qty : $item->quantity;
+                                    $displayUnit = $item->unit_name ?? 'pcs';
+                                    $displayPrice = ($item->unit_qty !== null && $item->unit_qty > 0) 
+                                        ? ($item->subtotal / $item->unit_qty) 
+                                        : $item->price;
+                                @endphp
+                                <span class="bt-amt">{{ number_format($displayQty, 0, ',', '.') }}</span>
+                                <span style="font-size:0.65rem;color:#9ca3af;">{{ $displayUnit }}</span>
                             </td>
                             <td class="r">
-                                <span class="bt-amt" style="color:var(--bt-text);">{{ number_format($item->price, 0, ',', '.') }}</span>
+                                <span class="bt-amt" style="color:var(--bt-text);">{{ number_format($displayPrice, 0, ',', '.') }}</span>
                             </td>
                             <td class="r">
                                 <span class="bt-amt" style="color:var(--bt-emerald);">{{ number_format($item->subtotal, 0, ',', '.') }}</span>

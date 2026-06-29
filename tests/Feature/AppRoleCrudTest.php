@@ -13,7 +13,7 @@ class AppRoleCrudTest extends TestCase
 
     public function test_non_supervisor_cannot_access_roles_master(): void
     {
-        $user = User::factory()->create(['role' => 'kasir', 'active' => true]);
+        $user = User::factory()->create(['role' => 'gudang', 'active' => true]);
 
         $resp = $this->actingAs($user)->get(route('pengaturan.roles.index', absolute: false));
         $resp->assertStatus(403);

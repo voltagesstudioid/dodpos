@@ -438,29 +438,29 @@
                 calcPrices(idx, field) {
                     const row = this.units[idx];
                     const raw = row[field];
-                    const val = window.parseCurrency ? parseFloat(window.parseCurrency(raw)) || 0 : 0;
+                    const val = parseFloat(String(raw).replace(/[^0-9.-]/g, '')) || 0;
                     const factor = parseFloat(row.factor) || 1;
+                    const fmt = (v) => v.toLocaleString('id-ID');
 
-                    if (factor === 1) {
-                        this.units.forEach((u, i) => {
-                            if (i !== idx) {
-                                const targetFactor = parseFloat(u.factor) || 1;
-                                const result = val * targetFactor;
-                                u[field] = window.formatCurrency ? window.formatCurrency(result) : String(result);
-                            }
-                        });
-                    }
+                    // Calculate base unit price from current row
+                    const basePrice = factor > 0 ? val / factor : val;
+
+                    // Propagate to ALL units
+                    this.units.forEach((u, i) => {
+                        const targetFactor = parseFloat(u.factor) || 1;
+                        u[field] = fmt(basePrice * targetFactor);
+                    });
                 },
                 calcFactor(idx) {
                     const row = this.units[idx];
                     const factor = parseFloat(row.factor) || 1;
+                    const parse = (v) => parseFloat(String(v).replace(/[^0-9.-]/g, '')) || 0;
+                    const fmt = (v) => v.toLocaleString('id-ID');
 
                     if (factor !== 1) {
                         const baseIdx = this.units.findIndex(u => parseFloat(u.factor) === 1);
                         if (baseIdx >= 0) {
                             const base = this.units[baseIdx];
-                            const parse = (v) => window.parseCurrency ? parseFloat(window.parseCurrency(v)) || 0 : 0;
-                            const fmt = (v) => window.formatCurrency ? window.formatCurrency(v) : String(v);
                             row.beli = fmt(parse(base.beli) * factor);
                             row.ecer = fmt(parse(base.ecer) * factor);
                             row.grosir = fmt(parse(base.grosir) * factor);

@@ -41,7 +41,7 @@ class AppRoleMigrationTest extends TestCase
 
         $resp = $this->actingAs($supervisor)->post(route('pengaturan.roles.migrate.store', absolute: false), [
             'from' => 'supervisor',
-            'to' => 'kasir',
+            'to' => 'admin1',
         ]);
 
         $resp->assertRedirect();

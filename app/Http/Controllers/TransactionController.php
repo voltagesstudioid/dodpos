@@ -299,39 +299,90 @@ class TransactionController extends Controller
                         ->increment('stock', $detail->quantity);
 
                     $warehouseId = $detail->warehouse_id;
-                    if (! $warehouseId) {
-                        $warehouseId = ProductStock::where('product_id', $detail->product_id)
-                            ->orderBy('created_at', 'asc')
-                            ->value('warehouse_id');
-                    }
 
-                    $stock = null;
+                    // Try to restore stock to the original batch/location via StockMovement
+                    $originalMovement = null;
                     if ($warehouseId) {
-                        $stock = ProductStock::query()
+                        $originalMovement = StockMovement::query()
                             ->where('product_id', $detail->product_id)
                             ->where('warehouse_id', $warehouseId)
-                            ->orderBy('stock', 'desc')
+                            ->where('source_type', 'pos_transaction')
+                            ->whereIn('reference_number', [
+                                'TRX-'.$transaksi->id,
+                                'POS-ECERAN-'.$transaksi->id,
+                                'POS-GROSIR-'.$transaksi->id,
+                            ])
+                            ->where('type', 'out')
+                            ->where('quantity', $detail->quantity)
+                            ->first();
+                    }
+
+                    if ($originalMovement) {
+                        // Restore to the exact batch/location
+                        $stock = ProductStock::query()
+                            ->where('product_id', $detail->product_id)
+                            ->where('warehouse_id', $originalMovement->warehouse_id)
+                            ->where('location_id', $originalMovement->location_id)
+                            ->where('batch_number', $originalMovement->batch_number)
+                            ->where('expired_date', $originalMovement->expired_date)
                             ->lockForUpdate()
                             ->first();
 
                         if (! $stock) {
                             $stock = ProductStock::create([
                                 'product_id' => $detail->product_id,
-                                'warehouse_id' => $warehouseId,
-                                'location_id' => null,
-                                'batch_number' => null,
-                                'expired_date' => null,
+                                'warehouse_id' => $originalMovement->warehouse_id,
+                                'location_id' => $originalMovement->location_id,
+                                'batch_number' => $originalMovement->batch_number,
+                                'expired_date' => $originalMovement->expired_date,
                                 'stock' => 0,
                             ]);
                         }
 
                         $stock->stock += $detail->quantity;
                         $stock->save();
+
+                        $warehouseId = $originalMovement->warehouse_id;
+                    } else {
+                        // Fallback: find or create generic ProductStock for this warehouse
+                        if (! $warehouseId) {
+                            $warehouseId = ProductStock::where('product_id', $detail->product_id)
+                                ->orderBy('created_at', 'asc')
+                                ->value('warehouse_id');
+                        }
+
+                        if ($warehouseId) {
+                            $stock = ProductStock::query()
+                                ->where('product_id', $detail->product_id)
+                                ->where('warehouse_id', $warehouseId)
+                                ->whereNull('location_id')
+                                ->whereNull('batch_number')
+                                ->whereNull('expired_date')
+                                ->lockForUpdate()
+                                ->first();
+
+                            if (! $stock) {
+                                $stock = ProductStock::create([
+                                    'product_id' => $detail->product_id,
+                                    'warehouse_id' => $warehouseId,
+                                    'location_id' => null,
+                                    'batch_number' => null,
+                                    'expired_date' => null,
+                                    'stock' => 0,
+                                ]);
+                            }
+
+                            $stock->stock += $detail->quantity;
+                            $stock->save();
+                        }
                     }
 
                     StockMovement::create([
                         'product_id' => $detail->product_id,
                         'warehouse_id' => $warehouseId,
+                        'location_id' => $originalMovement?->location_id ?? null,
+                        'batch_number' => $originalMovement?->batch_number ?? null,
+                        'expired_date' => $originalMovement?->expired_date ?? null,
                         'type' => 'in',
                         'source_type' => 'void_transaction',
                         'reference_number' => 'VOID-TRX-'.$transaksi->id,
@@ -371,45 +422,94 @@ class TransactionController extends Controller
             // ── 3. Void semua transaksi tambahan dan kembalikan stok ──
             foreach ($additionalTransactions as $addTrans) {
                 if ($addTrans->status !== 'voided') {
-                    // Kembalikan stok untuk setiap detail transaksi tambahan
                     foreach ($addTrans->details as $detail) {
                         Product::where('id', $detail->product_id)
                             ->increment('stock', $detail->quantity);
 
                         $warehouseId = $detail->warehouse_id;
-                        if (! $warehouseId) {
-                            $warehouseId = ProductStock::where('product_id', $detail->product_id)
-                                ->orderBy('created_at', 'asc')
-                                ->value('warehouse_id');
+
+                        // Restore to original batch/location via StockMovement
+                        $originalMovement = null;
+                        if ($warehouseId) {
+                            $originalMovement = StockMovement::query()
+                                ->where('product_id', $detail->product_id)
+                                ->where('warehouse_id', $warehouseId)
+                                ->where('source_type', 'pos_transaction')
+                                ->whereIn('reference_number', [
+                                    'TRX-'.$addTrans->id,
+                                    'POS-ECERAN-'.$addTrans->id,
+                                    'POS-GROSIR-'.$addTrans->id,
+                                ])
+                                ->where('type', 'out')
+                                ->where('quantity', $detail->quantity)
+                                ->first();
                         }
 
                         $stock = null;
-                        if ($warehouseId) {
+                        if ($originalMovement) {
                             $stock = ProductStock::query()
                                 ->where('product_id', $detail->product_id)
-                                ->where('warehouse_id', $warehouseId)
-                                ->orderBy('stock', 'desc')
+                                ->where('warehouse_id', $originalMovement->warehouse_id)
+                                ->where('location_id', $originalMovement->location_id)
+                                ->where('batch_number', $originalMovement->batch_number)
+                                ->where('expired_date', $originalMovement->expired_date)
                                 ->lockForUpdate()
                                 ->first();
 
                             if (! $stock) {
                                 $stock = ProductStock::create([
                                     'product_id' => $detail->product_id,
-                                    'warehouse_id' => $warehouseId,
-                                    'location_id' => null,
-                                    'batch_number' => null,
-                                    'expired_date' => null,
+                                    'warehouse_id' => $originalMovement->warehouse_id,
+                                    'location_id' => $originalMovement->location_id,
+                                    'batch_number' => $originalMovement->batch_number,
+                                    'expired_date' => $originalMovement->expired_date,
                                     'stock' => 0,
                                 ]);
                             }
 
                             $stock->stock += $detail->quantity;
                             $stock->save();
+
+                            $warehouseId = $originalMovement->warehouse_id;
+                        } else {
+                            if (! $warehouseId) {
+                                $warehouseId = ProductStock::where('product_id', $detail->product_id)
+                                    ->orderBy('created_at', 'asc')
+                                    ->value('warehouse_id');
+                            }
+
+                            if ($warehouseId) {
+                                $stock = ProductStock::query()
+                                    ->where('product_id', $detail->product_id)
+                                    ->where('warehouse_id', $warehouseId)
+                                    ->whereNull('location_id')
+                                    ->whereNull('batch_number')
+                                    ->whereNull('expired_date')
+                                    ->lockForUpdate()
+                                    ->first();
+
+                                if (! $stock) {
+                                    $stock = ProductStock::create([
+                                        'product_id' => $detail->product_id,
+                                        'warehouse_id' => $warehouseId,
+                                        'location_id' => null,
+                                        'batch_number' => null,
+                                        'expired_date' => null,
+                                        'stock' => 0,
+                                    ]);
+                                }
+
+                                $stock->stock += $detail->quantity;
+                                $stock->save();
+                            }
                         }
 
                         StockMovement::create([
                             'product_id' => $detail->product_id,
                             'warehouse_id' => $warehouseId,
+                            'location_id' => $originalMovement?->location_id ?? null,
+                            'batch_number' => $originalMovement?->batch_number ?? null,
+                            'expired_date' => $originalMovement?->expired_date ?? null,
                             'type' => 'in',
                             'source_type' => 'void_transaction',
                             'reference_number' => 'VOID-TRX-'.$addTrans->id,
@@ -420,7 +520,6 @@ class TransactionController extends Controller
                         ]);
                     }
 
-                    // Tandai transaksi tambahan sebagai voided
                     $addTrans->update(['status' => 'voided']);
                 }
             }
@@ -473,7 +572,7 @@ class TransactionController extends Controller
             ? WarehouseConfig::getAllowedId($role)
             : null;
 
-        $query = \App\Models\TransactionDetail::with(['product', 'transaction.user', 'transaction.customer', 'warehouse'])
+        $query = \App\Models\TransactionDetail::with(['product.category', 'transaction.user', 'transaction.customer', 'warehouse'])
             ->whereHas('transaction', function ($q) use ($isOwnOnly) {
                 $q->where('status', 'completed');
                 if ($isOwnOnly) {
@@ -482,27 +581,22 @@ class TransactionController extends Controller
             })
             ->orderBy('transaction_details.created_at', 'desc');
 
-        // Admin3/Admin4: only show sales from their warehouse
         if ($userWhId) {
             $query->where('transaction_details.warehouse_id', $userWhId);
         }
 
-        // Filter tanggal
         if ($request->date_from) {
             $query->whereHas('transaction', fn ($q) => $q->whereDate('created_at', '>=', $request->date_from));
         }
         if ($request->date_to) {
             $query->whereHas('transaction', fn ($q) => $q->whereDate('created_at', '<=', $request->date_to));
         }
-        // Filter jenis penjualan
         if ($request->sale_type) {
             $query->whereHas('transaction', fn ($q) => $q->where('sale_type', $request->sale_type));
         }
-        // Filter kasir (supervisor only)
         if ($request->user_id && ! $isOwnOnly) {
             $query->whereHas('transaction', fn ($q) => $q->where('user_id', $request->user_id));
         }
-        // Pencarian produk
         if ($request->search) {
             $sanitizedSearch = SearchSanitizer::sanitize($request->search);
             $query->where(function ($q) use ($sanitizedSearch) {
@@ -510,11 +604,40 @@ class TransactionController extends Controller
             });
         }
 
-        // Summary (sebelum pagination)
-        $summaryQuery = clone $query;
-        $totalQty = (clone $summaryQuery)->sum('quantity');
-        $totalRevenue = (clone $summaryQuery)->sum('subtotal');
-        $totalRows = (clone $summaryQuery)->count();
+        $summaryBase = \App\Models\TransactionDetail::query()
+            ->whereHas('transaction', function ($q) use ($isOwnOnly, $request) {
+                $q->where('status', 'completed');
+                if ($isOwnOnly) {
+                    $q->where('user_id', Auth::id());
+                }
+                if ($request->date_from) {
+                    $q->whereDate('created_at', '>=', $request->date_from);
+                }
+                if ($request->date_to) {
+                    $q->whereDate('created_at', '<=', $request->date_to);
+                }
+                if ($request->sale_type) {
+                    $q->where('sale_type', $request->sale_type);
+                }
+                if ($request->user_id && ! $isOwnOnly) {
+                    $q->where('user_id', $request->user_id);
+                }
+            });
+
+        if ($userWhId) {
+            $summaryBase->where('transaction_details.warehouse_id', $userWhId);
+        }
+
+        if ($request->search) {
+            $sanitizedSearch = SearchSanitizer::sanitize($request->search);
+            $summaryBase->where(function ($q) use ($sanitizedSearch) {
+                $q->whereHas('product', fn ($q2) => $q2->where('name', 'like', "%{$sanitizedSearch}%"));
+            });
+        }
+
+        $totalQty = (clone $summaryBase)->sum(\DB::raw('COALESCE(unit_qty, quantity)'));
+        $totalRevenue = (clone $summaryBase)->sum('subtotal');
+        $totalRows = (clone $summaryBase)->count();
 
         $items = $query->paginate(30)->withQueryString();
 
@@ -530,6 +653,12 @@ class TransactionController extends Controller
             }
             if ($request->sale_type) {
                 $baseQ->where('sale_type', $request->sale_type);
+            }
+            if ($request->user_id) {
+                $baseQ->where('user_id', $request->user_id);
+            }
+            if ($userWhId) {
+                $baseQ->where('source_warehouse_id', $userWhId);
             }
             $perKasir = (clone $baseQ)
                 ->join('users', 'transactions.user_id', '=', 'users.id')

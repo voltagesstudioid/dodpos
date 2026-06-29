@@ -337,11 +337,10 @@ class PasgarLoadingController extends Controller
      */
     public function approve(Request $request, $id)
     {
-        $validated = $request->validate([
-            'action' => 'required|in:approve,reject',
-            'items' => 'nullable|array',
-            'items.*.qty_disetujui' => 'nullable|integer|min:0',
-            'catatan' => 'nullable|string|max:500',
+        \Illuminate\Support\Facades\Log::info('PasgarLoadingController@approve called', [
+            'id' => $id,
+            'input' => $request->all(),
+            'user_id' => Auth::id(),
         ]);
 
         $loading = PasgarLoading::findOrFail($id);
@@ -349,36 +348,49 @@ class PasgarLoadingController extends Controller
             return redirect()->route('pasgar.loading.show', $id)->with('error', 'Loading sudah diproses.');
         }
 
-        DB::transaction(function () use ($loading, $validated) {
-            if ($validated['action'] === 'reject') {
+        $action = $request->input('action', 'approve');
+        if (!in_array($action, ['approve', 'reject'])) {
+            return back()->with('error', 'Aksi tidak valid.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            if ($action === 'reject') {
                 $loading->update([
                     'status' => 'rejected',
                     'approved_by' => Auth::id(),
                     'approved_at' => now(),
-                    'catatan' => $validated['catatan'] ?? $loading->catatan,
+                    'catatan' => $request->input('catatan') ?: $loading->catatan,
                 ]);
-                return;
+                DB::commit();
+                return redirect()->route('pasgar.loading.show', $id)->with('success', 'Loading ditolak.');
             }
 
-            // Approve: update qty_disetujui per item
             $loading->update([
                 'status' => 'preparing',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
 
-            if (!empty($validated['items'])) {
-                foreach ($validated['items'] as $itemId => $data) {
-                    $item = PasgarLoadingItem::where('loading_id', $loading->id)->find($itemId);
-                    if ($item) {
-                        $item->update(['qty_disetujui' => (int) ($data['qty_disetujui'] ?? 0)]);
-                    }
+            $items = $request->input('items', []);
+            foreach ($items as $itemId => $data) {
+                $item = PasgarLoadingItem::where('loading_id', $loading->id)->find($itemId);
+                if ($item) {
+                    $item->update(['qty_disetujui' => (int) ($data['qty_disetujui'] ?? 0)]);
                 }
             }
-        });
 
-        $msg = $validated['action'] === 'reject' ? 'Loading ditolak.' : 'Loading disetujui, mulai persiapan barang.';
-        return redirect()->route('pasgar.loading.show', $id)->with('success', $msg);
+            DB::commit();
+            return redirect()->route('pasgar.loading.show', $id)->with('success', 'Loading disetujui, mulai persiapan barang.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('PasgarLoadingController@approve failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -387,18 +399,14 @@ class PasgarLoadingController extends Controller
      */
     public function confirmReady(Request $request, $id)
     {
-        $validated = $request->validate([
-            'items' => 'nullable|array',
-            'items.*.qty_dikirim' => 'nullable|integer|min:0',
-            'catatan' => 'nullable|string|max:500',
-        ]);
-
         $loading = PasgarLoading::findOrFail($id);
         if ($loading->status !== 'preparing') {
             return redirect()->route('pasgar.loading.show', $id)->with('error', 'Loading belum dalam tahap persiapan.');
         }
 
-        DB::transaction(function () use ($loading, $validated) {
+        try {
+            DB::beginTransaction();
+
             $loading->update([
                 'status' => 'ready',
                 'prepared_by' => Auth::id(),
@@ -407,11 +415,12 @@ class PasgarLoadingController extends Controller
                 'ready_at' => now(),
             ]);
 
-            if (!empty($validated['items'])) {
-                foreach ($validated['items'] as $itemId => $data) {
+            $items = $request->input('items', []);
+            if (!empty($items)) {
+                foreach ($items as $itemId => $data) {
                     $item = PasgarLoadingItem::where('loading_id', $loading->id)->find($itemId);
                     if ($item) {
-                        $qtyDikirim = (int) ($data['qty_dikirim'] ?? 0);
+                        $qtyDikirim = (int) ($data['qty_dikirim'] ?? $item->qty_disetujui);
                         $item->update([
                             'qty_dikirim' => $qtyDikirim,
                             'qty_sisa' => $qtyDikirim,
@@ -419,10 +428,18 @@ class PasgarLoadingController extends Controller
                     }
                 }
             }
-        });
 
-        return redirect()->route('pasgar.loading.show', $id)
-            ->with('success', 'Barang sudah siap untuk dijemput sales.');
+            DB::commit();
+            return redirect()->route('pasgar.loading.show', $id)
+                ->with('success', 'Barang sudah siap untuk dijemput sales.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('PasgarLoadingController@confirmReady failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -431,30 +448,23 @@ class PasgarLoadingController extends Controller
      */
     public function pickup(Request $request, $id)
     {
-        $validated = $request->validate([
-            'cross_check_notes' => 'nullable|string|max:500',
-            'items' => 'nullable|array',
-            'items.*.qty_diterima' => 'nullable|integer|min:0',
-        ]);
-
         $loading = PasgarLoading::with('items.unitConversion')->findOrFail($id);
         if ($loading->status !== 'ready') {
             return redirect()->route('pasgar.loading.show', $id)->with('error', 'Barang belum siap untuk dijemput.');
         }
 
-        // Verify sales is the owner
         $user = Auth::user();
         $salesProfile = PasgarSales::where('user_id', $user->id)->first();
         if (!$salesProfile || $loading->sales_id !== $salesProfile->id) {
             return redirect()->route('pasgar.loading.show', $id)->with('error', 'Anda tidak berhak menjemput loading ini.');
         }
 
-        DB::transaction(function () use ($loading, $user, $validated) {
+        try {
+            DB::beginTransaction();
+
             $autoNotes = [];
-            // Deduct stock from each item's source warehouse (convert to base units)
             foreach ($loading->items as $item) {
-                // Update qty based on sales input if lower than expected
-                $inputQty = $validated['items'][$item->id]['qty_diterima'] ?? null;
+                $inputQty = $request->input("items.{$item->id}.qty_diterima");
                 if ($inputQty !== null && $inputQty < $item->qty_dikirim) {
                     $unitName = $item->unitConversion?->unit?->name ?? 'pcs';
                     $autoNotes[] = "[-] {$item->product->name}: Sistem tercatat {$item->qty_dikirim}, aktual diterima {$inputQty} {$unitName}.";
@@ -463,51 +473,50 @@ class PasgarLoadingController extends Controller
                     $item->save();
                 }
 
-                $qty = $item->qty_dikirim ?: $item->qty_disetujui ?: $item->qty_diminta;
+                $qty = $item->qty_dikirim ?: $item->qty_disetujui;
                 if ($qty <= 0) continue;
 
-                // Apply unit conversion: e.g. 10 slop × factor 10 = 100 bungkus (base units)
-                $convFactor = (int) ($item->unitConversion?->conversion_factor ?? 1);
-                $baseQty = $qty * $convFactor;
+                $convFactor = (float) ($item->unitConversion?->conversion_factor ?: 1);
+                $convFactor = max(0.0001, $convFactor);
+                $baseQty = (int) round($qty * $convFactor);
+                $warehouseId = $item->warehouse_id ?? 1;
 
-                $warehouseId = $item->warehouse_id ?? self::WH_GUDANG;
-
-                // Deduct from product_stocks (stored in base units)
                 $productStock = ProductStock::where('product_id', $item->product_id)
                     ->where('warehouse_id', $warehouseId)
+                    ->where('stock', '>=', $baseQty)
                     ->lockForUpdate()
                     ->first();
 
-                if ($productStock) {
-                    $productStock->stock -= $baseQty;
-                    $productStock->save();
-
-                    // Also deduct from global product stock (stored in base units)
-                    $product = Product::find($item->product_id);
-                    if ($product) {
-                        $product->stock = max(0, ($product->stock ?? 0) - $baseQty);
-                        $product->save();
-                    }
-
-                    // Record stock movement (in base units)
-                    StockMovement::create([
-                        'product_id' => $item->product_id,
-                        'warehouse_id' => $warehouseId,
-                        'location_id' => $productStock->location_id,
-                        'type' => 'out',
-                        'source_type' => 'pasgar_loading',
-                        'reference_number' => $loading->nomor_loading,
-                        'quantity' => $baseQty,
-                        'balance' => $productStock->stock,
-                        'notes' => 'Loading Pasgar - ' . $loading->nomor_loading . ' (' . $qty . ' × ' . $convFactor . ')',
-                        'user_id' => $user->id,
-                    ]);
+                if (!$productStock) {
+                    throw new \RuntimeException("Stok {$item->product->name} tidak mencukupi.");
                 }
+
+                $productStock->stock -= $baseQty;
+                $productStock->save();
+
+                $product = Product::find($item->product_id);
+                if ($product) {
+                    $product->stock = max(0, ($product->stock ?? 0) - $baseQty);
+                    $product->save();
+                }
+
+                StockMovement::create([
+                    'product_id' => $item->product_id,
+                    'warehouse_id' => $warehouseId,
+                    'location_id' => $productStock->location_id,
+                    'type' => 'out',
+                    'source_type' => 'pasgar_loading',
+                    'reference_number' => $loading->nomor_loading,
+                    'quantity' => $baseQty,
+                    'balance' => $productStock->stock,
+                    'notes' => 'Loading Pasgar - ' . $loading->nomor_loading,
+                    'user_id' => $user->id,
+                ]);
             }
 
-            $finalNotes = $validated['cross_check_notes'] ?? '';
+            $finalNotes = $request->input('cross_check_notes', '');
             if (count($autoNotes) > 0) {
-                $finalNotes = "Penyesuaian Fisik (Oleh Sales):\n" . implode("\n", $autoNotes) . "\n\nCatatan Khusus: " . $finalNotes;
+                $finalNotes = "Penyesuaian Fisik:\n" . implode("\n", $autoNotes) . "\n\n" . $finalNotes;
             }
 
             $loading->update([
@@ -516,10 +525,18 @@ class PasgarLoadingController extends Controller
                 'picked_up_at' => now(),
                 'cross_check_notes' => trim($finalNotes),
             ]);
-        });
 
-        return redirect()->route('pasgar.loading.show', $id)
-            ->with('success', 'Barang berhasil dijemput dan cross-check selesai. Stok telah dikurangi dari gudang asal.');
+            DB::commit();
+            return redirect()->route('pasgar.loading.show', $id)
+                ->with('success', 'Barang berhasil dijemput. Stok telah dikurangi.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('PasgarLoadingController@pickup failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+        }
     }
 
     /**

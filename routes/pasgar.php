@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Pasgar\PasgarDashboardController;
+use App\Http\Controllers\Pasgar\PasgarHutangController;
 use App\Http\Controllers\Pasgar\PasgarLoadingController;
 use App\Http\Controllers\Pasgar\PasgarPelangganController;
 use App\Http\Controllers\Pasgar\PasgarPenjualanController;
@@ -46,4 +47,11 @@ Route::prefix('pasgar')->name('pasgar.')->group(function () {
     Route::post('/setoran', [PasgarSetoranController::class, 'store'])->name('setoran.store');
     Route::get('/setoran/{id}', [PasgarSetoranController::class, 'show'])->name('setoran.show');
     Route::post('/setoran/{id}/verify', [PasgarSetoranController::class, 'verify'])->name('setoran.verify');
+
+    // Hutang Piutang
+    Route::get('/hutang', [PasgarHutangController::class, 'index'])->name('hutang.index');
+    Route::get('/hutang/{hutang}', [PasgarHutangController::class, 'show'])->name('hutang.show');
+    Route::get('/hutang/{hutang}/bayar', [PasgarHutangController::class, 'bayar'])->name('hutang.bayar');
+    Route::post('/hutang/{hutang}/bayar', [PasgarHutangController::class, 'storeBayar'])->name('hutang.storeBayar');
+    Route::post('/hutang/bayar/{bayar}/confirm', [PasgarHutangController::class, 'confirm'])->name('hutang.confirm');
 });

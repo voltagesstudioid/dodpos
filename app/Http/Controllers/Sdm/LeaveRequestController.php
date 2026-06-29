@@ -92,7 +92,8 @@ class LeaveRequestController extends Controller
     public function selfIndex(Request $request)
     {
         $user = $request->user();
-        if (! $user?->employee || ! $user->employee->active) {
+        $isSales = str_starts_with(strtolower($user?->role ?? ''), 'sales_') || ($user?->role ?? '') === 'sales';
+        if (! $isSales && (! $user?->employee || ! $user->employee->active)) {
             return redirect()->route('dashboard')->with('error', 'Akun Anda belum terdaftar sebagai karyawan aktif.');
         }
 
@@ -120,7 +121,8 @@ class LeaveRequestController extends Controller
     public function selfStore(Request $request)
     {
         $user = $request->user();
-        if (! $user?->employee || ! $user->employee->active) {
+        $isSales = str_starts_with(strtolower($user?->role ?? ''), 'sales_') || ($user?->role ?? '') === 'sales';
+        if (! $isSales && (! $user?->employee || ! $user->employee->active)) {
             return redirect()->route('dashboard')->with('error', 'Akun Anda belum terdaftar sebagai karyawan aktif.');
         }
 
@@ -174,24 +176,28 @@ class LeaveRequestController extends Controller
 
     public function approve(Request $request, SdmLeaveRequest $cuti)
     {
-        if ($cuti->status !== 'approved') {
-            $cuti->update([
-                'status' => 'approved',
-                'approved_by' => $request->user()?->id,
-            ]);
+        if ($cuti->status !== 'pending') {
+            return redirect()->back()->with('error', 'Hanya pengajuan dengan status Pending yang bisa disetujui.');
         }
+
+        $cuti->update([
+            'status' => 'approved',
+            'approved_by' => Auth::id(),
+        ]);
 
         return redirect()->back()->with('success', 'Pengajuan cuti disetujui.');
     }
 
     public function reject(Request $request, SdmLeaveRequest $cuti)
     {
-        if ($cuti->status !== 'rejected') {
-            $cuti->update([
-                'status' => 'rejected',
-                'approved_by' => $request->user()?->id,
-            ]);
+        if ($cuti->status !== 'pending') {
+            return redirect()->back()->with('error', 'Hanya pengajuan dengan status Pending yang bisa ditolak.');
         }
+
+        $cuti->update([
+            'status' => 'rejected',
+            'approved_by' => Auth::id(),
+        ]);
 
         return redirect()->back()->with('success', 'Pengajuan cuti ditolak.');
     }

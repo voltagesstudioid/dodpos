@@ -83,11 +83,16 @@ class KasirEceranController extends Controller
             'items.*.unit_conversion_id' => 'nullable|exists:product_unit_conversions,id',
             'items.*.price' => 'nullable|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|string',
+            'payment_method' => ['required', 'string', 'in:cash,transfer,kredit,tunai,credit'],
             'payment_reference' => 'nullable|string|max:100',
             'customer_id' => 'nullable|exists:customers,id',
             'price_tier' => 'nullable|in:eceran,grosir,jual1,jual2,jual3,minimal',
         ]);
+
+        // Normalize payment method
+        $paymentMethod = strtolower(trim($request->payment_method));
+        if ($paymentMethod === 'tunai') $paymentMethod = 'cash';
+        if ($paymentMethod === 'credit') $paymentMethod = 'kredit';
 
         try {
             DB::beginTransaction();
@@ -101,7 +106,7 @@ class KasirEceranController extends Controller
 
             // Lock customer for credit
             $customer = null;
-            if ($request->payment_method === 'kredit') {
+            if ($paymentMethod === 'kredit') {
                 if (! $request->customer_id) {
                     throw new \Exception('Pelanggan harus dipilih untuk pembayaran limit.');
                 }
@@ -134,6 +139,10 @@ class KasirEceranController extends Controller
                 $baseFactor = $conversion ? max(0.0001, (float) $conversion->conversion_factor) : 1;
                 $baseQty = (int) round($unitQty * $baseFactor);
 
+                if ($baseQty < 1) {
+                    throw new \Exception('Jumlah produk "' . ($product->name ?? 'ID:' . $item['product_id']) . '" terlalu kecil untuk dikonversi ke satuan dasar (hasil: 0).');
+                }
+
                 // Check stock availability
                 $key = $product->id . '_' . $warehouseId;
                 $runningStock[$key] = ($runningStock[$key] ?? 0) + $baseQty;
@@ -158,8 +167,12 @@ class KasirEceranController extends Controller
                     if ($conversion) {
                         $purchasePrice = $this->transactionService->getPriceService()->parseNumber($conversion->purchase_price ?? 0);
                         $minimalPrice = $purchasePrice * 1.05;
+                        $sellMinimal = $this->transactionService->getPriceService()->parseNumber($conversion->sell_price_minimal ?? 0);
+                        if ($sellMinimal > 0) {
+                            $minimalPrice = max($minimalPrice, $sellMinimal);
+                        }
                         if ($purchasePrice > 0 && $customPrice < $minimalPrice) {
-                            throw new \Exception('Harga untuk "' . $product->name . '" tidak boleh di bawah Rp ' . number_format($minimalPrice, 0, ',', '.') . ' (minimal 5% di atas harga modal Rp ' . number_format($purchasePrice, 0, ',', '.') . ').');
+                            throw new \Exception('Harga untuk "' . $product->name . '" tidak boleh di bawah Rp ' . number_format($minimalPrice, 0, ',', '.') . ' (minimal di atas harga modal/harga minimal).');
                         }
                     }
                     $unitPrice = $customPrice;
@@ -167,7 +180,7 @@ class KasirEceranController extends Controller
 
                 $subtotal = round($unitPrice * $unitQty, 2);
 
-                $pricePerBase = $baseFactor > 0 ? ($subtotal / $baseQty) : $unitPrice;
+                $pricePerBase = $baseQty > 0 ? ($subtotal / $baseQty) : $unitPrice;
                 $pricePerBase = round($pricePerBase, 4);
 
                 $resolvedItems[] = [
@@ -186,24 +199,30 @@ class KasirEceranController extends Controller
             $calculatedTotal = round($calculatedTotal, 2);
 
             // Validate payment
-            $this->transactionService->validatePayment($request->payment_method, $request->paid_amount, $calculatedTotal);
+            $this->transactionService->validatePayment($paymentMethod, $request->paid_amount, $calculatedTotal);
 
             // Validate credit limit
-            if ($request->payment_method === 'kredit') {
+            if ($paymentMethod === 'kredit') {
                 $debtAmount = $calculatedTotal - $request->paid_amount;
                 $this->transactionService->validateCreditLimit($debtAmount, $customer);
             }
 
             // Validate transfer reference
-            $this->transactionService->validateTransferReference($request->payment_method, $request->payment_reference);
+            $this->transactionService->validateTransferReference($paymentMethod, $request->payment_reference);
+
+            // For non-cash methods, paid_amount must equal total_amount (no change)
+            $paidAmount = (float) $request->paid_amount;
+            if (in_array($paymentMethod, ['transfer']) && $paidAmount > $calculatedTotal) {
+                $paidAmount = $calculatedTotal;
+            }
 
             // Create transaction
             $trx = $this->transactionService->createTransaction(
                 [
                     'customer_id' => $request->customer_id,
                     'total_amount' => $calculatedTotal,
-                    'paid_amount' => $request->paid_amount,
-                    'payment_method' => $request->payment_method,
+                    'paid_amount' => $paidAmount,
+                    'payment_method' => $paymentMethod,
                     'payment_reference' => $request->payment_reference,
                     'sale_type' => 'eceran',
                 ],
@@ -230,8 +249,8 @@ class KasirEceranController extends Controller
             $this->transactionService->createPickOrdersIfNeeded($trx, $resolvedItems, 'eceran');
 
             // Create customer credit if needed
-            if ($request->payment_method === 'kredit') {
-                $debtAmount = $calculatedTotal - $request->paid_amount;
+            if ($paymentMethod === 'kredit') {
+                $debtAmount = $calculatedTotal - $paidAmount;
                 if ($debtAmount > 0) {
                     $this->transactionService->createCustomerCredit(
                         $request->customer_id,

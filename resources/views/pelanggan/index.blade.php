@@ -120,7 +120,7 @@
                                     @if($c->current_debt > 0)
                                         <span class="pg-mono pg-bold pg-text-red">Rp {{ number_format($c->current_debt, 0, ',', '.') }}</span>
                                     @else
-                                        <span class="pg-bold pg-text-green">Lunas</span>
+                                        <span class="pg-bold pg-text-muted">—</span>
                                     @endif
                                 </td>
                                 <td class="pg-th-c">

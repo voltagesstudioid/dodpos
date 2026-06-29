@@ -53,8 +53,8 @@
                             <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M12 6v6l4 2"/>
                         </svg>
                     </span>
-                    <select id="requested_role" name="requested_role" class="form-input">
-                        <option value="">Pilih peran (opsional)</option>
+                <select id="requested_role" name="requested_role" class="form-input" required>
+                    <option value="">Pilih peran</option>
                         @foreach(($roles ?? []) as $r)
                             <option value="{{ $r->key }}" {{ old('requested_role') === $r->key ? 'selected' : '' }}>{{ $r->label ?? strtoupper(str_replace('_', ' ', $r->key)) }}</option>
                         @endforeach

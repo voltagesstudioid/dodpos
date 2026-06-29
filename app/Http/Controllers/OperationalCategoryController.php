@@ -72,7 +72,7 @@ class OperationalCategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate(['name' => 'required|string|max:255', 'description' => 'nullable|string']);
-        OperationalCategory::create($request->all());
+        OperationalCategory::create($request->only('name', 'description'));
         return redirect()->route('operasional.kategori.index')->with('success', 'Kategori operasional berhasil ditambahkan.');
     }
 
@@ -84,7 +84,7 @@ class OperationalCategoryController extends Controller
     public function update(Request $request, OperationalCategory $kategori)
     {
         $request->validate(['name' => 'required|string|max:255', 'description' => 'nullable|string']);
-        $kategori->update($request->all());
+        $kategori->update($request->only('name', 'description'));
         return redirect()->route('operasional.kategori.index')->with('success', 'Kategori operasional berhasil diperbarui.');
     }
 

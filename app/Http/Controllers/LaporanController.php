@@ -52,7 +52,7 @@ class LaporanController extends Controller
         $statusCounts = (clone $baseQuery)
             ->select('status', DB::raw('COUNT(*) as count'), DB::raw('SUM(total_amount) as amount'))
             ->groupBy('status')
-            ->pluck(DB::raw('COUNT(*)'), 'status');
+            ->pluck('count', 'status');
 
         $bySupplier = (clone $baseQuery)
             ->where('status', '!=', 'cancelled')
@@ -525,8 +525,8 @@ class LaporanController extends Controller
         // ── Biaya Operasional ─────────────────────────────────────────
         $totalOperasional = 0;
         if (class_exists(\App\Models\OperationalExpense::class)) {
-            $totalOperasional = \App\Models\OperationalExpense::whereDate('created_at', '>=', $dateFrom)
-                ->whereDate('created_at', '<=', $dateTo)
+            $totalOperasional = \App\Models\OperationalExpense::whereDate('date', '>=', $dateFrom)
+                ->whereDate('date', '<=', $dateTo)
                 ->sum('amount');
         }
 

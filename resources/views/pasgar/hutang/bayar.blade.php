@@ -134,6 +134,15 @@
                     </div>
                 </div>
 
+                <div class="htb-fg" id="transferRefField" style="display:none;">
+                    <label class="htb-lbl">ID Transaksi Transfer <span class="htb-req">*</span></label>
+                    <input type="text" name="id_transaksi" id="id_transaksi" class="htb-inp"
+                        placeholder="Contoh: TRX-1234..."
+                        value="{{ old('id_transaksi') }}"
+                        {{ (old('cara_bayar') ?? 'tunai') === 'transfer' || (old('cara_bayar') ?? 'tunai') === 'qris' ? '' : 'disabled' }}>
+                    <span class="htb-hint">Wajib diisi bila menggunakan transfer atau QRIS</span>
+                </div>
+
                 <div class="htb-fg" style="margin-bottom:0;">
                     <label class="htb-lbl">Keterangan</label>
                     <textarea name="keterangan" class="htb-txt" placeholder="Keterangan tambahan (opsional)...">{{ old('keterangan') }}</textarea>

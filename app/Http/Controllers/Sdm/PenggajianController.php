@@ -63,7 +63,8 @@ class PenggajianController extends Controller
     public function selfIndex(Request $request)
     {
         $user = $request->user();
-        if (! $user?->employee || ! $user->employee->active) {
+        $isSales = str_starts_with(strtolower($user?->role ?? ''), 'sales_') || ($user?->role ?? '') === 'sales';
+        if (! $isSales && (! $user?->employee || ! $user->employee->active)) {
             return redirect()->route('dashboard')->with('error', 'Akun Anda belum terdaftar sebagai karyawan aktif.');
         }
 
@@ -115,8 +116,16 @@ class PenggajianController extends Controller
             return redirect()->back()->with('error', 'Tidak ada karyawan aktif untuk digaji.');
         }
 
+        // Lock all existing payrolls for this period to prevent duplicates
         DB::beginTransaction();
         try {
+            $existingPayrolls = SdmPayroll::query()
+                ->where('period_year', $year)
+                ->where('period_month', $m)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('user_id');
+
             $generatedCount = 0;
 
             $userIds = $users->pluck('id')->all();
@@ -211,12 +220,7 @@ class PenggajianController extends Controller
                 ->map(fn ($rows) => $rows->sum('amount'))
                 ->all();
 
-            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\SdmPayroll> $payrollsByUser */
-            $payrollsByUser = SdmPayroll::query()
-                ->where('period_year', $year)
-                ->where('period_month', $m)
-                ->get()
-                ->keyBy('user_id');
+            $payrollsByUser = $existingPayrolls;
 
             /** @var \App\Models\User $user */
             foreach ($users as $user) {

@@ -137,6 +137,8 @@ class OutboundController extends Controller
             }
             $baseQty = (int) round($quantityInUnit * $conversionFactor);
 
+            $unitName = $unitId ? Unit::find($unitId)?->name : ($product->unit?->name ?? 'satuan dasar');
+
             // 1. Cek ketersediaan stok di product_stocks
             // Asumsi: jika location tidak di set, kita cari stok di warehouse tersebut saja.
             // Untuk WMS murni, harusnya spesifik lokasinya juga. Di sini kita coba ambil yang cocok 
@@ -172,7 +174,6 @@ class OutboundController extends Controller
                 $qtyRemaining -= $deduct;
 
                 // 3. Catat pergerakan stok (Stock Movement) utk masing-masing record
-                $unitName = $unitId ? Unit::find($unitId)?->name : ($product->unit?->name ?? 'satuan dasar');
                 $notesWithUnit = "[Pengeluaran] Input: {$quantityInUnit} {$unitName} (= {$baseQty} satuan dasar). " . ($request->notes ?? '');
 
                 StockMovement::create([

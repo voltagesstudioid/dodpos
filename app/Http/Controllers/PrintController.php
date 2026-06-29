@@ -17,21 +17,22 @@ class PrintController extends Controller
      */
     public function printReceipt(Transaction $transaction)
     {
-        // Load main transaction with details
         $transaction->load(['details.product', 'details.warehouse', 'user', 'customer', 'additionalTransactions.details.product']);
 
-        // Get root transaction (if this is an additional transaction, get the parent)
-        $rootTransaction = $transaction->parent_transaction_id
-            ? Transaction::with(['details.product', 'details.warehouse', 'user', 'customer', 'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy', 'additionalTransactions.details.product'])->find($transaction->parent_transaction_id)
-            : $transaction;
+        if ($transaction->parent_transaction_id) {
+            $rootTransaction = Transaction::with(['details.product', 'details.warehouse', 'user', 'customer', 'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy', 'additionalTransactions.details.product'])->find($transaction->parent_transaction_id);
+            if (! $rootTransaction) {
+                abort(404);
+            }
+        } else {
+            $rootTransaction = $transaction;
+        }
 
-        // Increment print count
         $rootTransaction->increment('print_count');
         $rootTransaction->update(['last_printed_at' => now()]);
 
-        // Jika transaksi grosir, redirect ke faktur grosir
         if ($rootTransaction->sale_type === 'grosir') {
-            return $this->printFakturGrosir($rootTransaction);
+            return $this->printFakturGrosir($rootTransaction, false);
         }
 
         $storeSetting = StoreSetting::current();
@@ -42,13 +43,26 @@ class PrintController extends Controller
     /**
      * Cetak Faktur Penjualan Grosir (A4)
      */
-    public function printFakturGrosir(Transaction $transaction)
+    public function printFakturGrosir(Transaction $transaction, bool $trackPrint = true)
     {
+        if ($transaction->parent_transaction_id) {
+            $rootTransaction = Transaction::find($transaction->parent_transaction_id);
+            if ($rootTransaction) {
+                $transaction = $rootTransaction;
+            }
+        }
+
         $transaction->load([
             'details.product', 'details.warehouse', 'user', 'customer',
             'sourceWarehouse', 'vehicle', 'packedBy', 'checkedBy', 'deliveredBy',
-            'additionalTransactions.details.product',
+            'additionalTransactions.details.product', 'additionalTransactions.details.warehouse',
         ]);
+
+        if ($trackPrint) {
+            $transaction->increment('print_count');
+            $transaction->update(['last_printed_at' => now()]);
+        }
+
         $storeSetting = StoreSetting::current();
 
         return view('print.faktur_grosir', compact('transaction', 'storeSetting'));

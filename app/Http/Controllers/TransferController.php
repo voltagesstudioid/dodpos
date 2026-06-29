@@ -633,12 +633,13 @@ class TransferController extends Controller
             ProductRequest::where('transfer_reference', $refNumber)
                 ->update(['transfer_reference' => null, 'status' => 'approved']);
 
-            // Keep products.stock in sync — restore global stock when cancelling transfer
-            $outTotal = $movements->where('type', 'transfer_out')->sum('quantity');
-            if ($outTotal > 0) {
-                $firstProduct = $movements->firstWhere('type', 'transfer_out');
-                if ($firstProduct) {
-                    Product::where('id', $firstProduct->product_id)->increment('stock', $outTotal);
+            // Keep products.stock in sync — restore global stock for each product
+            $outMovements = $movements->where('type', 'transfer_out');
+            $outByProduct = $outMovements->groupBy('product_id');
+            foreach ($outByProduct as $productId => $productMovements) {
+                $totalQty = (int) $productMovements->sum('quantity');
+                if ($totalQty > 0) {
+                    Product::where('id', $productId)->increment('stock', $totalQty);
                 }
             }
 

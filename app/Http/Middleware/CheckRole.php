@@ -12,7 +12,7 @@ class CheckRole
 {
     /**
      * Handle an incoming request.
-     * Usage: ->middleware('role:admin') or ->middleware('role:admin,kasir')
+     * Usage: ->middleware('role:supervisor') or ->middleware('role:admin1,admin2')
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {

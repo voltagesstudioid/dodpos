@@ -740,90 +740,54 @@
             @endif
             @endcanany
 
-            {{-- SDM & Penggajian Self-Service (tidak untuk supervisor, admin, admin1-4, sales) --}}
-            @php 
-                $role = strtolower(auth()->user()?->role ?? ''); 
-                $isSales = str_starts_with($role, 'sales');
-            @endphp
-            @if(auth()->check() && !in_array($role, ['supervisor', 'admin', 'admin1', 'admin2', 'admin3', 'admin4']) && !$isSales)
-            <div class="nav-group {{ request()->routeIs('sdm.absensi.self_*','sdm.cuti.self_*','sdm.penggajian.self_*') ? 'open' : '' }}" id="grp-sdm-self">
+            {{-- HR & Payroll Self-Service (untuk karyawan non-supervisor) --}}
+            @php $role = strtolower(auth()->user()?->role ?? ''); @endphp
+            @if(auth()->check() && $role !== 'supervisor' && in_array($role, ['kasir', 'gudang', 'sales', 'admin_sales', 'admin1', 'admin2', 'admin3', 'admin4', 'sales_pasgar']))
+            <div class="nav-group {{ request()->routeIs('sdm.absensi.self_*','sdm.cuti.self_*','sdm.penggajian.self_*','sdm.kasbon.self_*') ? 'open' : '' }}" id="grp-sdm-self">
                 <button class="nav-group-header" onclick="toggleGroup('grp-sdm-self')" type="button">
-                    <span class="nav-group-label">🧑‍🤝‍🧑 SDM &amp; Penggajian</span>
+                    <span class="nav-group-label">🧑‍🤝‍🧑 HR &amp; Payroll</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
                     <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absensi</span></a>
                     <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti</span></a>
+                    <a href="{{ route('sdm.kasbon.self_index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
                     <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
                 </div>
             </div>
             @endif
 
-            {{-- Karyawan Self-Service (admin1-4, sales) --}}
-            @if(auth()->check() && (in_array($role, ['admin1', 'admin2', 'admin3', 'admin4']) || $isSales))
-                @if($isSales)
-                    <div style="padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 1rem;">🧑‍💼 KARYAWAN</div>
-                    <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
-                    @can('view_absensi')
-                    <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.index','sdm.absensi.monthly*') ? 'active' : '' }}"><span class="nav-item-icon">⏰</span><span>Daftar Absensi</span></a>
-                    @endcan
-                    <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
-                    <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">🏖️</span><span>Cuti</span></a>
-                    <a href="{{ route('sdm.kasbon.self_index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
-                @else
-                    <div class="nav-group {{ request()->routeIs('sdm.cuti.self_*','sdm.penggajian.self_*','sdm.kasbon.self_*','sdm.absensi.*') ? 'open' : '' }}" id="grp-karyawan-self">
-                        <button class="nav-group-header" onclick="toggleGroup('grp-karyawan-self')" type="button">
-                            <span class="nav-group-label">🧑‍💼 Karyawan</span>
-                            <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                        </button>
-                        <div class="nav-group-items">
-                            <a href="{{ route('sdm.absensi.self_panel') }}" class="nav-item {{ request()->routeIs('sdm.absensi.self_*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Absen Saya</span></a>
-                            @can('view_absensi')
-                            <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.index','sdm.absensi.monthly*') ? 'active' : '' }}"><span class="nav-item-icon">⏰</span><span>Daftar Absensi</span></a>
-                            @endcan
-                            <a href="{{ route('sdm.penggajian.self_index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Gaji Saya</span></a>
-                            <a href="{{ route('sdm.cuti.self_index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.self_*') ? 'active' : '' }}"><span class="nav-item-icon">🏖️</span><span>Cuti</span></a>
-                            <a href="{{ route('sdm.kasbon.self_index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
-                        </div>
-                    </div>
-                @endif
-            @endif
-
-            {{-- SDM & Penggajian (Supervisor) --}}
+            {{-- HR & Payroll (Supervisor) --}}
             @if(auth()->check() && $role === 'supervisor')
             <div class="nav-group {{ request()->routeIs('sdm.*') ? 'open' : '' }}" id="grp-sdm">
                 <button class="nav-group-header" onclick="toggleGroup('grp-sdm')" type="button">
-                    <span class="nav-group-label">🧑‍🤝‍🧑 SDM &amp; Penggajian</span>
+                    <span class="nav-group-label">🧑‍🤝‍🧑 HR &amp; Payroll</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
                     <a href="{{ route('sdm.karyawan.index') }}" class="nav-item {{ request()->routeIs('sdm.karyawan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Karyawan</span></a>
                     <a href="{{ route('sdm.absensi.index') }}" class="nav-item {{ request()->routeIs('sdm.absensi.*') ? 'active' : '' }}"><span class="nav-item-icon">⏱️</span><span>Absensi</span></a>
                     <a href="{{ route('sdm.cuti.index') }}" class="nav-item {{ request()->routeIs('sdm.cuti.*','sdm.libur.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Cuti &amp; Libur</span></a>
-                    <a href="{{ route('sdm.kasbon.index') }}" class="nav-item {{ request()->routeIs('sdm.kasbon.*') && !request()->routeIs('sdm.kasbon.self_*') ? 'active' : '' }}"><span class="nav-item-icon">💸</span><span>Kasbon</span></a>
-                    <a href="{{ route('sdm.penggajian.index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.*','sdm.potongan.*','sdm.performa.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Penggajian</span></a>
+                    <a href="{{ route('sdm.penggajian.index') }}" class="nav-item {{ request()->routeIs('sdm.penggajian.*','sdm.potongan.*','sdm.performa.*') ? 'active' : '' }}"><span class="nav-item-icon">💰</span><span>Payroll</span></a>
                 </div>
             </div>
             @endif
 
-            {{-- Penjualan --}}
+            {{-- Point of Sale --}}
             @canany(['view_pos_kasir', 'view_sesi_kasir', 'view_transaksi', 'view_pelanggan', 'view_hutang_piutang', 'view_daftar_harga'])
             @php $posActive = request()->is('kasir*') || request()->routeIs('transaksi.*','pelanggan.*','hutang.*','harga.*'); @endphp
-            @if(in_array($role, ['admin3', 'admin4'])) @php /* admin3/admin4: skip Penjualan — no POS/sales abilities */ @endphp
-            @elseif(in_array($role, ['admin1', 'admin2']))
+            @if(in_array($role, ['admin1', 'admin2']))
             {{-- FLAT for admin1/admin2: tampil langsung berdasarkan role, tanpa cek permission --}}
             <div class="sidebar-divider"></div>
             <a href="{{ route('kasir.index') }}" class="nav-item {{ request()->is('kasir*') ? 'active' : '' }}"><span class="nav-item-icon">🖥️</span><span>Kasir / POS</span></a>
             <a href="{{ route('kasir.session') }}" class="nav-item {{ request()->routeIs('kasir.session') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Sesi Kasir</span></a>
-            <a href="{{ route('transaksi.index') }}" class="nav-item {{ request()->routeIs('transaksi.*') && !request()->routeIs('transaksi.barang_terjual') ? 'active' : '' }}"><span class="nav-item-icon">🧾</span><span>Transaksi</span></a>
-            <a href="{{ route('transaksi.barang_terjual') }}" class="nav-item {{ request()->routeIs('transaksi.barang_terjual') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Barang Terjual</span></a>
+            <a href="{{ route('transaksi.index') }}" class="nav-item {{ request()->routeIs('transaksi.*') ? 'active' : '' }}"><span class="nav-item-icon">🧾</span><span>Transaksi</span></a>
             <a href="{{ route('pelanggan.index') }}" class="nav-item {{ request()->routeIs('pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Pelanggan</span></a>
             <a href="{{ route('harga.index') }}" class="nav-item {{ request()->routeIs('harga.*') ? 'active' : '' }}"><span class="nav-item-icon">💲</span><span>Daftar Harga</span></a>
             @else
-            {{-- Grouped for supervisor --}}
             <div class="nav-group {{ $posActive ? 'open' : '' }}" id="grp-pos">
                 <button class="nav-group-header" onclick="toggleGroup('grp-pos')" type="button">
-                    <span class="nav-group-label">🏪 PENJUALAN</span>
+                    <span class="nav-group-label">🏪 POINT OF SALE</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
@@ -832,7 +796,7 @@
                     @endcan
                     @can('view_sesi_kasir')
                     <a href="{{ route('kasir.session') }}" class="nav-item {{ request()->routeIs('kasir.session') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Sesi Kasir</span></a>
-                    @php $activeSession = \App\Models\PosSession::where('status','open')->where('user_id', Auth::id())->latest()->first(); @endphp
+                    @php $activeSession = \App\Models\PosSession::where('status','open')->latest()->first(); @endphp
                     @if($activeSession)
                         @can('delete_sesi_kasir')
                         <a href="#" onclick="event.preventDefault();openCloseKasirModal();" class="nav-item" style="color:#f87171;"><span class="nav-item-icon">🔒</span><span>Tutup Kasir</span></a>
@@ -843,21 +807,14 @@
                         @endcan
                     @endif
                     @endcan
-                    @if($role === 'supervisor')
-                    <a href="{{ route('kasir.rekap_harian') }}" class="nav-item {{ request()->routeIs('kasir.rekap_harian') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Rekap Harian</span></a>
-                    @endif
                     @can('view_transaksi')
-                    <a href="{{ route('transaksi.index') }}" class="nav-item {{ request()->routeIs('transaksi.*') && !request()->routeIs('transaksi.barang_terjual') ? 'active' : '' }}"><span class="nav-item-icon">🧾</span><span>Transaksi</span></a>
-                    <a href="{{ route('transaksi.barang_terjual') }}" class="nav-item {{ request()->routeIs('transaksi.barang_terjual') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Barang Terjual</span></a>
+                    <a href="{{ route('transaksi.index') }}" class="nav-item {{ request()->routeIs('transaksi.*') ? 'active' : '' }}"><span class="nav-item-icon">🧾</span><span>Transaksi</span></a>
                     @endcan
                     @can('view_pelanggan')
                     <a href="{{ route('pelanggan.index') }}" class="nav-item {{ request()->routeIs('pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Pelanggan</span></a>
                     @endcan
                     @can('view_hutang_piutang')
-                    <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                    <a href="{{ route('hutang.piutang') }}" class="nav-item {{ request()->routeIs('hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                    <a href="{{ route('hutang.total') }}" class="nav-item {{ request()->routeIs('hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
-                    <a href="{{ route('hutang.lunas') }}" class="nav-item {{ request()->routeIs('hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                    <a href="{{ route('hutang.index') }}" class="nav-item {{ request()->routeIs('hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang &amp; Piutang</span></a>
                     @endcan
                     @can('view_daftar_harga')
                     <a href="{{ route('harga.index') }}" class="nav-item {{ request()->routeIs('harga.*') ? 'active' : '' }}"><span class="nav-item-icon">💲</span><span>Daftar Harga</span></a>
@@ -874,96 +831,67 @@
             {{-- Manajemen Gudang --}}
             @canany(['view_stok_gudang', 'view_penerimaan_barang', 'view_pengeluaran_barang', 'view_opname_stok', 'view_permintaan_barang'])
             @php $gudangActive = request()->routeIs('gudang.*') || request()->routeIs('products.*'); @endphp
-            
+            @if(in_array($role, ['admin3', 'admin4']))
+            {{-- FLAT for admin3/admin4: simplified, no subheadings --}}
+            <div class="sidebar-divider"></div>
+            <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📦 GUDANG</span></div>
+
+            @can('view_stok_gudang')
+            <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang</span></a>
+            @endcan
+            @can('view_permintaan_barang')
+            <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
+            @endcan
+
+            @if($role === 'admin3')
+            @can('view_penerimaan_barang')
+            <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima PO</span></a>
+            @endcan
+            @can('view_pengeluaran_barang')
+            @php $pendingReqCount = \App\Models\ProductRequest::where('status','approved')->count(); @endphp
+            <a href="{{ route('gudang.transfer.requests') }}" class="nav-item {{ request()->routeIs('gudang.transfer*') ? 'active' : '' }}"><span class="nav-item-icon">🔁</span><span>Kirim Transfer</span>@if((int)$pendingReqCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#eef2ff;color:#4338ca;">{{ $pendingReqCount }}</span> @endif</a>
+            @endcan
+            @endif
+
+            @if($role === 'admin4')
+            @can('view_penerimaan_barang')
+            @php $pendingTransferCount = \App\Models\StockMovement::where('type','transfer_in')->where('status','pending')->where('warehouse_id', auth()->user()->employee?->warehouse_id)->count(); @endphp
+            <a href="{{ route('gudang.terima_transfer.index') }}" class="nav-item {{ request()->routeIs('gudang.terima_transfer*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima Transfer</span>@if((int)$pendingTransferCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca;">{{ $pendingTransferCount }}</span> @endif</a>
+            @endcan
+            @endif
+
+            @can('view_pengeluaran_barang')
+            <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') ? 'active' : '' }}"><span class="nav-item-icon">📤</span><span>Pengeluaran</span></a>
+            @endcan
+            @can('view_opname_stok')
+            <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Hitung Fisik</span>@if(isset($pendingOpnameCount) && $pendingOpnameCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;">{{ $pendingOpnameCount }}</span> @endif</a>
+            @endcan
+
+            @else
             <div class="nav-group {{ $gudangActive ? 'open' : '' }}" id="grp-gudang">
                 <button class="nav-group-header" onclick="toggleGroup('grp-gudang')" type="button">
                     <span class="nav-group-label">🏢 MANAJEMEN GUDANG</span>
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
-                    {{-- 1. Informasi Stok --}}
                     @can('view_stok_gudang')
-                    <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Monitoring Stok</span></a>
+                    <a href="{{ route('gudang.stok') }}" class="nav-item {{ request()->routeIs('gudang.stok*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang</span></a>
                     @endcan
-
-                    {{-- 2. Permintaan Barang --}}
                     @can('view_permintaan_barang')
                     <a href="{{ route('gudang.request.index') }}" class="nav-item {{ request()->routeIs('gudang.request.*') ? 'active' : '' }}"><span class="nav-item-icon">🛒</span><span>Permintaan Barang</span></a>
                     @endcan
-
-                    {{-- Persiapan Barang (Pick Orders from POS) --}}
-                    @can('view_stok_gudang')
-                    @php
-                        $pickOrderQuery = \App\Models\PosPickOrder::whereIn('status', ['pending', 'processing']);
-                        if ($role !== 'supervisor') {
-                            $pickWhId = \App\Support\WarehouseConfig::getAllowedId($role);
-                            if ($pickWhId) {
-                                $pickOrderQuery->where('warehouse_id', $pickWhId);
-                            } else {
-                                $pickOrderQuery->whereRaw('1 = 0');
-                            }
-                        }
-                        $pendingPickCount = $pickOrderQuery->count();
-                    @endphp
-                    <a href="{{ route('gudang.pos_pick.index') }}" class="nav-item {{ request()->routeIs('gudang.pos_pick.*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Persiapan Barang</span>@if($pendingPickCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef3c7;color:#92400e;border-color:#fde68a;">{{ $pendingPickCount }}</span> @endif</a>
-                    @endcan
-
-                    {{-- 3. Barang Masuk (Inbound) --}}
                     @can('view_penerimaan_barang')
-                    <div class="nav-group-header" style="margin-top: 8px; cursor: default; padding-left: 1rem;"><span class="nav-group-label" style="font-size: 0.65rem; opacity: 0.6;">BARANG MASUK</span></div>
-                    
-                    @if($role !== 'admin4')
-                    <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}" style="padding-left: 2.2rem;"><span class="nav-item-icon">📥</span><span>Terima dari PO</span></a>
-                    @endif
-                    
-                    @php 
-                        $pendingTransferCount = \App\Models\StockMovement::where('type','transfer_in')->where('status','pending');
-                        if ($role !== 'supervisor') {
-                            $userWhId = \App\Support\WarehouseConfig::getAllowedId($role);
-                            if ($userWhId) {
-                                $pendingTransferCount->where('warehouse_id', $userWhId);
-                            } else {
-                                $pendingTransferCount->whereRaw('1 = 0');
-                            }
-                        }
-                        $pendingTransferCount = $pendingTransferCount->count(); 
-                    @endphp
-                    <a href="{{ route('gudang.terima_transfer.index') }}" class="nav-item {{ request()->routeIs('gudang.terima_transfer*') ? 'active' : '' }}" style="padding-left: 2.2rem;"><span class="nav-item-icon">📥</span><span>Terima Transfer</span>@if((int)$pendingTransferCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fee2e2;color:#b91c1c;border-color:#fecaca;">{{ $pendingTransferCount }}</span> @endif</a>
+                    <a href="{{ route('gudang.terimapo.index') }}" class="nav-item {{ request()->routeIs('gudang.terimapo.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Terima dari PO</span></a>
                     @endcan
-
-                    {{-- 4. Barang Keluar (Outbound) --}}
                     @can('view_pengeluaran_barang')
-                    <div class="nav-group-header" style="margin-top: 8px; cursor: default; padding-left: 1rem;"><span class="nav-group-label" style="font-size: 0.65rem; opacity: 0.6;">BARANG KELUAR</span></div>
-                    
-                    @php 
-                        $pendingReqQuery = \App\Models\ProductRequest::where('status','approved')->whereNull('transfer_reference');
-                        if ($role !== 'supervisor') {
-                            $userWhId = \App\Support\WarehouseConfig::getAllowedId($role);
-                            if ($userWhId) {
-                                $pendingReqQuery->where('from_warehouse_id', $userWhId);
-                            } else {
-                                $pendingReqQuery->whereRaw('1 = 0');
-                            }
-                        }
-                        $pendingReqCount = $pendingReqQuery->count(); 
-                    @endphp
-                    <a href="{{ route('gudang.transfer.requests') }}" class="nav-item {{ request()->routeIs('gudang.transfer*') ? 'active' : '' }}" style="padding-left: 2.2rem;"><span class="nav-item-icon">📤</span><span>Kirim Transfer</span>@if((int)$pendingReqCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#eef2ff;color:#4338ca;">{{ $pendingReqCount }}</span> @endif</a>
-                    
-                    <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') ? 'active' : '' }}" style="padding-left: 2.2rem;"><span class="nav-item-icon">📤</span><span>Pengeluaran Lainnya</span></a>
-                    @endcan
-
-                    {{-- 5. Opname Stok --}}
-                    @canany(['view_opname_stok', 'view_penyesuaian_stok'])
-                    <div class="nav-group-header" style="margin-top: 8px; cursor: default; padding-left: 1rem;"><span class="nav-group-label" style="font-size: 0.65rem; opacity: 0.6;">AUDIT</span></div>
-                    @can('view_penyesuaian_stok')
-                    <a href="{{ route('gudang.stock-adjustment.index') }}" class="nav-item {{ request()->routeIs('gudang.stock-adjustment.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penyesuaian Stok</span></a>
+                    <a href="{{ route('gudang.pengeluaran') }}" class="nav-item {{ request()->routeIs('gudang.pengeluaran*') ? 'active' : '' }}"><span class="nav-item-icon">📤</span><span>Pengeluaran Barang</span></a>
                     @endcan
                     @can('view_opname_stok')
-                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Opname Gudang</span>@if(isset($pendingOpnameCount) && $pendingOpnameCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;">{{ $pendingOpnameCount }}</span> @endif</a>
+                    <a href="{{ route('gudang.opname_sessions.index') }}" class="nav-item {{ request()->routeIs('gudang.opname_sessions.*') || request()->routeIs('gudang.opname_approval.*') ? 'active' : '' }}"><span class="nav-item-icon">🔍</span><span>Hitung Fisik</span>@if(isset($pendingOpnameCount) && $pendingOpnameCount > 0) <span class="sidebar-logo-badge" style="margin-left:auto;background:#fef2f2;color:#dc2626;">{{ $pendingOpnameCount }}</span> @endif</a>
                     @endcan
-                    @endcanany
                 </div>
             </div>
+            @endif
             @endcanany
 
             {{-- Pembelian (Retur tersedia untuk admin4, PO & Hutang hanya supervisor) --}}
@@ -1000,7 +928,7 @@
             @endcanany
 
             {{-- Minyak --}}
-            @if(in_array($role, ['supervisor', 'admin1']))
+            @if(in_array($role, ['admin4', 'supervisor', 'sales_minyak', 'admin1']))
             @php $minyakActive = request()->routeIs('minyak.*'); @endphp
             <div class="nav-group nav-group-premium minyak {{ $minyakActive ? 'open' : '' }}" id="grp-minyak">
                 <button class="nav-group-header" onclick="toggleGroup('grp-minyak')" type="button">
@@ -1014,7 +942,7 @@
                     </div>
                     <div class="nav-subgroup-divider"></div>
 
-                @if(in_array($role, ['supervisor']))
+                @if(in_array($role, ['admin4', 'supervisor']))
                     {{-- Master Data (supervisor only) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Master Data</div>
@@ -1035,10 +963,7 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                        <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('minyak.hutang.total') }}" class="nav-item {{ request()->routeIs('minyak.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
-                        <a href="{{ route('minyak.hutang.lunas') }}" class="nav-item {{ request()->routeIs('minyak.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('minyak.hutang.index') }}" class="nav-item {{ request()->routeIs('minyak.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                         <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
@@ -1058,22 +983,32 @@
                         <div class="nav-subgroup-label"><span class="subgroup-icon">📈</span> Analisis</div>
                         <a href="{{ route('minyak.laporan') }}" class="nav-item {{ request()->routeIs('minyak.laporan*') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Laporan Penjualan</span></a>
                     </div>
+                @else
+                    {{-- Sales Minyak navigation (limited) --}}
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
+                        <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
+                        <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
+                        <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
+                        <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
+                    <div class="nav-subgroup">
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
+                        <a href="{{ route('minyak.hutang.index') }}" class="nav-item {{ request()->routeIs('minyak.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
+                        <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
+                    </div>
                 @endif
                 </div>
             </div>
-            @elseif($role === 'sales_minyak')
-                {{-- Sales Minyak navigation (Flat, no dropdown) --}}
-                <div style="padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 1rem;">🛢️ MENU MINYAK</div>
-                <a href="{{ route('minyak.kunjungan.index') }}" class="nav-item {{ request()->routeIs('minyak.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
-                <a href="{{ route('minyak.penjualan.index') }}" class="nav-item {{ request()->routeIs('minyak.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
-                <a href="{{ route('minyak.setoran.index') }}" class="nav-item {{ request()->routeIs('minyak.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
-                <a href="{{ route('minyak.hutang.piutang') }}" class="nav-item {{ request()->routeIs('minyak.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Hutang Pelanggan</span></a>
-                <a href="{{ route('minyak.pelanggan.index') }}" class="nav-item {{ request()->routeIs('minyak.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
-                <a href="{{ route('minyak.produk.index') }}" class="nav-item {{ request()->routeIs('minyak.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">🛢️</span><span>Data Produk</span></a>
             @endif
 
             {{-- Mineral --}}
-            @if(in_array($role, ['supervisor', 'sales_mineral', 'admin1']))
+            @if(in_array($role, ['admin4', 'supervisor', 'sales_mineral', 'admin1']))
             @php $mineralActive = request()->routeIs('mineral.*'); @endphp
             <div class="nav-group nav-group-premium mineral {{ $mineralActive ? 'open' : '' }}" id="grp-mineral">
                 <button class="nav-group-header" onclick="toggleGroup('grp-mineral')" type="button">
@@ -1087,7 +1022,7 @@
                     </div>
                     <div class="nav-subgroup-divider"></div>
 
-                @if(in_array($role, ['supervisor']))
+                @if(in_array($role, ['admin4', 'supervisor']))
                     {{-- Master Data (supervisor only) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Master Data</div>
@@ -1098,17 +1033,12 @@
                         <a href="{{ route('mineral.setting.index') }}" class="nav-item {{ request()->routeIs('mineral.setting.*') ? 'active' : '' }}"><span class="nav-item-icon">⚙️</span><span>Jenis & Satuan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-                    {{-- Persediaan & Distribusi --}}
+                    {{-- Operasional (supervisor) --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Persediaan &amp; Distribusi</div>
-                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
+                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Harian</span></a>
                         <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                        <a href="{{ route('mineral.loading.index') }}" class="nav-item {{ request()->routeIs('mineral.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Distribusi Stok</span></a>
-                    </div>
-                    <div class="nav-subgroup-divider"></div>
-                    {{-- Transaksi --}}
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📝</span> Transaksi</div>
+                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
@@ -1116,9 +1046,7 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Rekap Piutang</span></a>
-                        <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('mineral.hutang.index') }}" class="nav-item {{ request()->routeIs('mineral.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
@@ -1141,28 +1069,22 @@
                 @else
                     {{-- Sales Mineral navigation (limited) --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi</div>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Referensi Data</div>
                         <a href="{{ route('mineral.pelanggan.index') }}" class="nav-item {{ request()->routeIs('mineral.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
                         <a href="{{ route('mineral.produk.index') }}" class="nav-item {{ request()->routeIs('mineral.produk.*') ? 'active' : '' }}"><span class="nav-item-icon">💧</span><span>Data Produk</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📦</span> Persediaan</div>
-                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Penerimaan Barang</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
                         <a href="{{ route('mineral.stok.index') }}" class="nav-item {{ request()->routeIs('mineral.stok.*') ? 'active' : '' }}"><span class="nav-item-icon">🚛</span><span>Stok Kendaraan</span></a>
-                    </div>
-                    <div class="nav-subgroup-divider"></div>
-                    <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📝</span> Transaksi</div>
+                        <a href="{{ route('mineral.stok-masuk.index') }}" class="nav-item {{ request()->routeIs('mineral.stok-masuk.*') ? 'active' : '' }}"><span class="nav-item-icon">📥</span><span>Stok Masuk</span></a>
                         <a href="{{ route('mineral.penjualan.index') }}" class="nav-item {{ request()->routeIs('mineral.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
                         <a href="{{ route('mineral.kunjungan.index') }}" class="nav-item {{ request()->routeIs('mineral.kunjungan.*') ? 'active' : '' }}"><span class="nav-item-icon">📍</span><span>Kunjungan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <a href="{{ route('mineral.hutang.piutang') }}" class="nav-item {{ request()->routeIs('mineral.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('mineral.hutang.total') }}" class="nav-item {{ request()->routeIs('mineral.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Rekap Piutang</span></a>
-                        <a href="{{ route('mineral.hutang.lunas') }}" class="nav-item {{ request()->routeIs('mineral.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('mineral.hutang.index') }}" class="nav-item {{ request()->routeIs('mineral.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                         <a href="{{ route('mineral.setoran.index') }}" class="nav-item {{ request()->routeIs('mineral.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
                     </div>
                 @endif
@@ -1171,7 +1093,7 @@
             @endif
 
             {{-- Gula --}}
-            @if(in_array($role, ['supervisor', 'sales_gula', 'admin1']))
+            @if(in_array($role, ['admin4', 'supervisor', 'sales_gula', 'admin1']))
             @php $gulaActive = request()->routeIs('gula.*'); @endphp
             <div class="nav-group nav-group-premium gula {{ $gulaActive ? 'open' : '' }}" id="grp-gula">
                 <button class="nav-group-header" onclick="toggleGroup('grp-gula')" type="button">
@@ -1185,7 +1107,7 @@
                     </div>
                     <div class="nav-subgroup-divider"></div>
 
-                @if(in_array($role, ['supervisor']))
+                @if(in_array($role, ['admin4', 'supervisor']))
                     {{-- Master Data (supervisor only) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Master Data</div>
@@ -1209,10 +1131,7 @@
                     {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                        <a href="{{ route('gula.hutang.piutang') }}" class="nav-item {{ request()->routeIs('gula.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('gula.hutang.total') }}" class="nav-item {{ request()->routeIs('gula.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
-                        <a href="{{ route('gula.hutang.lunas') }}" class="nav-item {{ request()->routeIs('gula.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('gula.hutang.index') }}" class="nav-item {{ request()->routeIs('gula.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                         <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
@@ -1251,10 +1170,7 @@
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('gula.setoran.index') }}" class="nav-item {{ request()->routeIs('gula.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
-                        <div style="padding: 0.5rem 1rem; font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-top: 0.5rem;">💳 Hutang &amp; Piutang</div>
-                        <a href="{{ route('gula.hutang.piutang') }}" class="nav-item {{ request()->routeIs('gula.hutang.piutang') ? 'active' : '' }}"><span class="nav-item-icon">📄</span><span>Piutang Aktif</span></a>
-                        <a href="{{ route('gula.hutang.total') }}" class="nav-item {{ request()->routeIs('gula.hutang.total') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Total Piutang</span></a>
-                        <a href="{{ route('gula.hutang.lunas') }}" class="nav-item {{ request()->routeIs('gula.hutang.lunas') ? 'active' : '' }}"><span class="nav-item-icon">✅</span><span>Hutang Lunas</span></a>
+                        <a href="{{ route('gula.hutang.index') }}" class="nav-item {{ request()->routeIs('gula.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                     </div>
                 @endif
                 </div>
@@ -1262,7 +1178,7 @@
             @endif
 
             {{-- Pasgar --}}
-            @if(in_array($role, ['supervisor', 'pasgar', 'sales_pasgar', 'admin1']))
+            @if(in_array($role, ['supervisor', 'admin1', 'admin2', 'sales_pasgar']))
             @php $pasgarActive = request()->routeIs('pasgar.*'); @endphp
             <div class="nav-group nav-group-premium pasgar {{ $pasgarActive ? 'open' : '' }}" id="grp-pasgar">
                 <button class="nav-group-header" onclick="toggleGroup('grp-pasgar')" type="button">
@@ -1270,21 +1186,20 @@
                     <svg class="nav-group-arrow" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="nav-group-items">
+
+                @if($role === 'supervisor')
                     {{-- Dashboard --}}
                     <div class="nav-subgroup">
                         <a href="{{ route('pasgar.dashboard') }}" class="nav-item {{ request()->routeIs('pasgar.dashboard') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Dashboard</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-
-                @if(in_array($role, ['supervisor', 'pasgar']))
-                    {{-- Master Data (supervisor only) --}}
+                    {{-- Supervisor full access --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Master Data</div>
                         <a href="{{ route('pasgar.sales.index') }}" class="nav-item {{ request()->routeIs('pasgar.sales.*') ? 'active' : '' }}"><span class="nav-item-icon">👤</span><span>Data Sales</span></a>
                         <a href="{{ route('pasgar.pelanggan.index') }}" class="nav-item {{ request()->routeIs('pasgar.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-                    {{-- Operasional (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
                         <a href="{{ route('pasgar.loading.index') }}" class="nav-item {{ request()->routeIs('pasgar.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Barang</span></a>
@@ -1292,32 +1207,34 @@
                         <a href="{{ route('pasgar.opname.index') }}" class="nav-item {{ request()->routeIs('pasgar.opname.*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Opname</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-                    {{-- Keuangan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('pasgar.setoran.index') }}" class="nav-item {{ request()->routeIs('pasgar.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Verifikasi Setoran</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
-                    {{-- Laporan (supervisor) --}}
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">📊</span> Laporan</div>
                         <a href="{{ route('pasgar.laporan.penjualan') }}" class="nav-item {{ request()->routeIs('pasgar.laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Lap. Penjualan</span></a>
                         <a href="{{ route('pasgar.laporan.setoran') }}" class="nav-item {{ request()->routeIs('pasgar.laporan.setoran') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Lap. Setoran</span></a>
                     </div>
-                @elseif(in_array($role, ['admin1', 'admin4']))
-                    {{-- Admin1/Admin4: Dashboard + Laporan access --}}
+                @elseif(in_array($role, ['admin1', 'admin2']))
+                    {{-- Admin1/Admin2 limited --}}
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📝</span> Data Penjualan</div>
-                        <a href="{{ route('pasgar.penjualan.index') }}" class="nav-item {{ request()->routeIs('pasgar.penjualan.*') ? 'active' : '' }}"><span class="nav-item-icon">📝</span><span>Penjualan</span></a>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">⚙️</span> Operasional</div>
+                        <a href="{{ route('pasgar.loading.index') }}" class="nav-item {{ request()->routeIs('pasgar.loading.*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Loading Barang</span></a>
+                        <a href="{{ route('pasgar.opname.index') }}" class="nav-item {{ request()->routeIs('pasgar.opname.*') ? 'active' : '' }}"><span class="nav-item-icon">📋</span><span>Opname</span></a>
                     </div>
                     <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
-                        <div class="nav-subgroup-label"><span class="subgroup-icon">📈</span> Analisis</div>
+                        <div class="nav-subgroup-label"><span class="subgroup-icon">📊</span> Laporan</div>
                         <a href="{{ route('pasgar.laporan.penjualan') }}" class="nav-item {{ request()->routeIs('pasgar.laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Lap. Penjualan</span></a>
-                        <a href="{{ route('pasgar.laporan.setoran') }}" class="nav-item {{ request()->routeIs('pasgar.laporan.setoran') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Lap. Setoran</span></a>
                     </div>
                 @else
-                    {{-- Sales Pasgar navigation (limited) --}}
+                    {{-- Sales Pasgar --}}
+                    <div class="nav-subgroup">
+                        <a href="{{ route('pasgar.dashboard') }}" class="nav-item {{ request()->routeIs('pasgar.dashboard') ? 'active' : '' }}"><span class="nav-item-icon">📊</span><span>Dashboard</span></a>
+                    </div>
+                    <div class="nav-subgroup-divider"></div>
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">🗂️</span> Master Data</div>
                         <a href="{{ route('pasgar.pelanggan.index') }}" class="nav-item {{ request()->routeIs('pasgar.pelanggan.*') ? 'active' : '' }}"><span class="nav-item-icon">🏪</span><span>Data Pelanggan</span></a>
@@ -1333,6 +1250,7 @@
                     <div class="nav-subgroup">
                         <div class="nav-subgroup-label"><span class="subgroup-icon">💰</span> Keuangan</div>
                         <a href="{{ route('pasgar.setoran.index') }}" class="nav-item {{ request()->routeIs('pasgar.setoran.*') ? 'active' : '' }}"><span class="nav-item-icon">💵</span><span>Setoran</span></a>
+                        <a href="{{ route('pasgar.hutang.index') }}" class="nav-item {{ request()->routeIs('pasgar.hutang.*') ? 'active' : '' }}"><span class="nav-item-icon">💳</span><span>Hutang Pelanggan</span></a>
                     </div>
                 @endif
                 </div>
@@ -1340,8 +1258,8 @@
             @endif
 
             {{-- Master Data --}}
-            @canany(['view_master_produk', 'view_master_supplier', 'view_master_gudang'])
-            @php $masterActive = request()->routeIs('master.produk*','master.supplier*','master.gudang*'); @endphp
+            @canany(['view_master_produk', 'view_master_kategori', 'view_master_satuan', 'view_master_supplier', 'view_master_gudang'])
+            @php $masterActive = request()->routeIs('products.*','master.*'); @endphp
             <div class="nav-group {{ $masterActive ? 'open' : '' }}" id="grp-master">
                 <button class="nav-group-header" onclick="toggleGroup('grp-master')" type="button">
                     <span class="nav-group-label">📦 MASTER DATA</span>
@@ -1349,7 +1267,7 @@
                 </button>
                 <div class="nav-group-items">
                     @can('view_master_produk')
-                    <a href="{{ route('master.produk') }}" class="nav-item {{ request()->routeIs('master.produk*') ? 'active' : '' }}"><span class="nav-item-icon">🏷️</span><span>Master Produk</span></a>
+                    <a href="{{ route('master.produk') }}" class="nav-item {{ request()->routeIs('master.produk*') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Master Data</span></a>
                     @endcan
                     @can('view_master_supplier')
                     <a href="{{ route('master.supplier') }}" class="nav-item {{ request()->routeIs('master.supplier*') ? 'active' : '' }}"><span class="nav-item-icon">🏭</span><span>Supplier</span></a>
@@ -1364,24 +1282,18 @@
             {{-- Laporan --}}
             @canany(['view_laporan_penjualan', 'view_laporan_pembelian', 'view_laporan_stok', 'view_laporan_keuangan', 'view_laporan_pelanggan', 'view_laporan_supplier'])
             @php $laporanActive = request()->routeIs('laporan.*'); @endphp
-            @if(in_array($role, ['admin1', 'admin2', 'admin3']))
+            @if(in_array($role, ['admin1', 'admin2', 'admin3', 'admin4']))
             {{-- FLAT for admin1/admin2/admin3/admin4 --}}
             <div class="sidebar-divider"></div>
             <div class="nav-group-header" style="cursor:default; margin-top:0.5rem;"><span class="nav-group-label" style="opacity:0.8;">📊 LAPORAN &amp; ANALISIS</span></div>
             @can('view_laporan_penjualan')
             <a href="{{ route('laporan.penjualan') }}" class="nav-item {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}"><span class="nav-item-icon">📈</span><span>Penjualan</span></a>
             @endcan
-            @can('view_laporan_pembelian')
-            <a href="{{ route('laporan.pembelian') }}" class="nav-item {{ request()->routeIs('laporan.pembelian') ? 'active' : '' }}"><span class="nav-item-icon">📉</span><span>Pembelian</span></a>
-            @endcan
             @can('view_laporan_stok')
             <a href="{{ route('laporan.stok') }}" class="nav-item {{ request()->routeIs('laporan.stok') ? 'active' : '' }}"><span class="nav-item-icon">📦</span><span>Stok Gudang</span></a>
             @endcan
             @can('view_laporan_pelanggan')
             <a href="{{ route('laporan.pelanggan') }}" class="nav-item {{ request()->routeIs('laporan.pelanggan') ? 'active' : '' }}"><span class="nav-item-icon">👥</span><span>Data Pelanggan</span></a>
-            @endcan
-            @can('view_laporan_supplier')
-            <a href="{{ route('laporan.supplier') }}" class="nav-item {{ request()->routeIs('laporan.supplier') ? 'active' : '' }}"><span class="nav-item-icon">🏭</span><span>Supplier</span></a>
             @endcan
             @else
             <div class="nav-group {{ $laporanActive ? 'open' : '' }}" id="grp-laporan">
@@ -1442,8 +1354,6 @@
             </div>
             @endcanany
 
-
-
             <div class="sidebar-divider"></div>
 
             <a href="{{ route('profile.edit') }}" class="nav-item {{ request()->routeIs('profile.*') ? 'active' : '' }}"><span class="nav-item-icon">⚙️</span><span>Profil Saya</span></a>
@@ -1475,7 +1385,7 @@
                 <div class="topbar-title">@yield('header', config('app.name', 'DODPOS'))</div>
             </div>
             <div class="topbar-right">
-                @if(auth()->check() && !in_array(strtolower((string) auth()->user()->role), ['supervisor', 'admin', 'admin1', 'admin2', 'admin3', 'admin4', 'sales']))
+                @if(auth()->check() && strtolower((string) auth()->user()->role) !== 'supervisor')
                     <a href="{{ route('sdm.absensi.self_panel') }}" class="btn-secondary" title="Absen Saya" style="margin-right:0.5rem;">📍 Absen</a>
                 @endif
                 <a href="{{ route('profile.edit') }}" class="topbar-user" title="Profil saya">
@@ -1645,95 +1555,5 @@
     @endif
 
     @stack('scripts')
-
-    {{-- Global Auto-Currency Formatting --}}
-    <script>
-    (function(){
-        // ── Indonesian Rupiah Currency Formatting ──
-        // Format: 1.500 (integer) or 1.500,50 (decimal, comma separator)
-        function formatCurrency(raw){
-            var parts = String(raw).split('.');
-            var intPart = (parts[0] || '').replace(/[^0-9]/g,'');
-            if(!intPart) return '';
-            var out = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-            if(parts.length > 1){
-                var dec = (parts[1] || '').replace(/[^0-9]/g,'').slice(0,2);
-                if(dec.length) out += ',' + dec;
-            }
-            return out;
-        }
-        function parseCurrency(formatted){
-            var s = String(formatted).trim();
-            if(!s) return '0';
-            // Remove all dots (thousand separators)
-            s = s.replace(/\./g, '');
-            // Replace comma with dot (decimal separator)
-            s = s.replace(',', '.');
-            // Remove any non-numeric characters except dot
-            s = s.replace(/[^0-9.]/g, '');
-            
-            // Ensure only one dot remains and keep up to 2 decimal places
-            var parts = s.split('.');
-            if(parts.length > 1){
-                s = parts[0] + '.' + parts.slice(1).join('').slice(0, 2);
-            }
-            return s || '0';
-        }
-        // Auto-format on input
-        document.addEventListener('input', function(e){
-            var el = e.target;
-            if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
-            // Preserve trailing decimal separator so user can continue typing
-            var lastChar = el.value.slice(-1);
-            var isDecimalTyped = (lastChar === ',' || lastChar === '.');
-            var cursor = el.selectionStart || 0;
-            var oldVal = el.value;
-            var rawBefore = parseCurrency(oldVal);
-            var digitsBefore = 0;
-            for(var i=0; i<cursor && i<oldVal.length; i++){
-                if(oldVal[i] >= '0' && oldVal[i] <= '9') digitsBefore++;
-            }
-            var formatted = formatCurrency(rawBefore);
-            // Re-attach trailing comma if user just typed one and it didn't survive formatting
-            if(isDecimalTyped && !formatted.slice(-1).match(/[0-9]/) && !formatted.includes(',')){
-                formatted += ',';
-            }
-            el.value = formatted;
-            var newCursor = 0;
-            var digitCount = 0;
-            for(var j=0; j<formatted.length; j++){
-                if(formatted[j] >= '0' && formatted[j] <= '9') digitCount++;
-                if(digitCount === digitsBefore){ newCursor = j+1; break; }
-            }
-            if(digitCount < digitsBefore) newCursor = formatted.length;
-            el.setSelectionRange(newCursor, newCursor);
-        }, true);
-        // On focus: format existing value (skip if already formatted with comma or dot)
-        document.addEventListener('focusin', function(e){
-            var el = e.target;
-            if(!el || !el.hasAttribute || !el.hasAttribute('data-currency')) return;
-            if(el.value && !el.value.includes('.') && !el.value.includes(',')){
-                el.value = formatCurrency(el.value);
-            }
-        }, true);
-        // Before form submit: strip formatting to raw number
-        document.addEventListener('submit', function(e){
-            var form = e.target;
-            if(!form || !form.querySelectorAll) return;
-            var inputs = form.querySelectorAll('[data-currency]');
-            inputs.forEach(function(el){
-                if(el.value) el.value = parseCurrency(el.value);
-            });
-            setTimeout(function(){
-                inputs.forEach(function(el){
-                    if(el.value) el.value = formatCurrency(el.value);
-                });
-            }, 0);
-        }, true);
-        // Expose helpers globally
-        window.formatCurrency = formatCurrency;
-        window.parseCurrency = parseCurrency;
-    })();
-    </script>
 </body>
 </html>

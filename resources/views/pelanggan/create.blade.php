@@ -55,9 +55,9 @@
                     {{-- Nama --}}
                     <div class="cr-group">
                         <label class="cr-label">Nama Pelanggan <span class="cr-req">*</span></label>
-                        <input type="text" name="name"
+                        <input type="text" name="name" id="nameInput"
                             class="cr-input @error('name') cr-err @enderror"
-                            value="{{ old('name') }}" placeholder="Masukkan nama lengkap..." required autofocus>
+                            value="{{ old('name') }}" placeholder="Masukkan nama lengkap..." required autofocus style="text-transform:uppercase;">
                         @error('name')<div class="cr-err-msg">{{ $message }}</div>@enderror
                     </div>
 
@@ -145,7 +145,7 @@
                             <label class="cr-label">Limit</label>
                             <div class="cr-prefix-group">
                                 <span class="cr-prefix">Rp</span>
-                                <input type="number" name="credit_limit"
+                                <input type="text" inputmode="numeric" name="credit_limit" data-currency
                                     class="cr-input cr-mono @error('credit_limit') cr-err @enderror"
                                     value="{{ old('credit_limit', 0) }}" min="0">
                             </div>
@@ -312,6 +312,15 @@
             var page = document.querySelector('.cr-page');
             if (fab && page) {
                 page.style.paddingBottom = (fab.offsetHeight + 40) + 'px';
+            }
+            
+            var nameInput = document.getElementById('nameInput');
+            if (nameInput) {
+                nameInput.addEventListener('input', function() {
+                    var start = this.selectionStart;
+                    this.value = this.value.toUpperCase();
+                    this.setSelectionRange(start, start);
+                });
             }
         });
     </script>

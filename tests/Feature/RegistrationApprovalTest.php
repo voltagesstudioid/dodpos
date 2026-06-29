@@ -20,7 +20,7 @@ class RegistrationApprovalTest extends TestCase
             'email' => 'baru@example.com',
             'password' => 'password-12345',
             'password_confirmation' => 'password-12345',
-            'requested_role' => 'kasir',
+            'requested_role' => 'admin1',
         ]);
 
         $resp->assertRedirect(route('login', absolute: false));
@@ -28,7 +28,7 @@ class RegistrationApprovalTest extends TestCase
         $u = User::query()->where('email', 'baru@example.com')->firstOrFail();
         $this->assertFalse((bool) $u->active);
         $this->assertSame('pending', $u->role);
-        $this->assertSame('kasir', $u->requested_role);
+        $this->assertSame('admin1', $u->requested_role);
 
         Mail::assertNothingSent();
     }
@@ -36,12 +36,13 @@ class RegistrationApprovalTest extends TestCase
     public function test_supervisor_can_approve_pending_user(): void
     {
         $this->withoutMiddleware();
+        Mail::fake();
 
         $supervisor = User::factory()->create(['role' => 'supervisor', 'active' => true]);
 
         $pending = User::factory()->create([
             'role' => 'pending',
-            'requested_role' => 'kasir',
+            'requested_role' => 'admin1',
             'active' => false,
         ]);
 
@@ -50,18 +51,19 @@ class RegistrationApprovalTest extends TestCase
 
         $pending->refresh();
         $this->assertTrue((bool) $pending->active);
-        $this->assertSame('kasir', $pending->role);
+        $this->assertSame('admin1', $pending->role);
     }
 
     public function test_supervisor_can_reject_pending_user(): void
     {
         $this->withoutMiddleware();
+        Mail::fake();
 
         $supervisor = User::factory()->create(['role' => 'supervisor', 'active' => true]);
 
         $pending = User::factory()->create([
             'role' => 'pending',
-            'requested_role' => 'kasir',
+            'requested_role' => 'admin1',
             'active' => false,
         ]);
 
@@ -71,5 +73,36 @@ class RegistrationApprovalTest extends TestCase
         $pending->refresh();
         $this->assertFalse((bool) $pending->active);
         $this->assertNotNull($pending->rejected_at);
+    }
+
+    public function test_rejected_user_can_re_register_with_same_email(): void
+    {
+        Mail::fake();
+
+        $rejected = User::factory()->create([
+            'name' => 'User Lama',
+            'email' => 'rejected@example.com',
+            'role' => 'pending',
+            'requested_role' => 'admin1',
+            'active' => false,
+            'approved_at' => null,
+            'rejected_at' => now(),
+        ]);
+
+        $resp = $this->post(route('register', absolute: false), [
+            'name' => 'User Baru',
+            'email' => 'rejected@example.com',
+            'password' => 'password-12345',
+            'password_confirmation' => 'password-12345',
+            'requested_role' => 'admin1',
+        ]);
+
+        $resp->assertRedirect(route('login', absolute: false));
+
+        $newUser = User::query()->where('email', 'rejected@example.com')->firstOrFail();
+        $this->assertSame('User Baru', $newUser->name);
+        $this->assertFalse((bool) $newUser->active);
+        $this->assertSame('pending', $newUser->role);
+        $this->assertNull($newUser->rejected_at);
     }
 }

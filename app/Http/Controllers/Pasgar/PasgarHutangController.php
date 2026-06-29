@@ -84,13 +84,13 @@ class PasgarHutangController extends Controller
     /**
      * Show hutang detail with payment history.
      */
-    public function show($id)
+    public function show(PasgarHutang $hutang)
     {
-        $hutang = PasgarHutang::with([
+        $hutang->load([
             'pelanggan.regional',
             'penjualan.items.product',
             'pembayarans' => fn ($q) => $q->with(['creator', 'confirmedBy'])->latest('tanggal_bayar'),
-        ])->findOrFail($id);
+        ]);
 
         // Verify sales access
         if ($this->isSales()) {
@@ -111,9 +111,9 @@ class PasgarHutangController extends Controller
     /**
      * Show payment form.
      */
-    public function bayar($id)
+    public function bayar(PasgarHutang $hutang)
     {
-        $hutang = PasgarHutang::with(['pelanggan', 'penjualan'])->findOrFail($id);
+        $hutang->load(['pelanggan', 'penjualan']);
 
         // Verify sales access
         if ($this->isSales()) {
@@ -138,9 +138,9 @@ class PasgarHutangController extends Controller
     /**
      * Store a payment record.
      */
-    public function storeBayar(Request $request, $id)
+    public function storeBayar(Request $request, PasgarHutang $hutang)
     {
-        $hutang = PasgarHutang::with(['pelanggan'])->findOrFail($id);
+        $hutang->load(['pelanggan']);
 
         // Verify sales access
         if ($this->isSales()) {
@@ -160,8 +160,11 @@ class PasgarHutangController extends Controller
         $validated = $request->validate([
             'jumlah' => 'required|numeric|min:1|max:' . (float) $hutang->sisa,
             'cara_bayar' => 'required|in:tunai,transfer,qris',
+            'id_transaksi' => 'required_if:cara_bayar,transfer,qris|nullable|string|max:100',
             'bukti_transfer' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096',
             'keterangan' => 'nullable|string|max:500',
+        ], [
+            'id_transaksi.required_if' => 'ID transaksi transfer wajib diisi saat menggunakan transfer atau QRIS.',
         ]);
 
         // Upload bukti transfer
@@ -188,6 +191,7 @@ class PasgarHutangController extends Controller
                 'tanggal_bayar' => now(),
                 'jumlah' => $validated['jumlah'],
                 'cara_bayar' => $validated['cara_bayar'],
+                'id_transaksi' => $validated['id_transaksi'] ?? null,
                 'bukti_transfer' => $validated['bukti_transfer'] ?? null,
                 'keterangan' => $validated['keterangan'] ?? null,
                 'created_by' => Auth::id(),
@@ -210,9 +214,9 @@ class PasgarHutangController extends Controller
     /**
      * Supervisor confirms or rejects a payment.
      */
-    public function confirm(Request $request, $bayarId)
+    public function confirm(Request $request, PasgarHutangBayar $bayar)
     {
-        $bayar = PasgarHutangBayar::with('hutang')->findOrFail($bayarId);
+        $bayar->load('hutang');
 
         if ($bayar->status !== 'pending') {
             return redirect()->route('pasgar.hutang.show', $bayar->hutang_id)

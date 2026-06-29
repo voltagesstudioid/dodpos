@@ -14,12 +14,16 @@ class StoreAdjustmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_id' => 'required|exists:products,id',
+            'product_id'   => 'required|exists:products,id',
             'warehouse_id' => 'required|exists:warehouses,id',
-            'tipe' => 'required|in:masuk,koreksi',
-            'jumlah' => 'required|numeric|min:0.001',
-            'unit_id' => 'nullable|integer',
-            'keterangan' => 'nullable|string|max:255',
+            'tipe'         => 'required|in:masuk,koreksi',
+            'jumlah'       => 'nullable|numeric|min:0',
+            'unit_id'      => 'nullable|integer',
+            'items'        => 'nullable|array',
+            'items.*.unit_id' => 'nullable|exists:units,id',
+            'items.*.jumlah'  => 'nullable|numeric|min:0',
+            'items.*.factor'  => 'nullable|numeric|min:0.0001',
+            'keterangan'   => 'nullable|string|max:255',
         ];
     }
 

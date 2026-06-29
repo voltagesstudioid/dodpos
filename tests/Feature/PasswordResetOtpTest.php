@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\PasswordResetOtpMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -74,6 +75,41 @@ class PasswordResetOtpTest extends TestCase
         ]);
         $resp->assertSessionHasErrors(['otp']);
 
+        $this->assertTrue(Hash::check('old-password', $user->fresh()->password));
+    }
+
+    public function test_otp_locked_after_5_wrong_attempts(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'email' => 'locked@example.com',
+            'password' => Hash::make('old-password'),
+            'active' => true,
+        ]);
+
+        $this->post(route('password.email', absolute: false), [
+            'email' => $user->email,
+        ]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->post(route('password.store', absolute: false), [
+                'email' => $user->email,
+                'otp' => '000000',
+                'password' => 'new-password-123',
+                'password_confirmation' => 'new-password-123',
+            ]);
+        }
+
+        $resp = $this->post(route('password.store', absolute: false), [
+            'email' => $user->email,
+            'otp' => '000000',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ]);
+        $resp->assertSessionHasErrors(['otp']);
+
+        $this->assertNull(DB::table('password_reset_tokens')->where('email', $user->email)->first());
         $this->assertTrue(Hash::check('old-password', $user->fresh()->password));
     }
 }

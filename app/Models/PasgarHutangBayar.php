@@ -10,7 +10,7 @@ class PasgarHutangBayar extends Model
 
     protected $fillable = [
         'hutang_id', 'tanggal_bayar', 'jumlah', 'cara_bayar',
-        'bukti_transfer', 'keterangan', 'created_by',
+        'id_transaksi', 'bukti_transfer', 'keterangan', 'created_by',
         'status', 'confirmed_by', 'confirmed_at', 'reject_reason',
     ];
 

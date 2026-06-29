@@ -81,7 +81,7 @@ class StoreSettingController extends Controller
                 'receipt_header' => $validated['receipt_header'] ?? null,
                 'receipt_footer' => $validated['receipt_footer'] ?? null,
                 'fingerprint_ip' => $validated['fingerprint_ip'] ?? null,
-                'fingerprint_port' => $validated['fingerprint_port'] ?? '4370',
+                'fingerprint_port' => $validated['fingerprint_port'] ?: '4370',
             ])->save();
 
             DB::commit();

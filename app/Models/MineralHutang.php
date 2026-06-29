@@ -69,6 +69,8 @@ class MineralHutang extends Model
             $this->status = 'lunas';
         } elseif ($this->jatuh_tempo && $this->jatuh_tempo->isPast()) {
             $this->status = 'overdue';
+        } else {
+            $this->status = 'belum_lunas';
         }
 
         $this->save();

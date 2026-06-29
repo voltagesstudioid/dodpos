@@ -234,7 +234,7 @@ class InventoryVisibilityTest extends TestCase
     public function test_non_warehouse_role_can_checkout_without_opname(): void
     {
         $this->seedWarehouses();
-        $user = $this->makeActiveEmployeeUser('kasir');
+        $user = $this->makeActiveEmployeeUser('admin1');
 
         Attendance::query()->create([
             'user_id' => $user->id,

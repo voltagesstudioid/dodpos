@@ -711,7 +711,7 @@
              @keydown.escape.window="modals['stok-add']=false"
              @click.self="modals['stok-add']=false"
              x-transition:enter.opacity.duration.200ms>
-            <div class="modal" style="max-width:520px;" @click.stop>
+            <div class="modal" style="max-width:600px;" @click.stop>
                 <form @submit.prevent="submitAdjustment($event)">
                     @csrf
                     <div class="modal-header">
@@ -741,35 +741,20 @@
                             }
                         }">
                             <label class="form-label">Produk <span class="required">*</span></label>
-                            
-                            <!-- Hidden input for form submission -->
-                            <input type="hidden" name="product_id" :value="selectedId" required x-ref="stokProduk">
-
+                            <input type="hidden" name="product_id" :value="selectedId" required>
                             <div class="custom-select-wrap" @click.away="open = false" style="position:relative;">
                                 <div class="form-input" style="padding:0; display:flex; align-items:center; background:#fff; overflow:hidden;">
-                                    <input type="text" 
-                                           x-model="search" 
-                                           @focus="open = true; if(selectedId){ search=''; selectedId=''; }"
-                                           @input="open = true; selectedId = ''"
-                                           placeholder="Cari produk..." 
-                                           style="border:none; box-shadow:none; flex-grow:1; width:100%; outline:none; padding:8px 12px; background:transparent;">
+                                    <input type="text" x-model="search" @focus="open = true; if(selectedId){ search=''; selectedId=''; }" @input="open = true; selectedId = ''" placeholder="Cari produk..." style="border:none; box-shadow:none; flex-grow:1; width:100%; outline:none; padding:8px 12px; background:transparent;">
                                     <svg style="width:16px;height:16px;color:#94a3b8;margin-right:12px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                                 </div>
-                                
                                 <div x-show="open" style="position:absolute; top:100%; left:0; right:0; z-index:999; background:#fff; border:1px solid #e2e8f0; border-radius:6px; margin-top:4px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); max-height:250px; display:flex; flex-direction:column;" x-transition style="display:none;">
                                     <div style="overflow-y:auto; flex-grow:1;">
                                         <template x-for="p in filteredProducts" :key="p.id">
-                                            <div @click="select(p)"
-                                                 style="padding:8px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f5f9; transition:background 0.15s;"
-                                                 :style="selectedId === p.id ? 'background:#f8fafc; font-weight:600; color:#4f46e5;' : 'color:#334155;'"
-                                                 @mouseenter="$el.style.backgroundColor='#f8fafc'"
-                                                 @mouseleave="$el.style.backgroundColor=selectedId === p.id ? '#f8fafc' : 'transparent'">
+                                            <div @click="select(p)" style="padding:8px 12px; cursor:pointer; font-size:13px; border-bottom:1px solid #f1f5f9; transition:background 0.15s;" :style="selectedId === p.id ? 'background:#f8fafc; font-weight:600; color:#4f46e5;' : 'color:#334155;'" @mouseenter="$el.style.backgroundColor='#f8fafc'" @mouseleave="$el.style.backgroundColor=selectedId === p.id ? '#f8fafc' : 'transparent'">
                                                 <span x-text="p.name + ' (' + (p.sku || '') + ')'"></span>
                                             </div>
                                         </template>
-                                        <div x-show="filteredProducts.length === 0" style="padding:12px; text-align:center; color:#94a3b8; font-size:13px;">
-                                            Produk tidak ditemukan
-                                        </div>
+                                        <div x-show="filteredProducts.length === 0" style="padding:12px; text-align:center; color:#94a3b8; font-size:13px;">Produk tidak ditemukan</div>
                                     </div>
                                 </div>
                             </div>
@@ -783,26 +768,42 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Tipe <span class="required">*</span></label>
-                                <select name="tipe" class="form-input" required>
-                                    <option value="masuk">Stok Masuk</option>
-                                    <option value="koreksi">Koreksi Stok</option>
-                                </select>
-                                <div class="form-hint">Masuk: tambah stok &middot; Koreksi: set stok ke jumlah tertentu</div>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Jumlah <span class="required">*</span></label>
-                                <input type="number" name="jumlah" class="form-input" required min="0.001" step="0.001" placeholder="0">
-                            </div>
-                        </div>
                         <div class="form-group">
-                            <label class="form-label">Satuan</label>
-                            <select name="unit_id" class="form-input" x-ref="stokUnit">
-                                <option value="">Satuan Dasar</option>
+                            <label class="form-label">Tipe <span class="required">*</span></label>
+                            <select name="tipe" class="form-input" required>
+                                <option value="masuk">Stok Masuk</option>
+                                <option value="koreksi">Koreksi Stok</option>
                             </select>
-                            <div class="form-hint">Pilih satuan jika bukan satuan dasar</div>
+                            <div class="form-hint">Masuk: tambah stok &middot; Koreksi: set stok ke jumlah tertentu</div>
+                        </div>
+                        {{-- Multi-satuan input --}}
+                        <div class="form-group">
+                            <label class="form-label">Input Per Satuan</label>
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+                                <div style="display:flex; padding:8px 10px; background:#eef2ff; font-weight:700; color:#4338ca; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em;">
+                                    <span style="flex:1;">Satuan</span>
+                                    <span style="width:100px; text-align:right;">Faktor</span>
+                                    <span style="width:130px; text-align:right;">Jumlah</span>
+                                </div>
+                                <div style="max-height:280px; overflow-y:auto;" x-ref="stokRowsWrap">
+                                    <div x-show="stokRowList.length === 0" style="padding:24px; text-align:center; color:#94a3b8; font-size:0.8rem;">
+                                        <div style="font-size:2rem; margin-bottom:6px;">📦</div>
+                                        Pilih produk terlebih dahulu
+                                    </div>
+                                    <template x-for="(row, i) in stokRowList" :key="i">
+                                        <div style="display:flex; align-items:center; padding:6px 10px; border-bottom:1px solid #f1f5f9;">
+                                            <span style="flex:1; font-weight:600; color:#1e293b; font-size:0.82rem;" x-text="row.unitName"></span>
+                                            <span style="width:100px; text-align:right; color:#64748b; font-size:0.75rem; font-family:monospace; background:#f1f5f9; padding:2px 8px; border-radius:4px;" x-text="'1:' + row.factor"></span>
+                                            <div style="width:130px; padding-left:8px;">
+                                                <input type="number" :name="'items[' + i + '][jumlah]'" x-model.number="row.qty" min="0" step="1" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; text-align:right; font-size:0.85rem; font-weight:600; box-sizing:border-box;" placeholder="0">
+                                                <input type="hidden" :name="'items[' + i + '][unit_id]'" :value="row.unitId">
+                                                <input type="hidden" :name="'items[' + i + '][factor]'" :value="row.factor">
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="form-hint">Isi jumlah per satuan — sistem otomatis konversi ke satuan dasar</div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Keterangan</label>
@@ -811,7 +812,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn-secondary" @click="modals['stok-add']=false">Batal</button>
-                        <button type="submit" class="btn-primary" :disabled="submitting" x-text="submitting ? 'Menyimpan...' : 'Simpan'"></button>
+                        <button type="submit" class="btn-primary" :disabled="submitting || stokRowList.every(r => !r.qty || r.qty <= 0)" x-text="submitting ? 'Menyimpan...' : 'Simpan'"></button>
                     </div>
                 </form>
             </div>
@@ -882,6 +883,7 @@
             stokSearchTimer: null,
 
             allProducts: [],
+            stokRowList: [],
 
             init() {
                 this.loadProduk();
@@ -900,6 +902,7 @@
 
             openModal(name) {
                 this.modals[name] = true;
+                if (name === 'stok-add') this.stokRowList = [];
                 this.$nextTick(() => {
                     const map = { 'produk-add': 'produkName', 'kategori-add': 'kategoriName', 'satuan-add': 'satuanName' };
                     const ref = map[name];
@@ -1203,17 +1206,18 @@
             },
 
             onProdukStokChange(productId) {
-                const unitSelect = this.$refs.stokUnit;
-                unitSelect.innerHTML = '<option value="">Satuan Dasar</option>';
+                this.stokRowList = [];
                 if (!productId) return;
                 const p = this.allProducts.find(x => x.id == productId);
                 if (p && p.units) {
                     p.units.forEach(uc => {
                         if (uc.unit_id) {
-                            const opt = document.createElement('option');
-                            opt.value = uc.unit_id;
-                            opt.textContent = uc.unit_name + ' (1:' + uc.conversion_factor + ')';
-                            unitSelect.appendChild(opt);
+                            this.stokRowList.push({
+                                unitId: uc.unit_id,
+                                unitName: uc.unit_name,
+                                factor: uc.conversion_factor,
+                                qty: 0
+                            });
                         }
                     });
                 }

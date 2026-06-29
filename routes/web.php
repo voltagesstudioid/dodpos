@@ -51,13 +51,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->name('print.sales-order');
 
     // =========================================================
-    // ADMIN SALES DASHBOARD
-    // =========================================================
-    Route::get('/admin-sales', [\App\Http\Controllers\AdminSalesController::class, 'index'])
-        ->middleware('can:view_dashboard')
-        ->name('admin-sales.dashboard');
-
-    // =========================================================
     // POINT OF SALE — akses kasir (tanpa buka/tutup sesi)
     // =========================================================
     Route::middleware('can:view_pos_kasir')->group(function () {
@@ -97,7 +90,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/kasir/close-session-grosir', [\App\Http\Controllers\KasirController::class, 'closeSessionGrosir'])->name('kasir.close_session_grosir');
     });
 
-    // Transaksi — kasir, admin, admin1, admin2
+    // Transaksi — admin1, admin2
     Route::middleware('can:view_transaksi')->group(function () {
         Route::get('/transaksi', [\App\Http\Controllers\TransactionController::class, 'index'])->name('transaksi.index');
         Route::get('/transaksi/barang-terjual', [\App\Http\Controllers\TransactionController::class, 'soldItems'])->name('transaksi.barang_terjual');
@@ -116,55 +109,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/kasir/transactions/{transaction}/add-items', [\App\Http\Controllers\KasirController::class, 'storeAdditionalItems'])->name('kasir.transactions.add_items');
     });
 
-    // Pelanggan (Customer) — view: kasir, admin1, admin2 | create/edit: admin1, admin2 | delete: supervisor only
-    Route::middleware('can:create_pelanggan')->group(function () {
-        Route::get('/pelanggan/create', [\App\Http\Controllers\CustomerController::class, 'create'])->name('pelanggan.create');
-        Route::post('/pelanggan', [\App\Http\Controllers\CustomerController::class, 'store'])->name('pelanggan.store');
-    });
-    Route::middleware('can:view_pelanggan')->group(function () {
-        Route::get('/pelanggan', [\App\Http\Controllers\CustomerController::class, 'index'])->name('pelanggan.index');
-        Route::get('/pelanggan/{pelanggan}', [\App\Http\Controllers\CustomerController::class, 'show'])->name('pelanggan.show');
-    });
-    Route::middleware('can:edit_pelanggan')->group(function () {
-        Route::get('/pelanggan/{pelanggan}/edit', [\App\Http\Controllers\CustomerController::class, 'edit'])->name('pelanggan.edit');
-        Route::put('/pelanggan/{pelanggan}', [\App\Http\Controllers\CustomerController::class, 'update'])->name('pelanggan.update');
-    });
-    Route::middleware('can:delete_pelanggan')->group(function () {
-        Route::delete('/pelanggan/{pelanggan}', [\App\Http\Controllers\CustomerController::class, 'destroy'])->name('pelanggan.destroy');
-    });
-
-    // HUTANG PIUTANG — specific routes MUST come before {kredit} wildcard
-    Route::middleware('can:view_hutang_piutang')->group(function () {
-        Route::get('/hutang-piutang', [\App\Http\Controllers\CustomerCreditController::class, 'index'])->name('hutang.index'); // Keep as fallback/redirect if needed
-        Route::get('/hutang-piutang/piutang', [\App\Http\Controllers\CustomerCreditController::class, 'piutang'])->name('hutang.piutang');
-        Route::get('/hutang-piutang/total', [\App\Http\Controllers\CustomerCreditController::class, 'totalPiutang'])->name('hutang.total');
-        Route::get('/hutang-piutang/lunas', [\App\Http\Controllers\CustomerCreditController::class, 'lunas'])->name('hutang.lunas');
-        
-        Route::get('/hutang-piutang/list', [\App\Http\Controllers\CustomerCreditController::class, 'index'])->name('pelanggan.kredit.index');
-        Route::get('/hutang-piutang/konsolidasi', [\App\Http\Controllers\CustomerCreditController::class, 'consolidated'])->name('pelanggan.kredit.consolidated');
-        Route::get('/hutang-piutang/pelanggan/{customer}', [\App\Http\Controllers\CustomerCreditController::class, 'customerDebt'])->name('pelanggan.kredit.customer');
-    });
-
-    Route::middleware('can:create_hutang_piutang')->group(function () {
-        Route::get('/hutang-piutang/create', [\App\Http\Controllers\CustomerCreditController::class, 'create'])->name('pelanggan.kredit.create');
-        Route::post('/hutang-piutang', [\App\Http\Controllers\CustomerCreditController::class, 'store'])->name('pelanggan.kredit.store');
-        Route::post('/hutang-piutang/pelanggan/{customer}/bayar', [\App\Http\Controllers\CustomerCreditController::class, 'payConsolidated'])->name('pelanggan.kredit.pay_consolidated');
-        Route::post('/hutang-piutang/{kredit}/pay', [\App\Http\Controllers\CustomerCreditController::class, 'pay'])->name('pelanggan.kredit.pay');
-    });
-
-    // Wildcard routes LAST
-    Route::middleware('can:view_hutang_piutang')->group(function () {
-        Route::get('/hutang-piutang/{kredit}', [\App\Http\Controllers\CustomerCreditController::class, 'show'])->name('pelanggan.kredit.show');
-    });
-
-    Route::middleware('can:delete_hutang_piutang')->group(function () {
-        Route::delete('/hutang-piutang/pembayaran/{payment}', [\App\Http\Controllers\CustomerCreditController::class, 'deletePayment'])->name('pelanggan.kredit.delete_payment');
-        Route::delete('/hutang-piutang/{kredit}', [\App\Http\Controllers\CustomerCreditController::class, 'destroy'])->name('pelanggan.kredit.destroy');
-    });
-
-    Route::middleware('can:view_daftar_harga')->group(function () {
-        Route::get('/harga', [\App\Http\Controllers\HargaController::class, 'index'])->name('harga.index');
-    });
+    // Pelanggan & Hutang Piutang — loaded from routes/pelanggan.php
+    require __DIR__.'/pelanggan.php';
 
     // =========================================================
     // MASTER DATA — admin, admin4
@@ -356,6 +302,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/gudang/request/create', [\App\Http\Controllers\ProductRequestController::class, 'create'])->name('gudang.request.create');
         Route::post('/gudang/request', [\App\Http\Controllers\ProductRequestController::class, 'store'])->name('gudang.request.store');
         Route::delete('/gudang/request/{productRequest}', [\App\Http\Controllers\ProductRequestController::class, 'destroy'])->name('gudang.request.destroy');
+        Route::put('/gudang/request/{productRequest}/status', [\App\Http\Controllers\ProductRequestController::class, 'updateStatus'])->name('gudang.request.update_status');
 
         // Persiapan Barang (Pick Orders from POS)
         Route::get('/gudang/persiapan', [\App\Http\Controllers\Gudang\PosPickOrderController::class, 'index'])->name('gudang.pos_pick.index');
@@ -461,7 +408,7 @@ Route::middleware(['auth', 'active'])->group(function () {
 
 
     // =========================================================
-    // SALES ORDER — admin, admin_sales
+    // SALES ORDER — admin1, admin2
     // =========================================================
     Route::get('/penjualan/sales-order/products/search', [\App\Http\Controllers\SalesOrderController::class, 'searchProducts'])
         ->middleware('can:view_sales_order')
@@ -611,7 +558,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         ->middleware('can:delete_retur_pembelian');
 
     // =========================================================
-    // LAPORAN — admin, admin_sales, admin1
+    // LAPORAN — admin1, admin2
     // =========================================================
     // ----- LAPORAN -----
     // Laporan Penjualan (Supervisor, Admin1, Admin2)
@@ -755,6 +702,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::post('/absensi/link-user', [\App\Http\Controllers\Sdm\AttendanceController::class, 'linkUser'])->name('absensi.link_user');
             Route::post('/absensi/manual', [\App\Http\Controllers\Sdm\AttendanceController::class, 'storeManual'])->name('absensi.manual.store');
             Route::post('/absensi/generate-absent', [\App\Http\Controllers\Sdm\AttendanceController::class, 'generateAbsent'])->name('absensi.generate_absent');
+            Route::post('/absensi/sync', [\App\Http\Controllers\Sdm\AttendanceController::class, 'sync'])->name('absensi.sync');
             Route::post('/absensi/jadwal', [\App\Http\Controllers\Sdm\AttendanceController::class, 'updateSchedule'])->name('absensi.update_schedule');
             Route::post('/cuti', [\App\Http\Controllers\Sdm\LeaveRequestController::class, 'store'])->name('cuti.store');
             Route::post('/libur', [\App\Http\Controllers\Sdm\HolidayController::class, 'store'])->name('libur.store');
@@ -1062,8 +1010,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     // MODUL PASGAR - Pasukan Garuda (Sales & Distribution)
     // =========================================================
 
-    // --- Shared routes (all pasgar roles: supervisor, admin4, pasgar, sales_pasgar) ---
-    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin4|pasgar|sales_pasgar|admin1')->group(function () {
+    // --- Shared routes (all pasgar roles: supervisor, admin1, admin2, sales_pasgar, admin1) ---
+    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin1|admin2|sales_pasgar|admin1')->group(function () {
         // Dashboard
         Route::get('/dashboard', [\App\Http\Controllers\Pasgar\PasgarDashboardController::class, 'index'])
             ->name('dashboard');
@@ -1113,10 +1061,16 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/opname/create', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'create'])->name('opname.create');
         Route::post('/opname', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'store'])->name('opname.store');
         Route::get('/opname/{id}', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'show'])->name('opname.show');
+
+        // Hutang Piutang (shared: all pasgar roles can view & pay)
+        Route::get('/hutang', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'index'])->name('hutang.index');
+        Route::get('/hutang/{hutang}', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'show'])->name('hutang.show');
+        Route::get('/hutang/{hutang}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'bayar'])->name('hutang.bayar');
+        Route::post('/hutang/{hutang}/bayar', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'storeBayar'])->name('hutang.storeBayar');
     });
 
-    // --- Supervisor, Admin & Pasgar only (full access features) ---
-    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin4|pasgar')->group(function () {
+    // --- Supervisor, Admin1 & Admin2 (full access features) ---
+    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin1|admin2')->group(function () {
         // Sales Pasgar (CRUD)
         Route::get('/sales', [\App\Http\Controllers\Pasgar\PasgarDashboardController::class, 'sales'])->name('sales.index');
         Route::get('/sales/create', [\App\Http\Controllers\Pasgar\PasgarDashboardController::class, 'salesCreate'])->name('sales.create');
@@ -1131,12 +1085,15 @@ Route::middleware(['auth', 'active'])->group(function () {
         // Setoran verify
         Route::post('/setoran/{id}/verify', [\App\Http\Controllers\Pasgar\PasgarSetoranController::class, 'verify'])->name('setoran.verify');
 
+        // Hutang confirm/reject (supervisor)
+        Route::post('/hutang/bayar/{bayar}/confirm', [\App\Http\Controllers\Pasgar\PasgarHutangController::class, 'confirm'])->name('hutang.confirm');
+
         // Opname confirm (supervisor)
         Route::post('/opname/{id}/confirm', [\App\Http\Controllers\Pasgar\PasgarOpnameController::class, 'confirm'])->name('opname.confirm');
     });
 
-    // Laporan Pasgar — accessible by supervisor, admin4, pasgar, admin1
-    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin4|pasgar|admin1')->group(function () {
+    // Laporan Pasgar — accessible by supervisor, admin1, admin2
+    Route::prefix('pasgar')->name('pasgar.')->middleware('role:supervisor|admin1|admin2|sales_pasgar')->group(function () {
         Route::get('/laporan/penjualan', [\App\Http\Controllers\Pasgar\PasgarLaporanController::class, 'penjualan'])->name('laporan.penjualan');
         Route::get('/laporan/setoran', [\App\Http\Controllers\Pasgar\PasgarLaporanController::class, 'setoran'])->name('laporan.setoran');
     });

@@ -10,7 +10,8 @@ class CleanDataCommand extends Command
 {
     protected $signature = 'data:clean
                             {--force : Skip confirmation prompt}
-                            {--backup : Create database backup before cleaning}';
+                            {--backup : Create database backup before cleaning}
+                            {--with-products : Also delete all products and product_unit_conversions}';
 
     protected $description = 'Clean all sales (penjualan), opname, and transaction data from the database';
 
@@ -164,14 +165,18 @@ class CleanDataCommand extends Command
         $this->warn('║  • Stok semua produk direset ke 0               ║');
         $this->warn('║  • Activity Log                                 ║');
         $this->warn('╠══════════════════════════════════════════════════╣');
-        $this->warn('║  YANG TIDAK TERHAPUS:                            ║');
-        $this->warn('║  • Data Produk (master data)                    ║');
-        $this->warn('║  • Data Pelanggan, Supplier, Sales              ║');
-        $this->warn('║  • Data Karyawan & Penggajian                   ║');
-        $this->warn('║  • Data User & Hak Akses                        ║');
-        $this->warn('║  • Data Gudang, Kategori, Satuan, Merek         ║');
-        $this->warn('║  • Pengaturan Toko                              ║');
-        $this->warn('╚══════════════════════════════════════════════════╝');
+            $this->warn('║  YANG TIDAK TERHAPUS:                            ║');
+            $this->warn('║  • Data Produk (master data)                    ║');
+            $this->warn('║  • Data Pelanggan, Supplier, Sales              ║');
+            $this->warn('║  • Data Karyawan & Penggajian                   ║');
+            $this->warn('║  • Data User & Hak Akses                        ║');
+            $this->warn('║  • Data Gudang, Kategori, Satuan, Merek         ║');
+            $this->warn('║  • Pengaturan Toko                              ║');
+            if ($this->option('with-products')) {
+                $this->warn('╠══════════════════════════════════════════════════╣');
+                $this->error('║  --with-products: PRODUK JUGA AKAN DIHAPUS!     ║');
+            }
+            $this->warn('╚══════════════════════════════════════════════════╝');
         $this->newLine();
 
         // Backup if requested
@@ -257,8 +262,8 @@ class CleanDataCommand extends Command
         $this->info('📦 Step 4: Reset hutang pelanggan');
         if (Schema::hasTable('customers')) {
             try {
-                DB::table('customers')->update(['total_hutang' => 0]);
-                $this->line('  ✅ customers: total_hutang direset ke 0');
+                DB::table('customers')->update(['current_debt' => 0]);
+                $this->line('  ✅ customers: current_debt direset ke 0');
             } catch (\Throwable $e) {
                 $errors[] = "customers.total_hutang: {$e->getMessage()}";
             }
@@ -266,6 +271,28 @@ class CleanDataCommand extends Command
 
         // Re-enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+
+        // Step 5: Delete products (only with --with-products option)
+        if ($this->option('with-products')) {
+            $this->newLine();
+            $this->info('📦 Step 5: Hapus semua produk');
+            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            try {
+                $convCount = DB::table('product_unit_conversions')->count();
+                DB::table('product_unit_conversions')->truncate();
+                $this->line("  ✅ product_unit_conversions: {$convCount} dihapus");
+
+                $prodCount = DB::table('products')->count();
+                DB::table('products')->truncate();
+                $this->line("  ✅ products: {$prodCount} dihapus");
+
+                $totalDeleted += $convCount + $prodCount;
+            } catch (\Throwable $e) {
+                $errors[] = "products: {$e->getMessage()}";
+                $this->error("  ❌ products: {$e->getMessage()}");
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+        }
 
         // Summary
         $this->newLine(2);

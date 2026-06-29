@@ -35,16 +35,15 @@ class HutangController extends Controller
         $pelanggan_id = $request->input('pelanggan_id');
         $status      = $request->input('status');
 
+        $salesProfile = $this->isSales() ? $this->getSalesProfile() : null;
+
         $query = GulaHutang::with(['pelanggan', 'penjualan.sales']);
 
         // Sales can only see hutang from their own penjualan
-        if ($this->isSales()) {
-            $profile = $this->getSalesProfile();
-            if ($profile) {
-                $query->whereHas('penjualan', function ($q) use ($profile) {
-                    $q->where('sales_id', $profile->id);
-                });
-            }
+        if ($salesProfile) {
+            $query->whereHas('penjualan', function ($q) use ($salesProfile) {
+                $q->where('sales_id', $salesProfile->id);
+            });
         }
 
         $hutangs = $query
@@ -67,9 +66,9 @@ class HutangController extends Controller
         $pelanggans = GulaPelanggan::where('status', 'aktif')->get();
 
         $baseQuery = GulaHutang::query();
-        if ($this->isSales() && isset($profile) && $profile) {
-            $baseQuery->whereHas('penjualan', function ($q) use ($profile) {
-                $q->where('sales_id', $profile->id);
+        if ($salesProfile) {
+            $baseQuery->whereHas('penjualan', function ($q) use ($salesProfile) {
+                $q->where('sales_id', $salesProfile->id);
             });
         }
 

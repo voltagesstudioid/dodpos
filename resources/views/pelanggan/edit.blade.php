@@ -39,7 +39,7 @@
                 <div class="panel-body">
                     <div class="form-group">
                         <label class="form-label">Nama Pelanggan <span class="required">*</span></label>
-                        <input type="text" name="name" class="form-input @error('name') input-error @enderror" value="{{ old('name', $pelanggan->name) }}" required>
+                        <input type="text" name="name" id="nameInput" class="form-input @error('name') input-error @enderror" value="{{ old('name', $pelanggan->name) }}" required style="text-transform:uppercase;">
                         @error('name')<div class="form-error">⚠ {{ $message }}</div>@enderror
                     </div>
 
@@ -110,7 +110,7 @@
                             <label class="form-label">Limit (Rp)</label>
                             <div class="form-prefix">
                                 <span class="form-prefix-text">Rp</span>
-                                <input type="number" name="credit_limit" class="form-input" value="{{ old('credit_limit', $pelanggan->credit_limit) }}" min="0">
+                                <input type="text" inputmode="numeric" name="credit_limit" data-currency class="form-input" value="{{ old('credit_limit', $pelanggan->credit_limit) }}" min="0">
                             </div>
                             <div class="form-hint">Isi 0 untuk tanpa batas kredit.</div>
                         </div>
@@ -149,4 +149,19 @@
             </div>
         </form>
     </div>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var nameInput = document.getElementById('nameInput');
+            if (nameInput) {
+                nameInput.addEventListener('input', function() {
+                    var start = this.selectionStart;
+                    this.value = this.value.toUpperCase();
+                    this.setSelectionRange(start, start);
+                });
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>

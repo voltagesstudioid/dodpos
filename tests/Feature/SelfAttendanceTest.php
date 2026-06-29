@@ -19,14 +19,14 @@ class SelfAttendanceTest extends TestCase
         Storage::fake('public');
 
         $user = User::factory()->create([
-            'role' => 'kasir',
+            'role' => 'admin1',
             'active' => true,
             'password' => Hash::make('password'),
         ]);
         SdmEmployee::create([
             'user_id' => $user->id,
             'name' => $user->name,
-            'position' => 'Kasir',
+            'position' => 'Admin 1',
             'join_date' => now()->subMonth()->toDateString(),
             'active' => true,
             'basic_salary' => 0,

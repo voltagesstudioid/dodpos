@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\CustomerCredit;
 use App\Models\CustomerCreditPayment;
 use App\Services\AuditService;
+use App\Support\SearchSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +18,7 @@ class CustomerCreditController extends Controller
         $query = CustomerCredit::with(['customer'])->latest();
 
         if ($request->search) {
-            $search = $request->search;
+            $search = SearchSanitizer::sanitize($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('credit_number', 'like', '%' . $search . '%')
                   ->orWhereHas('customer', fn($q2) => $q2->where('name', 'like', '%' . $search . '%'));
@@ -47,7 +48,7 @@ class CustomerCreditController extends Controller
             ->orderBy('transaction_date', 'desc');
 
         if ($request->search) {
-            $search = $request->search;
+            $search = SearchSanitizer::sanitize($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('credit_number', 'like', '%' . $search . '%')
                   ->orWhereHas('customer', fn($q2) => $q2->where('name', 'like', '%' . $search . '%'));
@@ -97,12 +98,15 @@ class CustomerCreditController extends Controller
                 $q->where('current_debt', '>', 0)
                   ->orWhereHas('activeDebts');
             })
+            ->with(['activeDebts' => function ($q) {
+                $q->select('customer_id', 'amount', 'paid_amount', 'status');
+            }])
             ->withCount('activeDebts')
             ->orderBy('current_debt', 'desc')
             ->get();
 
         foreach ($customers as $c) {
-            $c->calculated_debt = $c->activeDebts()->get()->sum(fn($d) => $d->remaining_amount);
+            $c->calculated_debt = $c->activeDebts->sum(fn($d) => $d->remaining_amount);
         }
 
         $totalDebt = $customers->sum('calculated_debt');
@@ -115,7 +119,7 @@ class CustomerCreditController extends Controller
         $query = CustomerCredit::with(['customer'])->where('status', 'paid')->latest();
         
         if ($request->search) {
-            $search = $request->search;
+            $search = SearchSanitizer::sanitize($request->search);
             $query->where(function ($q) use ($search) {
                 $q->where('credit_number', 'like', '%' . $search . '%')
                   ->orWhereHas('customer', fn($q2) => $q2->where('name', 'like', '%' . $search . '%'));
@@ -138,13 +142,15 @@ class CustomerCreditController extends Controller
                 $q->where('current_debt', '>', 0)
                   ->orWhereHas('activeDebts');
             })
+            ->with(['activeDebts' => function ($q) {
+                $q->select('customer_id', 'amount', 'paid_amount', 'status');
+            }])
             ->withCount('activeDebts')
             ->orderBy('current_debt', 'desc')
             ->get();
 
-        // Recalculate each customer's debt from actual records
         foreach ($customers as $c) {
-            $c->calculated_debt = $c->activeDebts()->get()->sum(fn($d) => $d->remaining_amount);
+            $c->calculated_debt = $c->activeDebts->sum(fn($d) => $d->remaining_amount);
         }
 
         $totalDebt = $customers->sum('calculated_debt');
@@ -173,6 +179,10 @@ class CustomerCreditController extends Controller
      */
     public function payConsolidated(Request $request, Customer $customer)
     {
+        if (!$customer->is_active) {
+            return back()->with('error', 'Pelanggan "' . $customer->name . '" sudah tidak aktif.')->withInput();
+        }
+
         $customerDebts = $customer->activeDebts()->orderBy('created_at', 'asc')->get();
         $totalDebt = $customerDebts->sum(fn($d) => $d->remaining_amount);
 
@@ -180,14 +190,14 @@ class CustomerCreditController extends Controller
             return back()->with('error', 'Pelanggan tidak memiliki hutang.');
         }
 
-        $totalDebtInt = (int) $totalDebt;
-
         $request->validate([
             'payment_date'     => 'required|date',
-            'amount'           => 'required|numeric|min:1|max:' . $totalDebtInt,
-            'payment_method'   => 'required|in:cash,transfer,qris,other',
-            'reference_number' => 'nullable|string|max:100',
+            'amount'           => ['required', 'numeric', 'min:1', 'max:' . $totalDebt],
+            'payment_method'   => 'required|in:cash,transfer',
+            'reference_number' => 'required_if:payment_method,transfer|nullable|string|max:100',
             'notes'            => 'nullable|string|max:500',
+        ], [
+            'reference_number.required_if' => 'ID Transfer wajib diisi jika menggunakan metode Transfer.',
         ]);
 
         DB::beginTransaction();
@@ -204,7 +214,7 @@ class CustomerCreditController extends Controller
             foreach ($debts as $debt) {
                 if ($remainingPayment <= 0) break;
 
-                $remainingDebt = (int) $debt->remaining_amount;
+                $remainingDebt = (float) $debt->remaining_amount;
                 if ($remainingDebt <= 0) continue;
 
                 $payForThisDebt = min($remainingPayment, $remainingDebt);
@@ -352,14 +362,16 @@ class CustomerCreditController extends Controller
             return back()->with('error', 'Sudah lunas.');
         }
 
-        $remaining = (int) $kredit->remaining_amount;
+        $remaining = (float) $kredit->remaining_amount;
 
         $request->validate([
             'payment_date'     => 'required|date',
             'amount'           => 'required|numeric|min:1|max:' . $remaining,
-            'payment_method'   => 'required|in:cash,transfer,qris,other',
-            'reference_number' => 'nullable|string|max:100',
+            'payment_method'   => 'required|in:cash,transfer',
+            'reference_number' => 'required_if:payment_method,transfer|nullable|string|max:100',
             'notes'            => 'nullable|string|max:500',
+        ], [
+            'reference_number.required_if' => 'ID Transfer wajib diisi jika menggunakan metode Transfer.',
         ]);
 
         DB::beginTransaction();
@@ -368,7 +380,7 @@ class CustomerCreditController extends Controller
             $kredit = CustomerCredit::where('id', $kredit->id)->lockForUpdate()->first();
 
             // Re-check remaining after lock
-            $currentRemaining = (int) $kredit->remaining_amount;
+            $currentRemaining = (float) $kredit->remaining_amount;
             if ($request->amount > $currentRemaining) {
                 DB::rollBack();
                 return back()->with('error', 'Jumlah pembayaran melebihi sisa hutang (Rp ' . number_format($currentRemaining, 0, ',', '.') . ').');

@@ -359,7 +359,7 @@
             <div class="sk-stat-card purple">
                 <div class="sk-stat-top">
                     <span class="sk-stat-lbl">Non-Tunai</span>
-                    <span class="sk-stat-badge">TF / EDC / QRIS</span>
+                    <span class="sk-stat-badge">TF / EDC</span>
                 </div>
                 <div class="sk-stat-amt">Rp {{ number_format($st['nonCashRevenue'] ?? 0, 0, ',', '.') }}</div>
                 <div class="sk-stat-foot">Transfer & elektronik</div>
@@ -449,7 +449,7 @@
                     </div>
                     <div class="sk-mf-group sk-mf-grow">
                         <label>Nominal (Rp)</label>
-                        <input type="number" name="amount" min="1" step="1" required placeholder="0">
+                        <input type="text" inputmode="numeric" data-currency name="amount" min="1" required placeholder="0">
                     </div>
                     <div class="sk-mf-group sk-mf-grow2">
                         <label>Keterangan</label>

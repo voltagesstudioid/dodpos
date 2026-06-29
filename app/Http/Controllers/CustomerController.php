@@ -72,11 +72,11 @@ class CustomerController extends Controller
 
         $creditLimit = 0;
         if (Auth::user() && Auth::user()->role === 'supervisor') {
-            $creditLimit = $request->credit_limit ?? 0;
+            $creditLimit = (float) preg_replace('/[^0-9.]/', '', $request->credit_limit ?? 0);
         }
 
         Customer::create([
-            'name'         => $request->name,
+            'name'         => strtoupper($request->name),
             'phone'        => $request->phone,
             'email'        => $request->email,
             'address'      => $request->address,
@@ -92,9 +92,8 @@ class CustomerController extends Controller
 
     public function show(Customer $pelanggan)
     {
-        $pelanggan->load(['credits.payments']);
-        $activeDebts   = $pelanggan->credits()->where('type', 'debt')->whereIn('status', ['unpaid', 'partial'])->get();
-        $recentCredits = $pelanggan->credits()->latest()->take(20)->get();
+        $activeDebts   = $pelanggan->credits()->where('type', 'debt')->whereIn('status', ['unpaid', 'partial'])->with('payments')->get();
+        $recentCredits = $pelanggan->credits()->with('payments')->latest()->take(20)->get();
 
         // Riwayat pembelian dari POS (transaksi pelanggan ini)
         $purchaseHistory = Transaction::with(['user', 'details.product'])
@@ -129,7 +128,7 @@ class CustomerController extends Controller
             'phone'        => 'nullable|string|max:30',
             'email'        => 'nullable|email|max:100',
             'address'      => 'nullable|string',
-            'category'     => 'required|in:eceran,grosir,pos',
+            'category'     => 'required|in:eceran,grosir,pos,pasgar,minyak',
             'notes'        => 'nullable|string',
         ];
         if (Auth::user() && Auth::user()->role === 'supervisor') {
@@ -137,9 +136,10 @@ class CustomerController extends Controller
         }
         $request->validate($rules);
 
-        $payload = $request->only('name', 'phone', 'email', 'address', 'category', 'notes');
+        $payload = $request->only('phone', 'email', 'address', 'category', 'notes');
+        $payload['name'] = strtoupper($request->name);
         if (Auth::user() && Auth::user()->role === 'supervisor') {
-            $payload['credit_limit'] = $request->credit_limit ?? 0;
+            $payload['credit_limit'] = (float) preg_replace('/[^0-9.]/', '', $request->credit_limit ?? 0);
         }
         $pelanggan->update($payload);
         return redirect()->route('pelanggan.show', $pelanggan)->with('success', 'Data pelanggan diperbarui.');
@@ -150,6 +150,16 @@ class CustomerController extends Controller
         if ($pelanggan->current_debt > 0) {
             return back()->with('error', 'Pelanggan masih memiliki hutang. Selesaikan dulu sebelum menghapus.');
         }
+
+        $activeCredits = $pelanggan->credits()
+            ->where('type', 'credit')
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->exists();
+
+        if ($activeCredits) {
+            return back()->with('error', 'Pelanggan masih memiliki piutang aktif. Selesaikan dulu sebelum menghapus.');
+        }
+
         $pelanggan->delete();
         return redirect()->route('pelanggan.index')->with('success', 'Pelanggan dihapus.');
     }

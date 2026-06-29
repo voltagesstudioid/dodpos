@@ -22,7 +22,7 @@ class AttendanceSelfieTest extends TestCase
         ]);
 
         $employee = User::factory()->create([
-            'role' => 'kasir',
+            'role' => 'admin1',
             'active' => true,
             'password' => Hash::make('password'),
         ]);
@@ -50,7 +50,7 @@ class AttendanceSelfieTest extends TestCase
         ]);
 
         $employee = User::factory()->create([
-            'role' => 'kasir',
+            'role' => 'admin1',
             'active' => true,
             'password' => Hash::make('password'),
         ]);

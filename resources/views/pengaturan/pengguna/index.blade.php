@@ -425,9 +425,7 @@
                                 'admin2' => 'us-pill-teal',
                                 'admin3' => 'us-pill-yellow',
                                 'admin4' => 'us-pill-red',
-                                'kasir' => 'us-pill-blue',
                                 'gudang' => 'us-pill-teal',
-                                'admin_sales' => 'us-pill-green',
                                 'sales' => 'us-pill-blue',
                                 'sales_minyak' => 'us-pill-yellow',
                                 'sales_mineral' => 'us-pill-teal',
@@ -435,7 +433,6 @@
                             $avatarClass = match(true) {
                                 $user->role === 'supervisor' => 'us-avatar-supervisor',
                                 str_starts_with($user->role, 'admin') => 'us-avatar-admin',
-                                $user->role === 'kasir' => 'us-avatar-kasir',
                                 $user->role === 'gudang' => 'us-avatar-gudang',
                                 str_starts_with($user->role, 'sales') => 'us-avatar-sales',
                                 default => 'us-avatar-default',

@@ -76,12 +76,10 @@ class User extends Authenticatable
     public const ROLES = [
         'pending',
         'supervisor',
-        'admin_sales',
         'admin1',
         'admin2',
         'admin3',
         'admin4',
-        'kasir',
         'gudang',
         'sales',
         'sales_minyak',
@@ -160,5 +158,15 @@ class User extends Authenticatable
     public function employee()
     {
         return $this->hasOne(SdmEmployee::class);
+    }
+
+    public function posSessions()
+    {
+        return $this->hasMany(\App\Models\PosSession::class);
+    }
+
+    public function eceranSession()
+    {
+        return $this->hasMany(\App\Models\PosSession::class)->where('type', 'eceran')->where('status', 'open');
     }
 }

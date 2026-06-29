@@ -99,9 +99,9 @@
 <body @if(! request()->boolean('preview')) onload="window.print();" @endif>
     @php
         $storeName = $storeSetting->store_name ?? 'DODPOS';
-        $storeAddr = $storeSetting->address ?? '';
-        $storePhone = $storeSetting->phone ?? '';
-        $storeNote = $storeSetting->receipt_footer_note ?? null;
+        $storeAddr = $storeSetting->store_address ?? '';
+        $storePhone = $storeSetting->store_phone ?? '';
+        $storeNote = $storeSetting->receipt_footer ?? null;
 
         $noTrx = $rootTransaction->invoice_number;
         $metodeBayar = match($rootTransaction->payment_method) {
