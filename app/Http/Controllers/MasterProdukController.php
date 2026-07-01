@@ -38,8 +38,8 @@ class MasterProdukController extends Controller
 
     public function index(Request $request): View
     {
-        $tab = in_array($request->get('tab', 'produk'), ['produk', 'kategori', 'satuan', 'stok'])
-            ? $request->get('tab', 'produk') : 'produk';
+        $tab = in_array($request->input('tab', 'produk'), ['produk', 'kategori', 'satuan', 'stok'])
+            ? $request->input('tab', 'produk') : 'produk';
 
         $stats = [
             'total_produk'   => Product::count(),
@@ -79,7 +79,7 @@ class MasterProdukController extends Controller
     {
         $query = Product::with(['category', 'unit', 'unitConversions.unit']);
 
-        if ($search = $request->get('search')) {
+        if ($search = $request->input('search')) {
             $s = SearchSanitizer::sanitize($search);
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")
@@ -94,7 +94,7 @@ class MasterProdukController extends Controller
             $query->whereColumn('stock', '<=', 'min_stock')->where('min_stock', '>', 0);
         }
 
-        $perPage = min((int) $request->get('per_page', 15), 100);
+        $perPage = min((int) $request->input('per_page', 15), 100);
         $products = $query->latest()->paginate($perPage);
         $products->getCollection()->transform(function ($p) {
             $units = $p->unitConversions->map(fn ($uc) => [
@@ -315,11 +315,11 @@ class MasterProdukController extends Controller
     {
         $query = Category::withCount(['products as products_count' => fn ($q) => $q->withTrashed()]);
 
-        if ($search = $request->get('search')) {
+        if ($search = $request->input('search')) {
             $query->where('name', 'like', '%' . $search . '%');
         }
 
-        $perPage = min((int) $request->get('per_page', 15), 100);
+        $perPage = min((int) $request->input('per_page', 15), 100);
         $categories = $query->latest()->paginate($perPage);
 
         return response()->json([
@@ -369,14 +369,14 @@ class MasterProdukController extends Controller
     {
         $query = Unit::withCount(['products as products_count' => fn ($q) => $q->withTrashed()]);
 
-        if ($search = $request->get('search')) {
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', '%' . $search . '%')
                   ->orWhere('abbreviation', 'like', '%' . $search . '%');
             });
         }
 
-        $perPage = min((int) $request->get('per_page', 15), 100);
+        $perPage = min((int) $request->input('per_page', 15), 100);
         $units = $query->latest()->paginate($perPage);
 
         return response()->json([
@@ -432,7 +432,7 @@ class MasterProdukController extends Controller
         $query = StockMovement::with(['product', 'warehouse', 'user'])
             ->where('source_type', 'adjustment');
 
-        if ($search = $request->get('search')) {
+        if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('reference_number', 'like', "%{$search}%")
                   ->orWhereHas('product', fn ($q2) => $q2->where('name', 'like', "%{$search}%"));
@@ -445,7 +445,7 @@ class MasterProdukController extends Controller
             $query->where('warehouse_id', $request->warehouse_id);
         }
 
-        $perPage = min((int) $request->get('per_page', 15), 100);
+        $perPage = min((int) $request->input('per_page', 15), 100);
         $adjustments = $query->latest()->paginate($perPage);
 
         $adjustments->getCollection()->transform(fn ($m) => [
