@@ -58,14 +58,7 @@ class ProductController extends Controller
         return view('products.index', compact('products', 'categories', 'stats'));
     }
 
-    /**
-     * Generate next SKU for product.
-     * @deprecated Use ReferenceNumberService::generateSku()
-     */
-    private function generateSku(): string
-    {
-        return ReferenceNumberService::generateSku();
-    }
+
 
     public function create()
     {
@@ -74,7 +67,7 @@ class ProductController extends Controller
         $unitsData = $units->map(function ($u) {
             return ['id' => $u->id, 'name' => $u->name, 'abbr' => $u->abbreviation];
         })->values()->toArray();
-        $nextSku = $this->generateSku();
+        $nextSku = ReferenceNumberService::generateSku();
 
         return view('products.create', compact('categories', 'units', 'unitsData', 'nextSku'));
     }
@@ -83,7 +76,7 @@ class ProductController extends Controller
     {
         // Auto-generate SKU if empty or already exists (collision prevention)
         if (empty($request->sku) || Product::where('sku', $request->sku)->exists()) {
-            $request->merge(['sku' => $this->generateSku()]);
+            $request->merge(['sku' => ReferenceNumberService::generateSku()]);
         }
 
         $request->validate([
@@ -304,6 +297,7 @@ class ProductController extends Controller
             if (!$hasData) {
                 fputcsv($out, ['Indomie Goreng', 'Sembako', 'pcs', '', '8999999999999', '3500', '3000', '0', '5', ''], ';');
                 fputcsv($out, ['Gula Pasir', 'Sembako', 'kg', '', '', '16000', '15000', '10', '5', ''], ';');
+                fputcsv($out, ['Kopi Hitam (Contoh Hanya Nama)', '', '', '', '', '', '', '', '', ''], ';');
             }
             
             fclose($out);

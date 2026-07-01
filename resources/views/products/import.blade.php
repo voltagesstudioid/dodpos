@@ -206,14 +206,14 @@
                                 <h4 class="imp-guide-heading">Kolom Wajib</h4>
                                 <div class="imp-tag-group">
                                     <span class="imp-tag imp-tag-required">name</span>
-                                    <span class="imp-tag imp-tag-required">category</span>
-                                    <span class="imp-tag imp-tag-required">price</span>
                                 </div>
                             </div>
 
                             <div class="imp-guide-section">
                                 <h4 class="imp-guide-heading">Kolom Opsional</h4>
                                 <div class="imp-tag-group">
+                                    <span class="imp-tag">category</span>
+                                    <span class="imp-tag">price</span>
                                     <span class="imp-tag">unit</span>
                                     <span class="imp-tag">sku</span>
                                     <span class="imp-tag">barcode</span>

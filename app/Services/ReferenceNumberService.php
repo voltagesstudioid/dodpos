@@ -63,17 +63,23 @@ class ReferenceNumberService
      */
     public static function generateSku(): string
     {
-        $lastProduct = \App\Models\Product::where('sku', 'like', 'PRD-%')
-            ->orderBy('id', 'desc')
+        $lastProduct = \App\Models\Product::withTrashed()
+            ->where('sku', 'like', 'PRD-%')
+            ->orderByRaw('LENGTH(sku) DESC')
+            ->orderBy('sku', 'desc')
             ->first();
 
-        if (! $lastProduct) {
-            return 'PRD-0001';
+        $number = 0;
+        if ($lastProduct) {
+            $number = (int) substr($lastProduct->sku, 4);
         }
 
-        $number = (int) str_replace('PRD-', '', $lastProduct->sku);
+        do {
+            $number++;
+            $nextSku = 'PRD-' . str_pad((string) $number, 4, '0', STR_PAD_LEFT);
+        } while (\App\Models\Product::withTrashed()->where('sku', $nextSku)->exists());
 
-        return 'PRD-' . str_pad((string) ($number + 1), 4, '0', STR_PAD_LEFT);
+        return $nextSku;
     }
 
     /**
